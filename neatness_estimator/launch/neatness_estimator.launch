@@ -1,0 +1,15 @@
+<launch>
+  <arg name="save_log" default="false" />
+  <node name="neatness_estimator"
+        pkg="neatness_estimator" type="neatness_estimator.py"
+        output="screen">
+    <remap from="~input/cluster_boxes"
+           to="/labeled_bounding_box_publisher/output/labeled_cluster_boxes"/>
+    <remap from="~input/instance_boxes"
+           to="/labeled_bounding_box_publisher/output/labeled_instance_boxes"/>
+    <rosparam subst_value="true">
+      approximate_sync: true
+      save_log: $(arg save_log)
+    </rosparam>
+  </node>
+</launch>

@@ -1,0 +1,121 @@
+<launch>
+  <arg name="gpu" default="0"/>
+
+  <!-- <arg name="info" default="/zed/rgb/camera_info" /> -->
+  <!-- <arg name="input_image" default="/zed/rgb/image_rect_color" /> -->
+  <!-- <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" /> -->
+  <!-- <arg name="input_cloud" default="/zed/point_cloud/cloud_registered/remote" /> -->
+
+  <arg name="info" default="/camera_remote/rgb/camera_info" />
+  <arg name="input_image" default="/camera_remote/rgb/image_rect_color" />
+  <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
+  <arg name="input_cloud" default="/camera_remote/depth_registered_half/points" />
+
+  <arg name="on_robot" default="false"/>
+
+  <arg name="nodelet_name" default="nodelet_manager"
+       unless="$(arg on_robot)"/>
+  <!-- <arg name="nodelet_name" default="/zed/zed_nodelet_manager" -->
+  <!--      if="$(arg on_robot)"/> -->
+  <arg name="nodelet_name" default="/camera_remote/camera_remote_nodelet_manager"
+       if="$(arg on_robot)"/>
+
+  <arg name="transform_zed_pointcloud" default="false" />
+
+  <arg name="score_thresh" default="0.75"/>
+  <arg name="eco_mode" default="false"/>
+  <arg name="visualize" default="false" />
+
+  <node name="nodelet_manager"
+        pkg="nodelet" type="nodelet"
+        args="manager"/>
+
+  <node name="pc_transformer"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_pcl/TfTransformCloud $(arg nodelet_name)"
+        output="screen" if="$(arg transform_zed_pointcloud)">
+    <remap from="~input" to="$(arg input_cloud)" />
+    <rosparam>
+      target_frame_id: zed_depth_camera
+    </rosparam>
+  </node>
+
+  <node name="mask_rcnn_instance_segmentation"
+        pkg="jsk_perception" type="mask_rcnn_instance_segmentation.py"
+        clear_params="true">
+    <remap from="~input" to="$(arg input_image)" />
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+    <rosparam subst_value="true">
+      pretrained_model: $(find neatness_estimator)/trained_data/fcsc_instance_segmentation_181229.npz
+      gpu: $(arg gpu)
+    </rosparam>
+  </node>
+
+  <node name="label_to_cluster_pointindices"
+        pkg="jsk_pcl_ros_utils" type="label_to_cluster_point_indices" >
+    <remap from="~input" to="$(arg input_label)" />
+    <rosparam>
+      ignore_labels: []
+    </rosparam>
+  </node>
+
+  <node name="cluster_pointindices_to_pointindices"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_pcl_utils/ClusterPointIndicesToPointIndices $(arg nodelet_name)">
+    <remap from="~input" to="/label_to_cluster_pointindices/output" />
+  </node>
+
+  <node name="extract_indices"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_pcl/ExtractIndices $(arg nodelet_name)" >
+    <remap from="~input" to="$(arg input_cloud)" />
+    <remap from="~indices" to="/cluster_pointindices_to_pointindices/output" />
+    <rosparam>
+      approximate_sync: true
+      keep_organized: true
+    </rosparam>
+  </node>
+
+  <node name="cluster_point_indices_decomposer"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_pcl/ClusterPointIndicesDecomposer $(arg nodelet_name)">
+    <remap from="~input" to="/extract_indices/output" />
+    <remap from="~target" to="/label_to_cluster_pointindices/output" />
+    <rosparam>
+      align_boxes: true
+      align_boxes_with_plane: false
+      approximate_sync: true
+      queue_size: 100
+      target_frame_id: map
+      sort_by: input_indices
+    </rosparam>
+  </node>
+
+  <node name="instance_cluster_point_indices_decomposer"
+        pkg="nodelet" type="nodelet"
+        args="load jsk_pcl/ClusterPointIndicesDecomposer $(arg nodelet_name)">
+    <remap from="~input" to="$(arg input_cloud)" />
+    <remap from="~target" to="/mask_rcnn_instance_segmentation/output/cluster_indices" />
+    <rosparam>
+      align_boxes: true
+      align_boxes_with_plane: false
+      approximate_sync: true
+      queue_size: 100
+      target_frame_id: map
+      sort_by: input_indices
+    </rosparam>
+  </node>
+
+  <node name="labeled_bounding_box_publisher"
+        pkg="neatness_estimator" type="labeled_bounding_box_publisher.py"
+        output="screen">
+    <remap from="~input/cluster_boxes" to="cluster_point_indices_decomposer/boxes"/>
+    <remap from="~input/instance_boxes" to="instance_cluster_point_indices_decomposer/boxes"/>
+    <remap from="~input/instance_labels" to="/mask_rcnn_instance_segmentation/output/labels"/>
+    <rosparam subst_value="true">
+      approximate_sync: true
+    </rosparam>
+  </node>
+
+</launch>
