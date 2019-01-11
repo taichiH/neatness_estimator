@@ -1,8 +1,0 @@
-string label
-string task
-string parent_frame
-geometry_msgs/Point target
----
-bool status
-float32 dist
-jsk_recognition_msgs/BoundingBox boxes
