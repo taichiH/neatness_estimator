@@ -18,12 +18,7 @@ from neatness_estimator_msgs.msg import Neatness
 class NeatnessWatcher():
 
     def __init__(self):
-        self.label_lst = ["alfort", "alfortwhite", "almond", "apc_shelf_flont",\
-                           "coffee", "consome", "dars", "darsmilk", "darswhite",\
-                           "donbe", "kinoko", "macadamia", "milk", "mixjuice",\
-                           "marble", "norishio", "pie", "shelf_flont", "takenoko",\
-                           "tee", "xylitop", "yakisoba"]
-
+        self.label_lst = rospy.get_param('~fg_class_names')
         self.neatness_pub = rospy.Publisher('~output',
                                            Neatness,
                                            queue_size=1)
