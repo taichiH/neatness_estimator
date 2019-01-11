@@ -13,7 +13,7 @@ from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from jsk_recognition_msgs.msg import ClassificationResult
 from opencv_apps.msg import LineArrayStamped, Point2D
 from cv_bridge import CvBridge, CvBridgeError
-from neatness_estimator.msg import Neatness
+from neatness_estimator_msgs.msg import Neatness
 
 class NeatnessWatcher():
 
@@ -69,7 +69,6 @@ class NeatnessWatcher():
             sub.unregister()
 
     def callback(self, instance_msg, cluster_msg):
-        print('callback')
         bridge = self.bridge
         labeled_boxes = {}
         category_boxes = {}

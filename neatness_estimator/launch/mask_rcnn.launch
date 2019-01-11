@@ -9,7 +9,7 @@
   <arg name="info" default="/camera_remote/rgb/camera_info" />
   <arg name="input_image" default="/camera_remote/rgb/image_rect_color" />
   <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
-  <arg name="input_cloud" default="/camera_remote/depth_registered_half/points" />
+  <arg name="input_cloud" default="/camera_remote/depth_registered/points" />
 
   <arg name="on_robot" default="false"/>
 
