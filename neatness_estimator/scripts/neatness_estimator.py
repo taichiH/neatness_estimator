@@ -73,9 +73,11 @@ class NeatnessWatcher():
         labeled_boxes = {}
         category_boxes = {}
         label_buf = []
+        cluster_buf = []
 
         for box in cluster_msg.boxes:
             category_boxes[box.label] = self.get_array(box)
+            cluster_buf.append(box.label)
 
         for box in instance_msg.boxes:
             if box.label in label_buf:
@@ -84,10 +86,18 @@ class NeatnessWatcher():
                 labeled_boxes[box.label] = [self.get_array(box)]
                 label_buf.append(box.label)
 
+        if not set(cluster_buf) == set(label_buf):
+            rospy.logwarn('cluster labels does not match instance labels')
+            return
+
         group_dist = self.calc_group_dist(category_boxes, labeled_boxes, label_buf)
         group_dist_mean = np.array(group_dist.values()).mean()
 
         filling_dist = self.calc_filling_dist(category_boxes, label_buf)
+        if len(filling_dist) == 0:
+            rospy.logwarn('not found shelf')
+            return
+
         filling_dist_mean = 1 - np.array(filling_dist.values()).mean()
 
         pulling_dist = self.calc_pulling_dist(category_boxes, label_buf)
@@ -144,6 +154,10 @@ class NeatnessWatcher():
             items_pulling_neatness_output = os.path.join(self.output_dir, items_pulling_neatness)
             pd.DataFrame(data=self.pulling_dist_array).to_csv(items_pulling_neatness_output)
 
+        recognized_items = []
+        for label in cluster_buf:
+            recognized_items.append(self.label_lst[label])
+        print('recognized items: ', recognized_items)
         print('neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean')
         print(neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean)
 
@@ -170,6 +184,9 @@ class NeatnessWatcher():
     def calc_filling_dist(self, category_boxes, labels):
         filling_dist = {}
         shelf_i = self.label_lst.index('shelf_flont')
+        if not shelf_i in labels:
+            return filling_dist
+
         shelf_lt = np.array(np.array([category_boxes[shelf_i][0][0] + category_boxes[shelf_i][1][0]* 0.5,
                                       category_boxes[shelf_i][0][1] + category_boxes[shelf_i][1][1]* 0.5,
                                       category_boxes[shelf_i][0][2] + category_boxes[shelf_i][1][2]* 0.5]))
@@ -180,17 +197,21 @@ class NeatnessWatcher():
         l_shelf = category_boxes[self.label_lst.index('shelf_flont')][1][2]
 
         # sorted by position y value
-        sorted_boxes = sorted(category_boxes.items(), key = lambda x : x[1][0][1])
+        sorted_boxes = sorted(category_boxes.items(), key = lambda item : item[1][0][1])
+
+        for i in range(1, len(sorted_boxes)):
+            if sorted_boxes[i][0] == shelf_i:
+                sorted_boxes.pop(i)
+                break
 
         offset = 0.15
         for i in range(1, len(sorted_boxes)):
             if sorted_boxes[i][1][0][1] < (shelf_lt[1] + offset) and \
                sorted_boxes[i][1][0][1] > (shelf_rb[1] - offset) and \
-               sorted_boxes[i][1][0][2] > (shelf_lt[2] - offset) and \
-               not i == shelf_i:
+               sorted_boxes[i][1][0][2] > (shelf_lt[2] - offset):
                 key = str(i) + '-' + str(i-1)
-                filling_dist[key] = np.linalg.norm(sorted_boxes[i][1][0] - sorted_boxes[i-1][1][0]) / l_shelf
-
+                filling_dist[key] = np.linalg.norm(sorted_boxes[i][1][0][1] - sorted_boxes[i][1][1][1] * 0.5 -
+                                                   sorted_boxes[i-1][1][0][1] + sorted_boxes[i-1][1][1][1] * 0.5)
         return filling_dist
 
     def calc_pulling_dist(self, category_boxes, labels):
