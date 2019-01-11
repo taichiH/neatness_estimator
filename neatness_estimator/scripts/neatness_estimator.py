@@ -28,8 +28,15 @@ class NeatnessWatcher():
                                            Neatness,
                                            queue_size=1)
         self.group_dist_array = {}
-        self.filling_dist_array = {}
         self.pulling_dist_array = {}
+        for i in range(len(self.label_lst)):
+            self.group_dist_array[i] = []
+            self.pulling_dist_array[i] = []
+
+        self.filling_dist_array = {}
+        for i in range(1, len(self.label_lst)):
+            key = str(i) + '-' + str(i-1)
+            self.filling_dist_array[key] = []
 
         self.output_data = {'neatness':[], 'group_neatness':[],
                             'filling_neatness':[], 'pulling_neatness':[]}
@@ -50,8 +57,6 @@ class NeatnessWatcher():
         sub_instance_box = message_filters.Subscriber(
             '~input/instance_boxes',
             BoundingBoxArray, queue_size=1, buff_size=2**24)
-        # sub_line = message_filters.Subscriber(
-        #     '~input_line', LineArrayStamped, queue_size=1, buff_size=2**24)
 
         self.subs = [sub_instance_box, sub_cluster_box]
 
@@ -114,22 +119,23 @@ class NeatnessWatcher():
             pd.DataFrame(data=self.output_data).to_csv(output_file)
 
             for key, val in zip(group_dist.keys(), group_dist.values()):
-                if self.group_dist_array.has_key(key):
-                    self.group_dist_array[key] += [val]
-                else:
-                    self.group_dist_array[key] = [val]
+                self.group_dist_array[key] += [val]
+
+            no_recognized_labels = list(set(group_dist.keys()) ^ set(self.group_dist_array.keys()))
+            for no_recognized_label in no_recognized_labels:
+                self.group_dist_array[no_recognized_label] += [0]
 
             for key, val in zip(filling_dist.keys(), filling_dist.values()):
-                if self.filling_dist_array.has_key(key):
-                    self.filling_dist_array[key] += [val]
-                else:
-                    self.filling_dist_array[key] = [val]
+                self.filling_dist_array[key] += [val]
+            no_recognized_labels = list(set(filling_dist.keys()) ^ set(self.filling_dist_array.keys()))
+            for no_recognized_label in no_recognized_labels:
+                self.filling_dist_array[no_recognized_label] += [0]
 
             for key, val in zip(pulling_dist.keys(), pulling_dist.values()):
-                if self.pulling_dist_array.has_key(key):
-                    self.pulling_dist_array[key] += [val]
-                else:
-                    self.pulling_dist_array[key] = [val]
+                self.pulling_dist_array[key] += [val]
+            no_recognized_labels = list(set(pulling_dist.keys()) ^ set(self.pulling_dist_array.keys()))
+            for no_recognized_label in no_recognized_labels:
+                self.pulling_dist_array[no_recognized_label] += [0]
 
             items_group_neatness = 'items_group_neatness.csv'
             items_group_neatness_output = os.path.join(self.output_dir, items_group_neatness)
