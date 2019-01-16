@@ -15,7 +15,7 @@ from opencv_apps.msg import LineArrayStamped, Point2D
 from cv_bridge import CvBridge, CvBridgeError
 from neatness_estimator_msgs.msg import Neatness
 
-class NeatnessWatcher():
+class NeatnessEstimator():
 
     def __init__(self):
         self.label_lst = rospy.get_param('~fg_class_names')
@@ -37,7 +37,8 @@ class NeatnessWatcher():
                             'filling_neatness':[], 'pulling_neatness':[]}
         self.output_dir = os.path.join(rospkg.RosPack().get_path('neatness_estimator'), 'output')
 
-        self.save_log =rospy.get_param('~save_log', False)
+        self.save_log = rospy.get_param('~save_log', False)
+        self.thresh = rospy.get_param('~thresh', 0.8)
         self.boxes = []
         self.bridge = CvBridge()
         self.subscribe()
@@ -98,13 +99,15 @@ class NeatnessWatcher():
             rospy.logwarn('not found shelf')
             return
 
-        filling_dist_mean = 1 - np.array(filling_dist.values()).mean()
+        filling_dist_mean = np.array(filling_dist.values()).mean()
 
         pulling_dist = self.calc_pulling_dist(category_boxes, label_buf)
-        pulling_dist_mean = 1 - np.array(pulling_dist.values()).mean()
+        pulling_dist_mean = np.array(pulling_dist.values()).mean()
+
+        sorted_dict = self.neat_planner(group_dist, filling_dist, pulling_dist, self.thresh)
+        print(sorted_dict)
 
         neatness = np.array([group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
-
         neatness_msg = Neatness()
         neatness_msg.header = instance_msg.header
         neatness_msg.group_neatness = group_dist_mean
@@ -157,6 +160,7 @@ class NeatnessWatcher():
         recognized_items = []
         for label in cluster_buf:
             recognized_items.append(self.label_lst[label])
+
         print('recognized items: ', recognized_items)
         print('neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean')
         print(neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean)
@@ -170,15 +174,50 @@ class NeatnessWatcher():
                           box.dimensions.z])
         return array.reshape(2, 3)
 
+    def get_voxel(self, item):
+        round_n = 3
+
+        min_x = round(item[0][0] - item[1][0] * 0.5, round_n) * 1000
+        max_x = round(item[0][0] + item[1][0] * 0.5, round_n) * 1000
+        min_y = round(item[0][1] - item[1][1] * 0.5, round_n) * 1000
+        max_y = round(item[0][1] + item[1][1] * 0.5, round_n) * 1000
+        min_z = round(item[0][2] - item[1][2] * 0.5, round_n) * 1000
+        max_z = round(item[0][2] + item[1][2] * 0.5, round_n) * 1000
+
+        lst = [[], [], []]
+        for i in range(int(max_x - min_x)):
+            lst[0].append(int(min_x + i))
+        for i in range(int(max_y - min_y)):
+            lst[1].append(int(min_y + i))
+        for i in range(int(max_z - min_z)):
+            lst[2].append(int(min_z + i))
+
+        return lst
+
     def calc_group_dist(self, category_boxes, labeled_boxes, labels):
         group_dist = {}
         for label in labels:
             if not label == self.label_lst.index('shelf_flont'):
                 item_vol = 0
-                for item in labeled_boxes[label]:
-                    item_vol += item.prod(1)[1]
+
+                # TODO: search all union
+                for i in range(len(labeled_boxes[label])):
+                    item = labeled_boxes[label][i]
+                    base_voxel = self.get_voxel(item)
+                    item_vol_union = 0
+
+                    for j in range(i+1, len(labeled_boxes[label])):
+                        ref_voxel = self.get_voxel(labeled_boxes[label][j], label)
+                        union_voxel = np.array([len(list(set(base_voxel[0]) & set(ref_voxel[0]))) * 0.001,
+                                                len(list(set(base_voxel[1]) & set(ref_voxel[1]))) * 0.001,
+                                                len(list(set(base_voxel[2]) & set(ref_voxel[2]))) * 0.001])
+
+                        item_vol_union += union_voxel.prod()
+                    item_vol += item.prod(1)[1] - item_vol_union
+
                 category_vol = category_boxes[label].prod(1)[1]
-                group_dist[label] = item_vol / category_vol
+                group_dist[label] = (item_vol - item_vol_union)/ category_vol
+
         return group_dist
 
     def calc_filling_dist(self, category_boxes, labels):
@@ -230,7 +269,15 @@ class NeatnessWatcher():
 
         return pulling_dist
 
+    def neat_planner(self, group_dist, filling_dist, pulling_dist, thresh):
+        sorted_dict = {}
+        for key, val in sorted(dict.items(), key=lambda x : -x[1]):
+            if val < thresh:
+                sorted_dict[key] = val
+
+        return sorted_dict
+
 if __name__ == '__main__':
-    rospy.init_node('neatness_watcher')
-    neatness_watcher = NeatnessWatcher()
+    rospy.init_node('neatness_estimator')
+    neatness_estimator = NeatnessEstimator()
     rospy.spin()

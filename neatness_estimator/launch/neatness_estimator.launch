@@ -1,5 +1,7 @@
 <launch>
   <arg name="save_log" default="false" />
+  <arg name="thresh" default="0.8" />
+
   <node name="neatness_estimator"
         pkg="neatness_estimator" type="neatness_estimator.py"
         output="screen">
@@ -12,6 +14,7 @@
     <rosparam subst_value="true">
       approximate_sync: true
       save_log: $(arg save_log)
+      thresh: $(arg thresh)
     </rosparam>
   </node>
 </launch>
