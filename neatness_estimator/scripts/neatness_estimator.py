@@ -104,8 +104,8 @@ class NeatnessEstimator():
         pulling_dist = self.calc_pulling_dist(category_boxes, label_buf)
         pulling_dist_mean = np.array(pulling_dist.values()).mean()
 
-        sorted_dict = self.neat_planner(group_dist, filling_dist, pulling_dist, self.thresh)
-        print(sorted_dict)
+        most_neat_group_key = self.neat_planner(group_dist, filling_dist, pulling_dist, self.thresh)
+        print('most_neat_group_key', most_neat_group_key)
 
         neatness = np.array([group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
         neatness_msg = Neatness()
@@ -271,11 +271,13 @@ class NeatnessEstimator():
 
     def neat_planner(self, group_dist, filling_dist, pulling_dist, thresh):
         sorted_dict = {}
+        max_val = 0
+        max_key = None
         for key, val in sorted(dict.items(), key=lambda x : -x[1]):
-            if val < thresh:
-                sorted_dict[key] = val
-
-        return sorted_dict
+            if val < thresh and val > max_val:
+                max_val = val
+                max_key = key
+        return key
 
 if __name__ == '__main__':
     rospy.init_node('neatness_estimator')
