@@ -104,8 +104,8 @@ class NeatnessEstimator():
         pulling_dist = self.calc_pulling_dist(category_boxes, label_buf)
         pulling_dist_mean = np.array(pulling_dist.values()).mean()
 
-        most_neat_group_key = self.neat_planner(group_dist, filling_dist, pulling_dist, self.thresh)
-        print('most_neat_group_key', most_neat_group_key)
+        neatest_key, neatest_items = self.neat_planner(labeled_boxes, group_dist, filling_dist, pulling_dist, self.thresh)
+        print('key, items', self.label_lst[neatest_key], neatest_items)
 
         neatness = np.array([group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
         neatness_msg = Neatness()
@@ -207,7 +207,7 @@ class NeatnessEstimator():
                     item_vol_union = 0
 
                     for j in range(i+1, len(labeled_boxes[label])):
-                        ref_voxel = self.get_voxel(labeled_boxes[label][j], label)
+                        ref_voxel = self.get_voxel(labeled_boxes[label][j])
                         union_voxel = np.array([len(list(set(base_voxel[0]) & set(ref_voxel[0]))) * 0.001,
                                                 len(list(set(base_voxel[1]) & set(ref_voxel[1]))) * 0.001,
                                                 len(list(set(base_voxel[2]) & set(ref_voxel[2]))) * 0.001])
@@ -269,15 +269,20 @@ class NeatnessEstimator():
 
         return pulling_dist
 
-    def neat_planner(self, group_dist, filling_dist, pulling_dist, thresh):
+    def get_neatest_item(self, group_dist, filling_dist, pulling_dist, thresh):
         sorted_dict = {}
         max_val = 0
         max_key = None
-        for key, val in sorted(dict.items(), key=lambda x : -x[1]):
+        for key, val in sorted(group_dist.items(), key=lambda x : -x[1]):
             if val < thresh and val > max_val:
                 max_val = val
                 max_key = key
         return key
+
+    def neat_planner(self, labeled_boxes, group_dist, filling_dist, pulling_dist, thresh):
+        neatest_key = self.get_neatest_item(group_dist, filling_dist, pulling_dist, thresh)
+        neatest_items = sorted(labeled_boxes[neatest_key], key = lambda x : x[0][0])
+        return neatest_key, neatest_items
 
 if __name__ == '__main__':
     rospy.init_node('neatness_estimator')
