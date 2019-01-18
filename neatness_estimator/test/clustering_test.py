@@ -6,44 +6,46 @@ class Cluster(object):
         self.indices = indices
         self.point = point
 
-def calc_distance(cluster_indices):
-    min_norm = 2 ** 24
-    min_pair = []
-    for i, cluster_a in enumerate(cluster_indices):
-        for j, cluster_b in enumerate(cluster_indices):
-            if i == j:
-                continue
-            norm = np.linalg.norm(cluster_a.point - cluster_b.point)
-            if norm < min_norm:
-                min_norm = norm
-                min_pair = [i, j]
+class Clustering():
 
-    return min_norm, min_pair
+    def calc_distance(self, cluster_indices):
+        min_norm = 2 ** 24
+        min_pair = []
+        for i, cluster_a in enumerate(cluster_indices):
+            for j, cluster_b in enumerate(cluster_indices):
+                if i == j:
+                    continue
+                norm = np.linalg.norm(cluster_a.point - cluster_b.point)
+                if norm < min_norm:
+                    min_norm = norm
+                    min_pair = [i, j]
 
-def clustering_implementation(cluster_indices, threshold=0.1):
-    min_norm, min_pair = calc_distance(cluster_indices)
+        return min_norm, min_pair
 
-    if min_norm > threshold:
-        return cluster_indices
-
-    # pop min_pair cluster
-    next_cluster_indices = []
-    for i, cluster in enumerate(cluster_indices):
-        if i in min_pair:
-            continue
-        next_cluster_indices.append(cluster)
-
-    next_cluster_indices.append(Cluster((cluster_indices[min_pair[0]].point + \
-                                         cluster_indices[min_pair[1]].point) * 0.5,
-                                        indices=(cluster_indices[min_pair[0]].indices + \
-                                                 cluster_indices[min_pair[1]].indices)))
-
-    return clustering_implementation(next_cluster_indices, threshold=threshold)
+    def clustering(self, cluster_indices, threshold=0.1):
+        min_norm, min_pair = self.calc_distance(cluster_indices)
     
-def clustering(points, threshold=1.0):
-    n = len(points)
-    cluster_indices = [Cluster(points[i, 0], indices=[i]) for i in range(n)]
-    return clustering_implementation(cluster_indices, threshold=threshold)
+        if min_norm > threshold:
+            return cluster_indices
+
+        # pop min_pair cluster
+        next_cluster_indices = []
+        for i, cluster in enumerate(cluster_indices):
+            if i in min_pair:
+                continue
+            next_cluster_indices.append(cluster)
+
+        next_cluster_indices.append(Cluster((cluster_indices[min_pair[0]].point + \
+                                             cluster_indices[min_pair[1]].point) * 0.5,
+                                            indices=(cluster_indices[min_pair[0]].indices + \
+                                                     cluster_indices[min_pair[1]].indices)))
+
+        return self.clustering(next_cluster_indices, threshold=threshold)
+    
+    def clustering_wrapper(self, points, threshold=1.0):
+        n = len(points)
+        cluster_indices = [Cluster(points[i, 0], indices=[i]) for i in range(n)]
+        return self.clustering(cluster_indices, threshold=threshold)
 
 def test():
     points = np.array([np.array([[7.84609842, 2.63768315, 0.8523097 ],
@@ -57,7 +59,8 @@ def test():
                        np.array([[7.86117506, 3.6964224 , 0.88917613],
                                  [0.06942844, 0.12477469, 0.03618002]])])
 
-    result = clustering(points, 0.1)
+    clustering = Clustering()
+    result = clustering.clustering_wrapper(points, 0.1)
     for cluster in result:
         print(cluster.indices, cluster.point)
         for i in cluster.indices:
