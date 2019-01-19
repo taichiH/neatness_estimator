@@ -1,0 +1,15 @@
+<launch>
+  <arg name="thresh" default="0.2" />
+  <node name="cluster_box_publisher"
+	pkg="neatness_estimator" type="cluster_box_publisher.py"
+	output="screen">
+    <remap from="~input"
+	   to="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
+    <rosparam command="load" file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+    <rosparam subst_value="true">
+      thresh: $(arg thresh)
+    </rosparam>
+
+  </node>
+
+</launch>
