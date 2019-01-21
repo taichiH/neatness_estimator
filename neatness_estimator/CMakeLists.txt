@@ -11,5 +11,4 @@ find_package(catkin REQUIRED COMPONENTS
   neatness_estimator_msgs
   )
 
-catkin_python_setup()
 catkin_package()
