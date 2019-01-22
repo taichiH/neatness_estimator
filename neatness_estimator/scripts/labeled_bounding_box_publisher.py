@@ -14,8 +14,9 @@ class LabeledBoundingBoxPublisher():
                            "coffee", "consome", "dars", "darsmilk", "darswhite",\
                            "donbe", "kinoko", "macadamia", "milk", "mixjuice",\
                            "marble", "norishio", "pie", "shelf_flont", "takenoko",\
-                           "tee", "xylitop", "yakisoba"]
+                           "tee", "xylitop", "yakisoba", "hand"]
 
+        self.with_cluster_box = rospy.get_param('~with_cluster_box', False)
         self.labeled_cluster_boxes_pub = rospy.Publisher('~output/labeled_cluster_boxes',
                                                          BoundingBoxArray,
                                                          queue_size=1)
@@ -25,26 +26,42 @@ class LabeledBoundingBoxPublisher():
         self.subscribe()
 
     def subscribe(self):
-        queue_size = rospy.get_param('~queue_size', 100)
+        if self.with_cluster_box:
+            queue_size = rospy.get_param('~queue_size', 100)
+            sub_cluster_boxes = message_filters.Subscriber(
+                '~input/cluster_boxes', BoundingBoxArray, queue_size=queue_size)
+            sub_instance_boxes = message_filters.Subscriber(
+                '~input/instance_boxes', BoundingBoxArray, queue_size=queue_size)
+            sub_instance_labels = message_filters.Subscriber(
+                '~input/instance_labels', LabelArray, queue_size=queue_size)
 
-        sub_cluster_boxes = message_filters.Subscriber(
-            '~input/cluster_boxes', BoundingBoxArray, queue_size=queue_size)
-        sub_instance_boxes = message_filters.Subscriber(
-            '~input/instance_boxes', BoundingBoxArray, queue_size=queue_size)
-        sub_instance_labels = message_filters.Subscriber(
-            '~input/instance_labels', LabelArray, queue_size=queue_size)
-
-        self.subs = [sub_cluster_boxes, sub_instance_boxes, sub_instance_labels]
-        if rospy.get_param('~approximate_sync', False):
-            slop = rospy.get_param('~slop', 0.1)
-            sync = message_filters.ApproximateTimeSynchronizer(
-                fs=self.subs, queue_size=queue_size, slop=slop)
+            self.subs = [sub_cluster_boxes, sub_instance_boxes, sub_instance_labels]
+            if rospy.get_param('~approximate_sync', False):
+                slop = rospy.get_param('~slop', 0.1)
+                sync = message_filters.ApproximateTimeSynchronizer(
+                    fs=self.subs, queue_size=queue_size, slop=slop)
+            else:
+                sync = message_filters.TimeSynchronizer(
+                    fs=self.subs, queue_size=queue_size)
+            sync.registerCallback(self.callback_with_cluster_box)
         else:
-            sync = message_filters.TimeSynchronizer(
-                fs=self.subs, queue_size=queue_size)
-        sync.registerCallback(self.callback)
+            queue_size = rospy.get_param('~queue_size', 100)
+            sub_instance_boxes = message_filters.Subscriber(
+                '~input/instance_boxes', BoundingBoxArray, queue_size=queue_size)
+            sub_instance_labels = message_filters.Subscriber(
+                '~input/instance_labels', LabelArray, queue_size=queue_size)
 
-    def callback(self, cluster_boxes_msg, instance_boxes_msg, instance_label_msg):
+            self.subs = [sub_instance_boxes, sub_instance_labels]
+            if rospy.get_param('~approximate_sync', False):
+                slop = rospy.get_param('~slop', 0.1)
+                sync = message_filters.ApproximateTimeSynchronizer(
+                    fs=self.subs, queue_size=queue_size, slop=slop)
+            else:
+                sync = message_filters.TimeSynchronizer(
+                    fs=self.subs, queue_size=queue_size)
+            sync.registerCallback(self.callback)
+
+    def callback_with_cluster_box(self, cluster_boxes_msg, instance_boxes_msg, instance_label_msg):
         labeled_cluster_boxes = BoundingBoxArray()
         labeled_instance_boxes = BoundingBoxArray()
 
@@ -72,6 +89,20 @@ class LabeledBoundingBoxPublisher():
             labeled_instance_boxes.boxes.append(tmp_box)
 
         self.labeled_cluster_boxes_pub.publish(labeled_cluster_boxes)
+        self.labeled_instance_boxes_pub.publish(labeled_instance_boxes)
+
+    def callback(self, instance_boxes_msg, instance_label_msg):
+        labeled_instance_boxes = BoundingBoxArray()
+        labeled_instance_boxes.header = instance_boxes_msg.header
+
+        for box, label in zip(instance_boxes_msg.boxes, instance_label_msg.labels):
+            tmp_box = BoundingBox()
+            tmp_box.header = box.header
+            tmp_box.pose = box.pose
+            tmp_box.dimensions = box.dimensions
+            tmp_box.label = label.id
+            labeled_instance_boxes.boxes.append(tmp_box)
+
         self.labeled_instance_boxes_pub.publish(labeled_instance_boxes)
 
 if __name__ == '__main__':
