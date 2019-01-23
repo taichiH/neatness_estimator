@@ -1,12 +1,18 @@
 <launch>
   <arg name="gpu" default="0"/>
 
-  <arg name="info" default="/zed/rgb/camera_info" />
-  <arg name="input_image" default="/zed/rgb/image_rect_color" />
-  <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
-  <arg name="input_cloud" default="/zed/point_cloud/cloud_registered" />
+  <!-- <arg name="info" default="/zed/rgb/camera_info" /> -->
+  <!-- <arg name="input_image" default="/zed/rgb/image_rect_color" /> -->
+  <!-- <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" /> -->
+  <!-- <arg name="input_cloud" default="/zed/point_cloud/cloud_registered" /> -->
 
-  <arg name="transform_zed_pointcloud" default="true" />
+  <arg name="info" default="/camera_remote/rgb/camera_info" />
+  <arg name="input_image" default="/camera_remote/rgb/image_rect_color" />
+  <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
+  <arg name="input_cloud" default="/camera_remote/depth_registered/points" />
+
+  <arg name="transform_zed_pointcloud" default="false" />
+
   <arg name="score_thresh" default="0.75"/>
   <arg name="eco_mode" default="false"/>
   <arg name="visualize" default="false" />
@@ -15,12 +21,15 @@
   <node name="pc_transformer"
         pkg="nodelet" type="nodelet"
         args="standalone jsk_pcl/TfTransformCloud"
-        output="screen" >
+        output="screen" if="$(arg transform_zed_pointcloud)">
     <remap from="~input" to="/zed/point_cloud/cloud_registered" />
     <rosparam>
       target_frame_id: /zed_depth_camera
     </rosparam>
   </node>
+
+  <arg name="point_cloud" value="/pc_transformer/output" if="$(arg transform_zed_pointcloud)" />
+  <arg name="point_cloud" value="$(input_cloud)" unless="$(arg transform_zed_pointcloud)" />
 
   <node name="mask_rcnn_instance_segmentation"
         pkg="jsk_perception" type="mask_rcnn_instance_segmentation.py"
@@ -37,7 +46,7 @@
   <node name="instance_cluster_point_indices_decomposer"
         pkg="nodelet" type="nodelet"
         args="standalone jsk_pcl/ClusterPointIndicesDecomposer">
-    <remap from="~input" to="/pc_transformer/output" />
+    <remap from="~input" to="$(arg point_cloud)" />
     <remap from="~target" to="/mask_rcnn_instance_segmentation/output/cluster_indices" />
     <rosparam>
       align_boxes: true
