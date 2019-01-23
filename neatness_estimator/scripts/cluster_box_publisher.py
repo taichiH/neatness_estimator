@@ -31,15 +31,15 @@ class ClusterBoxPublisher():
         bounding_box_msg = BoundingBoxArray()
 
         for label, boxes in zip(labeled_boxes.keys(), labeled_boxes.values()):
+            thresh = self.thresh
             if self.label_lst[label] == 'shelf_flont':
-                continue
+                thresh = 2.0
 
             clustering = Clustering()
             boxes = np.array(boxes)
-            result = clustering.clustering_wrapper(boxes, self.thresh)
+            result = clustering.clustering_wrapper(boxes, thresh)
 
             for cluster in result:
-                print(cluster.indices)
                 max_candidates = [boxes[i][0] + (boxes[i][1] * 0.5) for i in cluster.indices]
                 min_candidates = [boxes[i][0] - (boxes[i][1] * 0.5) for i in cluster.indices]
                 candidates = np.array(max_candidates + min_candidates)
