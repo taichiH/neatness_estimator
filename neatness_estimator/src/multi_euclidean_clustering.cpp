@@ -9,13 +9,10 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_msgs/PointIndices.h>
 
-#include <pcl/ModelCoefficients.h>
 #include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/filter.h>
-#include <pcl/features/normal_3d.h>
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
@@ -38,20 +35,8 @@ void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster
   jsk_recognition_msgs::BoundingBoxArray output_box_msg;
   if(cloud->points.size() > 0){
     for(auto point_indices : cluster_indices->cluster_indices){
-      // pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
       pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
       inliers->indices = point_indices.indices;
-      
-      // input_cloud->width = cloud->width;
-      // input_cloud->height = cloud->height;
-      // input_cloud->is_dense = cloud->is_dense;
-      // input_cloud->points.resize(cloud->width * cloud->height);
-
-      // for(int i=0; i < point_indices.indices.size(); i++){
-      //   input_cloud->points.at(point_indices.indices[i])
-      //     = cloud->points.at(point_indices.indices[i]);
-      // }
 
       pcl::ExtractIndices<pcl::PointXYZ> extract;
       extract.setInputCloud (cloud);
