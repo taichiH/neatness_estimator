@@ -8,5 +8,11 @@
     <remap from="~input_cluster_indices" to="$(arg cluster_indices)" />
     <remap from="~input_point_cloud" to="$(arg point_cloud)" />
     <remap from="~input_instance_labels" to="$(arg input_labels)" /> 
+    <rosparam subst_value="true">
+      voxel_thresh: 0.01
+      cluster_tolerance: 0.01
+      min_cluster: 10
+      max_cluster: 5000
+    </rosparam>
  </node>
 </launch>
