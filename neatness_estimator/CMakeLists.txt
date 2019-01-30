@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   neatness_estimator_msgs
   pcl_conversions
   pcl_ros
+  tf
   )
 
 include_directories(
