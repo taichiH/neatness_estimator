@@ -30,6 +30,10 @@ static ros::Publisher output_cluster_indices_pub;
 static ros::Publisher output_box_pub;
 
 tf::TransformListener *listener_;
+float voxel_thresh_ = 0.01;
+float cluster_tolerance_ = 0.01;
+float min_cluster_ = 10;
+float max_cluster_ = 5000;
 
 struct Points {
   Points() {
@@ -72,7 +76,7 @@ void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster
       pcl::VoxelGrid<pcl::PointXYZ> vg;
       pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
       vg.setInputCloud (clustered_cloud);
-      vg.setLeafSize (0.01f, 0.01f, 0.01f);
+      vg.setLeafSize (voxel_thresh_, voxel_thresh_, voxel_thresh_);
       vg.filter (*cloud_filtered);
       clustered_cloud->clear();
 
@@ -84,9 +88,9 @@ void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster
       tree->setInputCloud(filtered_cloud);
       std::vector<pcl::PointIndices> output_indices;
       pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-      ec.setClusterTolerance (0.01);
-      ec.setMinClusterSize (10);
-      ec.setMaxClusterSize (5000);
+      ec.setClusterTolerance (cluster_tolerance_);
+      ec.setMinClusterSize (min_cluster_);
+      ec.setMaxClusterSize (max_cluster_);
       ec.setSearchMethod (tree);
       // ec.setIndices(inliers);
       ec.setInputCloud (filtered_cloud);
@@ -196,6 +200,10 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "multi_euclidean_clustering");
 
   ros::NodeHandle nh("~");
+  nh.getParam("voxel_thresh", voxel_thresh_);
+  nh.getParam("cluster_tolerance", cluster_tolerance_);
+  nh.getParam("min_cluster", min_cluster_);
+  nh.getParam("max_cluster", max_cluster_);
 
   tf::TransformListener lis;
   listener_ = &lis;

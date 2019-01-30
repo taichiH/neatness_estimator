@@ -1,0 +1,12 @@
+<launch>
+  <arg name="cluster_indices" default="instance_cluster_point_indices_decomposer/cluster_indices" />
+  <arg name="point_cloud" default="/openni_camera/depth_registered/points" />
+  <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
+  <node name="multi_euclidean_clustering"
+        pkg="neatness_estimator" type="multi_euclidean_clustering"
+        output="screen">
+    <remap from="~input_cluster_indices" to="$(arg cluster_indices)" />
+    <remap from="~input_point_cloud" to="$(arg point_cloud)" />
+    <remap from="~input_instance_labels" to="$(arg input_labels)" /> 
+ </node>
+</launch>
