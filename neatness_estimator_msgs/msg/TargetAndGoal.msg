@@ -1,0 +1,2 @@
+geometry_msgs/PointStamped target
+geometry_msgs/PointStamped goal

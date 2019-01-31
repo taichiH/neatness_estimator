@@ -13,6 +13,7 @@ add_message_files(
   FILES
   Neatness.msg
   TargetAndGoal.msg
+  TargetAndGoalArray.msg
   )
 
 add_service_files(
