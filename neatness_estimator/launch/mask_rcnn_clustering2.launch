@@ -5,6 +5,7 @@
   <arg name="input_image" default="/openni_camera/rgb/image_rect_color" />
   <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
   <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
+  <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
 
   <arg name="transform_zed_pointcloud" default="false" />
   <arg name="score_thresh" default="0.75"/>
@@ -54,7 +55,7 @@
         output="screen">
     <remap from="~input_cluster_indices" to="/instance_cluster_point_indices_decomposer/cluster_indices" />
     <remap from="~input_point_cloud" to="$(arg input_cloud)" />
-    <remap from="~input_instance_labels" to="$(arg input_label)" /> 
+    <remap from="~input_instance_labels" to="$(arg input_labels)" />
  </node>
 
 </launch>
