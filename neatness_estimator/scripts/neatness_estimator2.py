@@ -4,6 +4,7 @@ import os
 import numpy as np
 import rospy
 import rospkg
+import tf
 import message_filters
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from jsk_recognition_msgs.msg import ClassificationResult
@@ -18,6 +19,8 @@ class NeatnessEstimator():
 
     def __init__(self):
         self.label_lst = rospy.get_param('~fg_class_names')
+        self.broadcaster = tf.TransformBroadcaster()
+        self.listener = tf.TransformListener()
 
         self.box_pub = rospy.Publisher('~output_box',
                                        BoundingBoxArray,
@@ -29,6 +32,8 @@ class NeatnessEstimator():
                                           Marker,
                                           queue_size=1)
 
+        self.clustering = Clustering()
+        self.second_cluster_limit = rospy.get_param('~second_cluster_limit', 0.04)
         self.thresh = rospy.get_param('~thresh', 0.8)
         self.boxes = []
         self.subscribe()
@@ -69,31 +74,57 @@ class NeatnessEstimator():
 
         bounding_box_msg = BoundingBoxArray()
         for label, boxes in zip(labeled_boxes.keys(), labeled_boxes.values()):
-            if self.label_lst[label] != 'milk':
+            if self.label_lst[label] != 'mixjuice':
                 continue
 
             thresh = self.thresh
             if self.label_lst[label] == 'shelf_flont':
                 thresh = 2.0
 
-            clustering = Clustering()
             boxes = np.array(boxes)
-            result = clustering.clustering_wrapper(boxes, thresh)
+            result = self.clustering.clustering_wrapper(boxes, thresh)
 
-            for i, cluster  in enumerate(result):                
-                print('-------------- %s' %(self.label_lst[label]))
-                distances = self.get_distances([boxes[i][0] for i in cluster.indices])
+            second_thresh = 0.4
+            step = 0.01
 
-                if len(distances > 0):
-                    self.calc_goal(distances, boxes, instance_msg.header)
+            for i, cluster in enumerate(result):                
+                # print('-------------- %s' %(self.label_lst[label]))
+                clustered_boxes = np.array([np.array(boxes[i]) for i in cluster.indices])
+                if len(clustered_boxes) > 1:
+                    second_result = self.second_clustering(clustered_boxes, second_thresh, step)
+                    if len(second_result) > 1:
+                        transformed_pos = []
+                        for devided_cluster in second_result:
+                            pos = []
+                            for j in devided_cluster.indices:
+                                name = 'item_' + str(j)
+                                (trans, rot) = self.transform(clustered_boxes[j], name, instance_msg.header)
+                                pos.append(np.array(trans))
+                            transformed_pos.append(pos)
+                        (target, goal) = self.get_target_and_goal(second_result, transformed_pos)
+                        if target.sum() == 0 and goal.sum() == 0:
+                            rospy.logwarn('failed get target and goal')
+
+                        self.broadcaster.sendTransform((target[0],
+                                                        target[1],
+                                                        target[2]),
+                                                       (1, 0, 0, 0),
+                                                       rospy.Time.now(),
+                                                       "target",
+                                                       "base_link")
+                        self.broadcaster.sendTransform((goal[0],
+                                                        goal[1],
+                                                        goal[2]),
+                                                       (1, 0, 0, 0),
+                                                       rospy.Time.now(),
+                                                       "goal",
+                                                       "base_link")
 
                 max_candidates = [boxes[i][0] + (boxes[i][1] * 0.5) for i in cluster.indices]
                 min_candidates = [boxes[i][0] - (boxes[i][1] * 0.5) for i in cluster.indices]
                 candidates = np.array(max_candidates + min_candidates)
-
                 dimension = candidates.max(axis=0) - candidates.min(axis=0)
                 center = candidates.min(axis=0) + (dimension * 0.5)
-
                 tmp_box = BoundingBox()
                 tmp_box.header = instance_msg.header
                 tmp_box.dimensions.x = dimension[0]
@@ -109,34 +140,60 @@ class NeatnessEstimator():
         bounding_box_msg.header = instance_msg.header
         self.box_pub.publish(bounding_box_msg)
 
-    def calc_goal(self, distances, boxes, header):
-        print(distances[distances[:, 0].argmax()])
-        norm, i, j = distances[distances[:, 0].argmax()]
 
-        print(boxes[int(i)][0])
-        print(boxes[int(j)][0])
+    def transform(self, box, name, header):
+        self.broadcaster.sendTransform((box[0][0],
+                                        box[0][1],
+                                        box[0][2]),
+                                       (1, 0, 0, 0),
+                                       rospy.Time.now(),
+                                       name,
+                                       header.frame_id)
+        self.listener.waitForTransform("base_link",
+                                       name,
+                                       rospy.Time(0),
+                                       rospy.Duration(5.0))
+        (trans, rot) = self.listener.lookupTransform("base_link",
+                                                     name,
+                                                     rospy.Time(0))
+        return (trans, rot)
 
-        self.visualize(boxes[int(i)][0], boxes[int(j)][0], header)
+    def second_clustering(self, clustered_boxes, second_thresh, step):
+        second_result = self.clustering.clustering_wrapper(clustered_boxes, second_thresh)
+        if second_thresh < self.second_cluster_limit:
+            return second_result
 
-    def get_distances(self, centers):
-        distances = []
+        # when cluster is devided into two
+        if len(second_result) > 1:
+            return second_result
 
-        if len(centers) > 1:
-            for i, center_a in enumerate(centers):
-                min_norm = 2 * 24
-                min_element = None
-                for j, center_b in enumerate(centers):
-                    if i == j:
-                        continue
+        clustered_boxes = np.array([np.array(clustered_boxes[i]) for i in second_result[0].indices])
+        return self.second_clustering(clustered_boxes, second_thresh - step, step)
 
-                    norm = np.linalg.norm(center_a - center_b)
-                    if norm < min_norm:
-                        min_norm = norm
-                        min_element = np.array([norm, i, j])
+    def get_target_and_goal(self, second_result, transformed_pos):
+        # second_result index == tranformed_pos index
+        if len(second_result) > 2:
+            rospy.logwarn('there are clusters more than 2')
+            return (np.zeros((3)), np.zeros((3)))
+        # Cluster shold be devided into 2 clusters and small cluster has only 1 element
+        small = 1 if len(second_result[0].indices) > len(second_result[1].indices) else 0
+        large = 0 if len(second_result[0].indices) > len(second_result[1].indices) else 1
+        if len(second_result[small].indices) > 1:
+            rospy.logwarn('there are element in the min cluster more than 1')
+            return (np.zeros((3)), np.zeros((3)))
+        pick_target = transformed_pos[small][0]
 
-                distances.append(min_element)
-
-        return np.array(distances)
+        # sort large cluster elements by x axis on base_link coords
+        sorted_poses = sorted(transformed_pos[large], key = lambda x : x[0])
+        
+        vectors = np.zeros((3))
+        for i in range(len(sorted_poses)):
+            if i == 0:
+                continue
+            vectors += sorted_poses[i] - sorted_poses[i-1]
+        vector = vectors / (len(sorted_poses) - 1)
+        goal_pos = sorted_poses[-1] + vector
+        return (pick_target, goal_pos)
 
     def get_points(self, box):
         return (np.array([box.pose.position.x,
