@@ -49,15 +49,12 @@
     </rosparam>
   </node>
 
-  <node name="labeled_bounding_box_publisher"
-        pkg="neatness_estimator" type="labeled_bounding_box_publisher.py"
+  <node name="multi_euclidean_clustering"
+        pkg="neatness_estimator" type="multi_euclidean_clustering"
         output="screen">
-    <remap from="~input/instance_boxes" to="instance_cluster_point_indices_decomposer/boxes"/>
-    <remap from="~input/instance_labels" to="/mask_rcnn_instance_segmentation/output/labels"/>
-    <rosparam subst_value="true">
-      approximate_sync: true
-      with_cluster_box: false
-    </rosparam>
-  </node>
+    <remap from="~input_cluster_indices" to="/instance_cluster_point_indices_decomposer/cluster_indices" />
+    <remap from="~input_point_cloud" to="$(arg input_cloud)" />
+    <remap from="~input_instance_labels" to="$(arg input_label)" /> 
+ </node>
 
 </launch>
