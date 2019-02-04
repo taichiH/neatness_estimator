@@ -47,6 +47,9 @@ class ClusterBoxPublisher():
                 dimension = candidates.max(axis=0) - candidates.min(axis=0)
                 center = candidates.min(axis=0) + (dimension * 0.5)
 
+                distances = self.get_distances(
+                    [boxes[i][0] for i in cluster.indices],
+                    [np.linalg.norm(boxes[i][1])*0.5 for i in cluster.indices])
                 tmp_box = BoundingBox()
                 tmp_box.header = box_msg.header
                 tmp_box.dimensions.x = dimension[0]
@@ -57,11 +60,20 @@ class ClusterBoxPublisher():
                 tmp_box.pose.position.z = center[2]
                 tmp_box.pose.orientation = orientation
                 tmp_box.label = label
+                tmp_box.value = distances.mean()
                 bounding_box_msg.boxes.append(tmp_box)
 
             bounding_box_msg.header = box_msg.header
             self.box_pub.publish(bounding_box_msg)
 
+   def get_distances(self, centers, diagonals):
+        distances = []
+        centers.mean(axis=0)
+        for center, diag in zip(centers, diagonals):
+            distance = np.linalg.norm(center - centers.mean(axis=0)) - diag
+            distances.append(distance)
+        return np.array(distances)
+        
     def get_points(self, box):
         return np.array([box.pose.position.x,
                          box.pose.position.y,
@@ -69,6 +81,8 @@ class ClusterBoxPublisher():
                          box.dimensions.x,
                          box.dimensions.y,
                          box.dimensions.z,]).reshape(2, 3)
+
+
 
 if __name__=='__main__':
     rospy.init_node('cluster_box_publisher')
