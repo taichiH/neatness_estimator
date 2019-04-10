@@ -13,7 +13,6 @@
   <build_depend>rospy</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>sensor_msgs</build_depend>
-  <build_depend>negomo</build_depend>
   <build_depend>hri_c_flow</build_depend>
   <build_depend>jsk_recognition_msgs</build_depend>
   <build_depend>what_i_see_msgs</build_depend>
@@ -26,7 +25,6 @@
   <run_depend>rospy</run_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>sensor_msgs</run_depend>
-  <run_depend>negomo</run_depend>
   <run_depend>hri_c_flow</run_depend>
   <run_depend>jsk_recognition_msgs</run_depend>
   <run_depend>what_i_see_msgs</run_depend>
