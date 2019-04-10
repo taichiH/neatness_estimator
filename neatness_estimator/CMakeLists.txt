@@ -6,9 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   geometry_msgs
   sensor_msgs
-  hri_c_flow
   jsk_recognition_msgs
-  what_i_see_msgs
   neatness_estimator_msgs
   pcl_conversions
   pcl_ros

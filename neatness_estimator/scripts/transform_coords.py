@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 import rospy
 import tf
-from what_i_see_msgs.msg import LabeledPose, LabeledPoseArray
+try:
+    from what_i_see_msgs.msg import LabeledPose, LabeledPoseArray
+except:
+    rospy.logerr("please install negomo")
+    exit()
 
 class TransformCoords():
 

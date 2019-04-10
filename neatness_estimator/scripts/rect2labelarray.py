@@ -6,7 +6,12 @@ import rospy
 import message_filters
 from jsk_recognition_msgs.msg import Rect, RectArray
 from jsk_recognition_msgs.msg import ClassificationResult
-from what_i_see_msgs.msg import Scored2DBox, Scored2DBoxArray
+
+try:
+    from what_i_see_msgs.msg import Scored2DBox, Scored2DBoxArray
+except:
+    rospy.logerr("please install negomo")
+    exit()
 
 class Rect2LabeledArray():
 

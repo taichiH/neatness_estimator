@@ -13,9 +13,7 @@
   <build_depend>rospy</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>sensor_msgs</build_depend>
-  <build_depend>hri_c_flow</build_depend>
   <build_depend>jsk_recognition_msgs</build_depend>
-  <build_depend>what_i_see_msgs</build_depend>
   <build_depend>neatness_estimator_msgs</build_depend>
   <build_depend>pcl_conversions</build_depend>
   <build_depend>pcl_ros</build_depend>
@@ -25,9 +23,7 @@
   <run_depend>rospy</run_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>sensor_msgs</run_depend>
-  <run_depend>hri_c_flow</run_depend>
   <run_depend>jsk_recognition_msgs</run_depend>
-  <run_depend>what_i_see_msgs</run_depend>
   <run_depend>neatness_estimator_msgs</run_depend>
   <run_depend>pcl_conversions</run_depend>
   <run_depend>pcl_ros</run_depend>

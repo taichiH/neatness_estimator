@@ -6,7 +6,12 @@ import numpy as np
 import rospy
 import tf
 
-from what_i_see_msgs.msg import LabeledPoseArray
+try:
+    from what_i_see_msgs.msg import LabeledPoseArray
+except:
+    rospy.logerr("please install negomo")
+    exit()
+
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from neatness_estimator.srv import VisionServer, VisionServerResponse
 
