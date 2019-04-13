@@ -13,6 +13,7 @@
       approximate_sync: true
       thresh: $(arg thresh)
       second_cluster_limit: 0.04
+      target_object: milk
     </rosparam>
   </node>
 </launch>

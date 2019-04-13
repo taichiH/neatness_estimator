@@ -66,14 +66,14 @@ class ClusterBoxPublisher():
             bounding_box_msg.header = box_msg.header
             self.box_pub.publish(bounding_box_msg)
 
-   def get_distances(self, centers, diagonals):
+    def get_distances(self, centers, diagonals):
         distances = []
         centers.mean(axis=0)
         for center, diag in zip(centers, diagonals):
             distance = np.linalg.norm(center - centers.mean(axis=0)) - diag
             distances.append(distance)
         return np.array(distances)
-        
+
     def get_points(self, box):
         return np.array([box.pose.position.x,
                          box.pose.position.y,

@@ -38,8 +38,8 @@ class NeatnessEstimator():
 
         self.clustering = Clustering()
         self.second_cluster_limit = rospy.get_param('~second_cluster_limit', 0.04)
-        self.thresh = rospy.get_param('~thresh', 0.8)
-        self.target_object = 'mixjuice'
+        self.thresh = rospy.get_param('~thresh', 0.8) 
+        self.target_object = rospy.get_param('~target_object', 'mixjuice')
         self.target = None
         self.goal = None
         self.boxes = []
