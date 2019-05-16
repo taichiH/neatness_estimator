@@ -13,16 +13,6 @@
   <arg name="visualize" default="false" />
   <arg name="thresh" default="0.2" />
 
-  <!-- <node name="pc_transformer" -->
-  <!--       pkg="nodelet" type="nodelet" -->
-  <!--       args="standalone jsk_pcl/TfTransformCloud" -->
-  <!--       output="screen" > -->
-  <!--   <remap from="~input" to="/zed/point_cloud/cloud_registered" /> -->
-  <!--   <rosparam> -->
-  <!--     target_frame_id: /zed_depth_camera -->
-  <!--   </rosparam> -->
-  <!-- </node> -->
-
   <node name="mask_rcnn_instance_segmentation"
         pkg="jsk_perception" type="mask_rcnn_instance_segmentation.py"
         clear_params="true">
@@ -63,7 +53,7 @@
       max_cluster: 25000
       approximate_sync_: false
     </rosparam>
- </node>
+  </node>
 
   <node name="multi_euclidean_cluster_point_indices_decomposer"
         pkg="nodelet" type="nodelet"
@@ -80,5 +70,15 @@
     </rosparam>
   </node>
 
+  <node name="labeled_bounding_box_publisher"
+        pkg="neatness_estimator" type="labeled_bounding_box_publisher.py"
+        output="screen">
+    <remap from="~input/instance_boxes" to="/multi_euclidean_cluster_point_indices_decomposer/boxes"/>
+    <remap from="~input/instance_labels" to="/mask_rcnn_instance_segmentation/output/labels"/>
+    <rosparam subst_value="true">
+      approximate_sync: true
+      with_cluster_box: false
+    </rosparam>
+  </node>
 
 </launch>
