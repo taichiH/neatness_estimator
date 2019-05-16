@@ -28,10 +28,23 @@ float voxel_thresh_ = 0.01;
 float cluster_tolerance_ = 0.01;
 float min_cluster_ = 10;
 float max_cluster_ = 5000;
+bool approximate_sync_flag_ = true;
+
+typedef message_filters::sync_policies::ExactTime<
+  jsk_recognition_msgs::ClusterPointIndices,
+  sensor_msgs::PointCloud2
+  > SyncPolicy;
+
+typedef message_filters::sync_policies::ApproximateTime<
+  jsk_recognition_msgs::ClusterPointIndices,
+  sensor_msgs::PointCloud2
+  > ApproximateSyncPolicy;
+
+boost::shared_ptr<message_filters::Synchronizer<ApproximateSyncPolicy> > approximate_sync_;
+boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
 
 void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_indices,
-              const sensor_msgs::PointCloud2::ConstPtr& point_cloud,
-              const jsk_recognition_msgs::LabelArray::ConstPtr& labels)
+              const sensor_msgs::PointCloud2::ConstPtr& point_cloud)
 {
   jsk_recognition_msgs::ClusterPointIndices output_cluster_indices;
   cloud->clear();
@@ -73,8 +86,8 @@ void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster
 
         // set extracted indices to ros msg
         point_indices_msg.indices = output_indices.at(index).indices;
+        point_indices_msg.header = cluster_indices->header;
       }
-      point_indices_msg.header = cluster_indices->header;
       output_cluster_indices.cluster_indices.push_back(point_indices_msg);
     }
     output_cluster_indices.header = cluster_indices->header;
@@ -82,11 +95,6 @@ void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster
   }
 }
 
-typedef message_filters::sync_policies::ApproximateTime<
-  jsk_recognition_msgs::ClusterPointIndices,
-  sensor_msgs::PointCloud2,
-  jsk_recognition_msgs::LabelArray
-  > SyncPolicy;
 
 int main(int argc, char** argv)
 {
@@ -97,19 +105,24 @@ int main(int argc, char** argv)
   nh.getParam("cluster_tolerance", cluster_tolerance_);
   nh.getParam("min_cluster", min_cluster_);
   nh.getParam("max_cluster", max_cluster_);
+  nh.getParam("approximate_sync_", approximate_sync_flag_);
 
   output_cluster_indices_pub = nh.advertise<jsk_recognition_msgs::ClusterPointIndices>("output_indices",1);
 
   message_filters::Subscriber<jsk_recognition_msgs::ClusterPointIndices> sub_cluster_indices;
   message_filters::Subscriber<sensor_msgs::PointCloud2> sub_point_cloud;
-  message_filters::Subscriber<jsk_recognition_msgs::LabelArray> sub_labels;
   sub_cluster_indices.subscribe(nh, "input_cluster_indices", 1);
   sub_point_cloud.subscribe(nh, "input_point_cloud", 1);
-  sub_labels.subscribe(nh, "input_instance_labels", 1);
-  boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_
-    = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
-  sync_->connectInput(sub_cluster_indices, sub_point_cloud, sub_labels);
-  sync_->registerCallback(callback);
+
+  if (approximate_sync_flag_){
+    approximate_sync_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
+    approximate_sync_->connectInput(sub_cluster_indices, sub_point_cloud);
+    approximate_sync_->registerCallback(callback);
+  } else {
+    sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
+    sync_->connectInput(sub_cluster_indices, sub_point_cloud);
+    sync_->registerCallback(callback);
+  }
 
   ros::spin();
   return 0;

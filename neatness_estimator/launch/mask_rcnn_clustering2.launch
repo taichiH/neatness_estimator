@@ -2,9 +2,9 @@
   <arg name="gpu" default="0"/>
 
   <arg name="info" default="/openni_camera/rgb/camera_info" />
-  <arg name="input_image" default="/openni_camera/rgb/image_rect_color" />
+  <arg name="input_image" default="/higashide/openni_camera/rgb/image_rect_color" />
   <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
-  <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
+  <arg name="input_cloud" default="/higashide/point_cloud/cloud_registered/remote" />
   <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
 
   <arg name="transform_zed_pointcloud" default="false" />
@@ -13,15 +13,15 @@
   <arg name="visualize" default="false" />
   <arg name="thresh" default="0.2" />
 
-  <node name="pc_transformer"
-        pkg="nodelet" type="nodelet"
-        args="standalone jsk_pcl/TfTransformCloud"
-        output="screen" >
-    <remap from="~input" to="/zed/point_cloud/cloud_registered" />
-    <rosparam>
-      target_frame_id: /zed_depth_camera
-    </rosparam>
-  </node>
+  <!-- <node name="pc_transformer" -->
+  <!--       pkg="nodelet" type="nodelet" -->
+  <!--       args="standalone jsk_pcl/TfTransformCloud" -->
+  <!--       output="screen" > -->
+  <!--   <remap from="~input" to="/zed/point_cloud/cloud_registered" /> -->
+  <!--   <rosparam> -->
+  <!--     target_frame_id: /zed_depth_camera -->
+  <!--   </rosparam> -->
+  <!-- </node> -->
 
   <node name="mask_rcnn_instance_segmentation"
         pkg="jsk_perception" type="mask_rcnn_instance_segmentation.py"
@@ -56,6 +56,29 @@
     <remap from="~input_cluster_indices" to="/instance_cluster_point_indices_decomposer/cluster_indices" />
     <remap from="~input_point_cloud" to="$(arg input_cloud)" />
     <remap from="~input_instance_labels" to="$(arg input_labels)" />
+    <rosparam subst_value="true">
+      voxel_thresh: 0.005
+      cluster_tolerance: 0.008
+      min_cluster: 100
+      max_cluster: 25000
+      approximate_sync_: false
+    </rosparam>
  </node>
+
+  <node name="multi_euclidean_cluster_point_indices_decomposer"
+        pkg="nodelet" type="nodelet"
+        args="standalone jsk_pcl/ClusterPointIndicesDecomposer">
+    <remap from="~input" to="$(arg input_cloud)" />
+    <remap from="~target" to="/multi_euclidean_clustering/output_indices" />
+    <rosparam>
+      align_boxes: true
+      align_boxes_with_plane: false
+      approximate_sync: false
+      queue_size: 100
+      target_frame_id: base_link
+      sort_by: input_indices
+    </rosparam>
+  </node>
+
 
 </launch>
