@@ -1,0 +1,16 @@
+<launch>
+  <arg name="input_instance_boxes"
+       default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
+  <arg name="input_cluster_boxes"
+       default="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
+
+  <node name="display_task_vision_server"
+        pkg="neatness_estimator" type="vision_server.py"
+        screen="output">
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+    <remap from="~input_instance_boxes" to="$(arg input_instance_boxes)" />
+    <remap from="~input_cluster_boxes" to="$(arg input_cluster_boxes)" />
+  </node>
+
+</launch>

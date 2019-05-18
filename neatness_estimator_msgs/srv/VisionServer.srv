@@ -1,8 +1,10 @@
 string label
+string ref_label
 string task
 string parent_frame
 geometry_msgs/Point target
 ---
 bool status
-float32 dist
+float32 filling_dist
+float32 pulling_dist
 jsk_recognition_msgs/BoundingBox boxes

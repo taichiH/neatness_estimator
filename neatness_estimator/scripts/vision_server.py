@@ -6,36 +6,26 @@ import numpy as np
 import rospy
 import tf
 
-try:
-    from what_i_see_msgs.msg import LabeledPoseArray
-except:
-    rospy.logerr("please install negomo")
-    exit()
-
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
-from neatness_estimator.srv import VisionServer, VisionServerResponse
+from neatness_estimator_msgs.srv import VisionServer, VisionServerResponse
 
-class NeatnessVisionServer():
+class NeatnessEstimatorVisionServer():
 
     def __init__(self):
-        self.label_list = ["alfort", "alfortwhite", "almond", "apc_shelf_flont",\
-                           "coffee", "consome", "dars", "darsmilk", "darswhite",\
-                           "donbe", "kinoko", "macadamia", "milk", "mixjuice",\
-                           "marble", "norishio", "pie", "shelf_flont", "takenoko",\
-                           "tee", "xylitop", "yakisoba"]
-        self.boxes = LabeledPoseArray()
+        self.label_lst = rospy.get_param('~fg_class_names')
+        self.boxes = BoundingBoxArray()
         self.labeled_boxes = BoundingBoxArray()
 
         self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
 
-        rospy.Subscriber("/mask_rcnn_projector/output",
-                         LabeledPoseArray,
+        rospy.Subscriber("~input_instance_boxes",
+                         BoundingBoxArray,
                          self.mask_rcnn_callback)
-        rospy.Subscriber("/labeled_bounding_box_publisher/output/labeled_cluster_boxes",
+        rospy.Subscriber("~input_cluster_boxes",
                          BoundingBoxArray,
                          self.slide_adjust_callback)
-        rospy.Service('/neatness_vision_server',
+        rospy.Service('/display_task_vision_server',
                       VisionServer,
                       self.vision_server)
 
@@ -50,16 +40,17 @@ class NeatnessVisionServer():
             rospy.loginfo(req.task)
             distance = 100
             nearest_box = BoundingBox()
-            for index, box in enumerate(self.boxes.poses):
-                if box.label == req.label:
-                    ref_point = np.array([box.pose.position.x,
-                                      box.pose.position.y,
-                                      box.pose.position.z])
+            for index, box in enumerate(self.boxes.boxes):
+                if self.label_lst[box.label] == req.label:
+                    ref_point = np.array([box.pose.position.x + (box.dimensions.x * 0.5),
+                                          box.pose.position.y + (box.dimensions.y * 0.5),
+                                          box.pose.position.z + (box.dimensions.z * 0.5)])
                     target_point = np.array([req.target.x,
-                                         req.target.y,
-                                         req.target.z])
+                                             req.target.y,
+                                             req.target.z])
                     if np.linalg.norm(ref_point - target_point) < distance:
                         nearest_box.pose = box.pose
+                        nearest_box.dimensions = box.dimensions
                         distance = np.linalg.norm(ref_point - target_point)
 
             res = VisionServerResponse()
@@ -69,33 +60,67 @@ class NeatnessVisionServer():
                                                    req.parent_frame)
             transformed_box.header = self.boxes.header
             transformed_box.header.frame_id = req.parent_frame
+            transformed_box.dimensions = nearest_box.dimensions
             res.boxes = transformed_box
             res.status = True
             return res
 
         elif req.task == 'get_dist':
             rospy.loginfo(req.task)
-            target_left = 0
-            for box in self.labeled_boxes.boxes:
-                if box.label == int(self.label_list.index(req.label)):
-                    target_left = box.pose.position.y + box.dimensions.y * 0.5
-                    break
 
-            min_dist = 24 ** 2
+            target_left = 0
+            target_bottom = 0
+            ref_right = 0
+            ref_bottom = 0
             for box in self.labeled_boxes.boxes:
-                ref_right = box.pose.position.y - box.dimensions.y * 0.5
-                if abs(ref_right - target_left) < min_dist:
-                    min_dist = abs(ref_right - target_left)
+                if box.label == int(self.label_lst.index(req.label)):
+                    target_left = box.pose.position.y + box.dimensions.y * 0.5
+                    target_bottom = box.pose.position.x - box.dimensions.x * 0.5
+                if box.label == int(self.label_lst.index(req.ref_label)):
+                    ref_right = box.pose.position.y - box.dimensions.y * 0.5
+                    ref_bottom = box.pose.position.x - box.dimensions.x * 0.5
 
             res = VisionServerResponse()
-            res.dist = min_dist
+            res.filling_dist = abs(target_left - ref_right)
+            res.pulling_dist = abs(target_bottom - ref_bottom)
             res.status = True
             return res
 
+        elif req.task == 'get_cluster_box':
+            rospy.loginfo(req.task)
+            distance = 100
+            nearest_box = BoundingBox()
+            for index, box in enumerate(self.labeled_boxes.boxes):
+                if self.label_lst[box.label] == req.label:
+                    ref_point = np.array([box.pose.position.x + (box.dimensions.x * 0.5),
+                                          box.pose.position.y + (box.dimensions.y * 0.5),
+                                          box.pose.position.z + (box.dimensions.z * 0.5)])
+                    target_point = np.array([req.target.x,
+                                             req.target.y,
+                                             req.target.z])
+                    if np.linalg.norm(ref_point - target_point) < distance:
+                        nearest_box.pose = box.pose
+                        nearest_box.dimensions = box.dimensions
+                        distance = np.linalg.norm(ref_point - target_point)
+
+            res = VisionServerResponse()
+            transformed_box = self.transform_poses(nearest_box.pose,
+                                                   req.label,
+                                                   self.boxes.header.frame_id,
+                                                   req.parent_frame)
+            transformed_box.header = self.boxes.header
+            transformed_box.header.frame_id = req.parent_frame
+            transformed_box.dimensions = nearest_box.dimensions
+            res.boxes = transformed_box
+            res.status = True
+            return res
+
+
         elif req.task == 'get_empty_space':
             rospy.loginfo(req.task)
+            print(len(self.labeled_boxes.boxes))
             for box in self.labeled_boxes.boxes:
-                if box.label == int(self.label_list.index(req.label)):
+                if box.label == int(self.label_lst.index(req.label)):
                     shelf_lt = np.array([box.pose.position.x + box.dimensions.x * 0.5,
                                          box.pose.position.y + box.dimensions.y * 0.5,
                                          box.pose.position.z + box.dimensions.z * 0.5])
@@ -105,13 +130,16 @@ class NeatnessVisionServer():
                     break
 
             cliped_bounding_box = BoundingBoxArray()
-            offset = 0.15
+            offset_y = 0.5
+            offset_z = 0.15
 
             for box in self.labeled_boxes.boxes:
-                if box.pose.position.y < (shelf_lt[1] + offset) and \
-                   box.pose.position.y > (shelf_rb[1] - offset) and \
-                   box.pose.position.z > (shelf_lt[2] - offset):
-                    print(box)
+                if box.label == int(self.label_lst.index(req.label)):
+                    continue
+
+                if box.pose.position.y < (shelf_lt[1] + offset_y) and \
+                   box.pose.position.y > (shelf_rb[1] - offset_y) and \
+                   box.pose.position.z > (shelf_lt[2] - offset_z):
                     cliped_bounding_box.boxes.append(box)
 
             sorted_bounding_box = BoundingBoxArray()
@@ -201,6 +229,6 @@ class NeatnessVisionServer():
         return box
 
 if __name__ == "__main__":
-    rospy.init_node("neatness_vision_server")
-    nvs = NeatnessVisionServer()
+    rospy.init_node("display_task_vision_server")
+    vision_server = NeatnessEstimatorVisionServer()
     rospy.spin()
