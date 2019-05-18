@@ -1,6 +1,6 @@
 <launch>
   <arg name="input_instance_boxes"
-       default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
+       default="/dummy_bounding_box_publisher/output" />
   <arg name="input_cluster_boxes"
        default="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
 
