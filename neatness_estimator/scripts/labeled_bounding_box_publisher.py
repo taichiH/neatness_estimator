@@ -10,11 +10,7 @@ from jsk_recognition_msgs.msg import LabelArray
 class LabeledBoundingBoxPublisher():
 
     def __init__(self):
-        self.label_list = ["alfort", "alfortwhite", "almond", "apc_shelf_flont",\
-                           "coffee", "consome", "dars", "darsmilk", "darswhite",\
-                           "donbe", "kinoko", "macadamia", "milk", "mixjuice",\
-                           "marble", "norishio", "pie", "shelf_flont", "takenoko",\
-                           "tee", "xylitop", "yakisoba", "hand"]
+        self.label_list = rospy.get_param('~fg_class_names')
 
         self.with_cluster_box = rospy.get_param('~with_cluster_box', False)
         self.labeled_cluster_boxes_pub = rospy.Publisher('~output/labeled_cluster_boxes',
