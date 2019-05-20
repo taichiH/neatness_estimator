@@ -1,0 +1,10 @@
+<launch>
+  <arg name="input_boxes" default="/dummy_bounding_box_publisher/output" />
+
+  <node name="display_planner"
+        pkg="neatness_estimator" type="display_planner.py"
+        output="screen">
+    <remap from="~input_boxes" to="$(arg input_boxes)" />
+  </node>
+
+</launch>

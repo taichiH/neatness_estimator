@@ -1,0 +1,6 @@
+int32[] reference_state
+int32[] border_indexes
+---
+bool status
+float32 distance
+DisplayPlanArray plan
