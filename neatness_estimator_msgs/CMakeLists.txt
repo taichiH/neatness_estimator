@@ -14,11 +14,14 @@ add_message_files(
   Neatness.msg
   TargetAndGoal.msg
   TargetAndGoalArray.msg
+  DisplayPlan.msg
+  DisplayPlanArray.msg
   )
 
 add_service_files(
   FILES
   VisionServer.srv
+  DisplayState.srv
   )
 
 generate_messages(
