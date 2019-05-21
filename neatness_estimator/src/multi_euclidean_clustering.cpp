@@ -5,41 +5,38 @@ namespace neatness_estimator
 
   void MultiEuclideanClustering::onInit()
   {
-    DiagnosticNodelet::onInit();
-    output_cluster_indices_pub_ =
-      advertise<jsk_recognition_msgs::ClusterPointIndices>(*pnh_, "output_indices", 1);
+    nh_ = getNodeHandle();
+    pnh_ = getPrivateNodeHandle();
+
+    pnh_.getParam("min_size", minsize_);
+    pnh_.getParam("max_size", maxsize_);
+    pnh_.getParam("cluster_tolerance", cluster_tolerance_);
+    pnh_.getParam("approximate_sync_", approximate_sync_);
 
     cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     clustered_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     filtered_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
-    onInitPostProcess();
-  }
 
-  void MultiEuclideanClustering::subscribe()
-  {
-    sub_cluster_indices.subscribe(*pnh_, "input_cluster_indices", 1);
-    sub_point_cloud.subscribe(*pnh_, "input_point_cloud", 1);
+    output_cluster_indices_pub_ =
+      pnh_.advertise<jsk_recognition_msgs::ClusterPointIndices>("output_indices", 1);
+
+    sub_cluster_indices_.subscribe(pnh_, "input_cluster_indices", 1);
+    sub_point_cloud_.subscribe(pnh_, "input_point_cloud", 1);
 
     if (approximate_sync_){
       async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
-      async_->connectInput(sub_cluster_indices, sub_point_cloud);
+      async_->connectInput(sub_cluster_indices_, sub_point_cloud_);
       async_->registerCallback(boost::bind(&MultiEuclideanClustering::callback, this, _1, _2));
     } else {
       sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
-      sync_->connectInput(sub_cluster_indices, sub_point_cloud);
+      sync_->connectInput(sub_cluster_indices_, sub_point_cloud_);
       sync_->registerCallback(boost::bind(&MultiEuclideanClustering::callback, this, _1, _2));
     }
   }
 
-  void MultiEuclideanClustering::unsubscribe()
-  {
-    sub_cluster_indices.unsubscribe();
-    sub_point_cloud.unsubscribe();
-  }
-
   void MultiEuclideanClustering::callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_indices,
-                                         const sensor_msgs::PointCloud2::ConstPtr& point_cloud)
+                                          const sensor_msgs::PointCloud2::ConstPtr& point_cloud)
   {
     jsk_recognition_msgs::ClusterPointIndices output_cluster_indices;
     cloud_->clear();
@@ -90,4 +87,7 @@ namespace neatness_estimator
 
     }
   }
-}
+} // namespace neatness_estimator
+
+#include <pluginlib/class_list_macros.h>
+PLUGINLIB_EXPORT_CLASS(neatness_estimator::MultiEuclideanClustering, nodelet::Nodelet)

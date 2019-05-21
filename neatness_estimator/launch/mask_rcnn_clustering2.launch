@@ -2,9 +2,9 @@
   <arg name="gpu" default="0"/>
 
   <arg name="info" default="/openni_camera/rgb/camera_info" />
-  <arg name="input_image" default="/higashide/openni_camera/rgb/image_rect_color" />
+  <arg name="input_image" default="/remote/openni_camera/rgb/image_rect_color" />
   <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
-  <arg name="input_cloud" default="/higashide/point_cloud/cloud_registered/remote" />
+  <arg name="input_cloud" default="/remote/point_cloud/cloud_registered/remote" />
   <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
 
   <arg name="transform_zed_pointcloud" default="false" />
@@ -35,22 +35,21 @@
       align_boxes_with_plane: false
       approximate_sync: true
       queue_size: 100
-      target_frame_id: map
+      target_frame_id: base_link
       sort_by: input_indices
     </rosparam>
   </node>
 
   <node name="multi_euclidean_clustering"
-        pkg="neatness_estimator" type="multi_euclidean_clustering"
+        pkg="nodelet" type="nodelet"
+        args="standalone neatness_estimator/MultiEuclideanClustering"
         output="screen">
     <remap from="~input_cluster_indices" to="/instance_cluster_point_indices_decomposer/cluster_indices" />
     <remap from="~input_point_cloud" to="$(arg input_cloud)" />
-    <remap from="~input_instance_labels" to="$(arg input_labels)" />
     <rosparam subst_value="true">
-      voxel_thresh: 0.005
       cluster_tolerance: 0.008
-      min_cluster: 100
-      max_cluster: 25000
+      min_size: 100
+      max_size: 25000
       approximate_sync_: false
     </rosparam>
   </node>
@@ -73,6 +72,8 @@
   <node name="labeled_bounding_box_publisher"
         pkg="neatness_estimator" type="labeled_bounding_box_publisher.py"
         output="screen">
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
     <remap from="~input/instance_boxes" to="/multi_euclidean_cluster_point_indices_decomposer/boxes"/>
     <remap from="~input/instance_labels" to="/mask_rcnn_instance_segmentation/output/labels"/>
     <rosparam subst_value="true">

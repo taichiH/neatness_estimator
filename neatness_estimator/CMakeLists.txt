@@ -11,7 +11,6 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   pcl_ros
   tf
-  pluginlib
   nodelet
   )
 
@@ -24,10 +23,14 @@ add_definitions(-std=c++11)
 
 catkin_package(
   CATKIN_DEPENDS
+  LIBRARIES ${PROJECT_NAME}
+  INCLUDE_DIRS include
 )
 
-add_library(multi_euclidean_clustering src/multi_euclidean_clustering.cpp)
-target_link_libraries(multi_euclidean_clustering ${catkin_LIBRARIES})
+add_library(${PROJECT_NAME} SHARED
+  src/multi_euclidean_clustering.cpp)
+target_link_libraries(${PROJECT_NAME}
+  ${catkin_LIBRARIES})
 
 # add_executable(battery_state_publisher src/battery_state_publisher.cpp)
 # target_link_libraries(battery_state_publisher ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})

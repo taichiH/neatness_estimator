@@ -1,4 +1,4 @@
-<library path="libneatness_estimator">
+<library path="lib/libneatness_estimator">
 
   <class name="neatness_estimator/MultiEuclideanClustering"
          type="neatness_estimator::MultiEuclideanClustering"
