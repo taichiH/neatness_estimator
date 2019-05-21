@@ -1,0 +1,10 @@
+<library path="libneatness_estimator">
+
+  <class name="neatness_estimator/MultiEuclideanClustering"
+         type="neatness_estimator::MultiEuclideanClustering"
+         base_class_type="nodelet::Nodelet">
+    <description>
+    </description>
+  </class>
+
+</library>

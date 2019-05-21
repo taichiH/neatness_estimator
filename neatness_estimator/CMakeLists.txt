@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   pcl_ros
   tf
+  pluginlib
+  nodelet
   )
 
 include_directories(
@@ -24,7 +26,7 @@ catkin_package(
   CATKIN_DEPENDS
 )
 
-add_executable(multi_euclidean_clustering src/multi_euclidean_clustering.cpp)
+add_library(multi_euclidean_clustering src/multi_euclidean_clustering.cpp)
 target_link_libraries(multi_euclidean_clustering ${catkin_LIBRARIES})
 
 # add_executable(battery_state_publisher src/battery_state_publisher.cpp)
