@@ -70,6 +70,26 @@ namespace neatness_estimator
     float minsize_ = 10;
     float maxsize_ = 5000;
     bool approximate_sync_ = true;
+    int step_ = 2;
+
+    inline int original_to_filtered(const int index){
+      return static_cast<int>(index / step_);
+    }
+
+    inline int filtered_to_original(const int index){
+      return static_cast<int>(index * step_);
+    }
+
+    inline bool in_vector(std::vector<int> vec, int element){
+      auto itr = std::find(vec.begin(), vec.end(), element);
+      size_t index = std::distance(vec.begin(), itr);
+      if (index != vec.size()) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+
 
   private:
   };

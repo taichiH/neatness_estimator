@@ -12,6 +12,7 @@ namespace neatness_estimator
     pnh_.getParam("max_size", maxsize_);
     pnh_.getParam("cluster_tolerance", cluster_tolerance_);
     pnh_.getParam("approximate_sync_", approximate_sync_);
+    pnh_.getParam("downsample_step_", step_);
 
     cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     clustered_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
@@ -47,32 +48,35 @@ namespace neatness_estimator
     cloud_filtered->sensor_origin_ = cloud_->sensor_origin_;
     cloud_filtered->sensor_orientation_ = cloud_->sensor_orientation_;
 
-    std::map<int, int> original_to_filtered; // key is original point index
-    std::map<int, int> filtered_to_original; // key is filtered point index
-    int step = 2;
     int index = 0;
     for (int i=0; i<cloud_->points.size(); i++) {
-      if (i % step == 0) {
+      if (i % step_ == 0) {
         cloud_filtered->points.push_back(cloud_->points.at(i));
-        original_to_filtered.insert(std::make_pair(i, index));
-        filtered_to_original.insert(std::make_pair(index, i));
-        index++;
       }
     }
 
+    // downsample
+    // float resolution = 0.01;
+    // pcl::VoxelGrid<pcl::PointXYZ> sor;
+    // sor.setInputCloud(cloud_);
+    // sor.setLeafSize(resolution, resolution, resolution);
+    // sor.filter(*cloud_filtered);
+
+    // get original indices
+    // std::vector<int> original_indices(cloud_filtered->points.size());
+    // for(int i=0; i<cloud_filtered->points.size(); i++){
+    //   original_indices.at(i) = sor.getCentroidIndex(cloud_filtered->points.at(i));
+    // }
+
     if(cloud_filtered->points.size() > 0){
       for(auto point_indices : cluster_indices->cluster_indices){
-
         // organized pointcloud
         pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
         for (auto index : point_indices.indices) {
-
-          auto it = original_to_filtered.find(index);
-          if(it != original_to_filtered.end()) {
-            pcl::PointXYZ p = cloud_filtered->points[it->second];
-            if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
-              nonnan_indices->indices.push_back(it->second);
-            }
+          auto it = original_to_filtered(index);
+          pcl::PointXYZ p = cloud_filtered->points[it];
+          if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
+            nonnan_indices->indices.push_back(it);
           }
         }
 
@@ -101,7 +105,7 @@ namespace neatness_estimator
           // set extracted indices to ros msg
           for (int i=0; i<output_indices.at(index).indices.size(); i++){
             point_indices_msg.indices.push_back
-              (filtered_to_original.find(output_indices.at(index).indices.at(i))->second);
+              (filtered_to_original(output_indices.at(index).indices.at(i)));
           }
           point_indices_msg.header = cluster_indices->header;
         }

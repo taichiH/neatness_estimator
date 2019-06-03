@@ -48,9 +48,10 @@
     <remap from="~input_point_cloud" to="$(arg input_cloud)" />
     <rosparam subst_value="true">
       cluster_tolerance: 0.008
-      min_size: 100
+      min_size: 10
       max_size: 25000
       approximate_sync_: false
+      downsample_step_: 2
     </rosparam>
   </node>
 
