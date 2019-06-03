@@ -24,6 +24,7 @@
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/filters/voxel_grid.h>
 
 namespace neatness_estimator
 {
@@ -40,6 +41,11 @@ namespace neatness_estimator
       jsk_recognition_msgs::ClusterPointIndices,
       sensor_msgs::PointCloud2
       > ApproximateSyncPolicy;
+
+    struct index_pair {
+      int filtered;
+      int original;
+    };
 
   protected:
     virtual void onInit();

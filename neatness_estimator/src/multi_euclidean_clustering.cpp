@@ -17,7 +17,6 @@ namespace neatness_estimator
     clustered_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
     filtered_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
-
     output_cluster_indices_pub_ =
       pnh_.advertise<jsk_recognition_msgs::ClusterPointIndices>("output_indices", 1);
 
@@ -42,28 +41,51 @@ namespace neatness_estimator
     cloud_->clear();
     pcl::fromROSMsg(*point_cloud, *cloud_);
 
-    if(cloud_->points.size() > 0){
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+    cloud_filtered->header = cloud_->header;
+    cloud_filtered->is_dense = cloud_->is_dense;
+    cloud_filtered->sensor_origin_ = cloud_->sensor_origin_;
+    cloud_filtered->sensor_orientation_ = cloud_->sensor_orientation_;
+
+    std::map<int, int> original_to_filtered; // key is original point index
+    std::map<int, int> filtered_to_original; // key is filtered point index
+    int step = 2;
+    int index = 0;
+    for (int i=0; i<cloud_->points.size(); i++) {
+      if (i % step == 0) {
+        cloud_filtered->points.push_back(cloud_->points.at(i));
+        original_to_filtered.insert(std::make_pair(i, index));
+        filtered_to_original.insert(std::make_pair(index, i));
+        index++;
+      }
+    }
+
+    if(cloud_filtered->points.size() > 0){
       for(auto point_indices : cluster_indices->cluster_indices){
 
         // organized pointcloud
         pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
         for (auto index : point_indices.indices) {
-          pcl::PointXYZ p = cloud_->points[index];
-          if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
-            nonnan_indices->indices.push_back(index);
+
+          auto it = original_to_filtered.find(index);
+          if(it != original_to_filtered.end()) {
+            pcl::PointXYZ p = cloud_filtered->points[it->second];
+            if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
+              nonnan_indices->indices.push_back(it->second);
+            }
           }
         }
 
         pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
         std::vector<pcl::PointIndices> output_indices;
         pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        tree->setInputCloud(cloud_);
+        tree->setInputCloud(cloud_filtered);
         ec.setClusterTolerance (cluster_tolerance_);
         ec.setMinClusterSize (minsize_);
         ec.setMaxClusterSize (maxsize_);
         ec.setSearchMethod (tree);
         ec.setIndices(nonnan_indices);
-        ec.setInputCloud (cloud_);
+        ec.setInputCloud (cloud_filtered);
         ec.extract (output_indices);
 
         pcl_msgs::PointIndices point_indices_msg;
@@ -77,7 +99,10 @@ namespace neatness_estimator
           }
 
           // set extracted indices to ros msg
-          point_indices_msg.indices = output_indices.at(index).indices;
+          for (int i=0; i<output_indices.at(index).indices.size(); i++){
+            point_indices_msg.indices.push_back
+              (filtered_to_original.find(output_indices.at(index).indices.at(i))->second);
+          }
           point_indices_msg.header = cluster_indices->header;
         }
         output_cluster_indices.cluster_indices.push_back(point_indices_msg);
