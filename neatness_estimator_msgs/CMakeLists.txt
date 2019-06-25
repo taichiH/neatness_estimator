@@ -22,6 +22,7 @@ add_service_files(
   FILES
   VisionServer.srv
   DisplayState.srv
+  UpdateBoundingBox.srv
   )
 
 generate_messages(

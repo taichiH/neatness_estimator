@@ -1,0 +1,4 @@
+jsk_recognition_msgs/BoundingBoxArray boxes
+---
+bool success
+jsk_recognition_msgs/BoundingBoxArray pre_boxes

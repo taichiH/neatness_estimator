@@ -6,7 +6,7 @@
   </node>
 
   <node name="dummy_bounding_box_publisher"
-        pkg="jsk_recognition_utils" type="bounding_box_array_publisher.py">
+        pkg="neatness_estimator" type="dummy_bounding_box_publisher.py">
     <rosparam>
       frame_id: shelf_base
       boxes:
