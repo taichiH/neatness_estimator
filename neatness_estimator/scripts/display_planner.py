@@ -11,17 +11,30 @@ import rospy
 from neatness_estimator_msgs.srv import DisplayState, DisplayStateResponse
 from neatness_estimator_msgs.msg import DisplayPlan, DisplayPlanArray
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
+from geometry_msgs.msg import Pose, Point, PoseStamped
 
 class DisplayPlanner():
 
     def __init__(self):
         self.boxes = BoundingBoxArray()
+        self.dynamic_boxes = BoundingBoxArray()
         self.sorted_boxes = BoundingBoxArray()
         self.border_indexes = None
 
         self.change = rospy.get_param('change', 7)
         self.insert = rospy.get_param('insert', 14)
         self.delete = rospy.get_param('delete', 14)
+
+        self.tmp_space_pos_list = [
+            Point(0.0 + i * 0.05, 0, 0.05) for i in range(16)]
+        self.boxes_buffer = []
+        self.ref_index_buffer = []
+
+        self.debug_current_pose_pub = rospy.Publisher('~debug_current_pose', PoseStamped, queue_size=1)
+        self.debug_ref_pose_pub = rospy.Publisher('~debug_ref_pose', PoseStamped, queue_size=1)
+
+        self.update_boxes_client = rospy.ServiceProxy(
+            '/dummy_bounding_box_publisher/update_boxes', UpdateBoundingBox)
 
         rospy.Subscriber(
             "~input_boxes", BoundingBoxArray, self.callback)
@@ -30,15 +43,28 @@ class DisplayPlanner():
 
     def callback(self, msg):
         self.boxes = msg
+        # for box in msg.boxes:
+        #     if box.label == 17:
+        #         continue
+        #     self.boxes.boxes.append(box)
 
     def server_callback(self, req):
         self.border_indexes = req.border_indexes
+
         reference_state = map(str, req.reference_state)
         current_state = self.boxes_to_state(self.boxes)
-
         table = self.initialize_table(current_state, reference_state)
         calculated_table = self.calculate_cost(table, current_state, reference_state)
         plan, edit = self.calculate_plan(calculated_table, current_state, reference_state)
+
+        index = 0
+        for i, box in enumerate(self.sorted_boxes.boxes):
+            if box.label == 17:
+                continue
+            if i == self.border_indexes[index]:
+                index += 1
+            box.value = index
+            self.dynamic_boxes.boxes.append(box)
 
         print('--------------------')
         print('current: ', current_state)
@@ -53,28 +79,26 @@ class DisplayPlanner():
         res = self.create_plan(plan, cost)
         return res
 
-    def create_plan(self, plan, cost):
-        display_plans = DisplayPlanArray()
-        res = DisplayStateResponse()
+    def update_boxes(self, current_index, reference_index):
+        return true
 
-        for i, task in enumerate(plan):
-            if task[1] == 'replace':
-                print(task)
-                display_plan = DisplayPlan()
-                display_plan.current = self.sorted_boxes.boxes[i]
-                display_plan.current.label = int(task[0][0])
-                display_plan.reference = self.get_reference_box(i, int(task[0][1]), display_plan.current)
-                display_plan.manipulation = 'replace'
-                display_plans.tasks.append(display_plan)
+    def replace(self, index, task):
+        ref_box, ref_index = get_reference_box(index, task)
 
-        display_plans.header = self.boxes.header
+        buffer_index = len(self.boxes_buffer)
+        self.dynamic_boxes.boxes[index].pose = self.tmp_space_pos_list[buffer_index]
+        self.boxes_buffer.append(dynamic_boxes.boxes[index])
 
-        res.plan = display_plans
-        res.status = True
-        res.distance = cost
-        return res
+        if ref_box is None:
+            ref_box = self.boxes_buffer.pop()
 
-    def get_reference_box(self, index, ref_index, current):
+        current_box = copy.copy(self.sorted_boxes.boxes[index])
+        self.dynamic_boxes.boxes[ref_index].pose = current_box
+        ref_index_buffer.append(ref_index)
+
+        return display_plan
+
+    def get_reference_box(self, index, task):
         # ex: [0,6,8]
         ignore_indexes = []
         for i in range(1, len(self.border_indexes)):
@@ -85,16 +109,38 @@ class DisplayPlanner():
         current_vec = np.array(
             [current.pose.position.x, current.pose.position.y, current.pose.position.z])
 
-        for i, box in enumerate(self.sorted_boxes.boxes):
-            if i in ignore_indexes or box.label != ref_index:
+        reference_box = None
+        reference_index = None
+        for i, box in enumerate(self.dynamic_boxes.boxes[index:]):
+            if i in ignore_indexes or box.label != task[0][1]:
                 continue
+
             distance = np.linalg.norm(
                 np.array([box.pose.position.x, box.pose.position.y, box.pose.position.z]) - current_vec)
             if distance < norm:
                 norm = distance
                 reference_box = box
+                reference_index = i
 
-        return reference_box
+        return reference_box, reference_index
+
+    def create_plan(self, plan, cost):
+        display_plans = DisplayPlanArray()
+        res = DisplayStateResponse()
+
+        for i, task in enumerate(plan):
+            if task[1] == 'replace':
+                print(task)
+                display_plan = self.replace(i, task)
+                display_plans.tasks.append(display_plan)
+
+        display_plans.header = self.boxes.header
+
+        res.plan = display_plans
+        res.status = True
+        res.distance = cost
+        return res
+
 
     def boxes_to_state(self, boxes):
         tmp_boxes = sorted(boxes.boxes, key=lambda box : box.pose.position.y, reverse=True)

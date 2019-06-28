@@ -44,7 +44,8 @@ class TestDisplayPlanner():
         display_client = rospy.ServiceProxy('/display_planner_server', DisplayState)
         self.res = display_client(
             reference_state=self.reference_state, border_indexes=self.border_indexes)
-        self.visualize()
+
+        # self.visualize()
 
     def calc_ignore_indexes(self, index):
         ignore_indexes = []
