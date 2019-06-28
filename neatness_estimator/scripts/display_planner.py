@@ -6,9 +6,11 @@
 
 import collections
 import numpy as np
+import copy
 
 import rospy
 from neatness_estimator_msgs.srv import DisplayState, DisplayStateResponse
+from neatness_estimator_msgs.srv import UpdateBoundingBox
 from neatness_estimator_msgs.msg import DisplayPlan, DisplayPlanArray
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from geometry_msgs.msg import Pose, Point, PoseStamped
@@ -58,6 +60,7 @@ class DisplayPlanner():
         plan, edit = self.calculate_plan(calculated_table, current_state, reference_state)
 
         index = 0
+        self.dynamic_boxes = BoundingBoxArray()
         for i, box in enumerate(self.sorted_boxes.boxes):
             if box.label == 17:
                 continue
@@ -83,20 +86,32 @@ class DisplayPlanner():
         return true
 
     def replace(self, index, task):
-        ref_box, ref_index = get_reference_box(index, task)
+        print('replace')
+        ref_box, ref_index = self.get_reference_box(index, task)
+        print('done get_reference_box')
+
+        raw_input()
 
         buffer_index = len(self.boxes_buffer)
+
+        print(self.dynamic_boxes.boxes[index].pose.position)
+
         self.dynamic_boxes.boxes[index].pose = self.tmp_space_pos_list[buffer_index]
-        self.boxes_buffer.append(dynamic_boxes.boxes[index])
+
+        debug_pose_msg = PoseStamped()
+        debug_pose_msg.pose = self.dynamic_boxes.boxes[index].pose
+        debug_pose_msg.header = self.dynamic_boxes.header
+        self.debug_current_pose_pub.publish(debug_pose_msg)
+
+        self.boxes_buffer.append(self.dynamic_boxes.boxes[index])
 
         if ref_box is None:
             ref_box = self.boxes_buffer.pop()
 
         current_box = copy.copy(self.sorted_boxes.boxes[index])
-        self.dynamic_boxes.boxes[ref_index].pose = current_box
-        ref_index_buffer.append(ref_index)
 
-        return display_plan
+        self.dynamic_boxes.boxes[ref_index].pose = current_box
+        self.ref_index_buffer.append(ref_index)
 
     def get_reference_box(self, index, task):
         # ex: [0,6,8]
@@ -106,13 +121,15 @@ class DisplayPlanner():
                 ignore_indexes = range(self.border_indexes[i-1], self.border_indexes[i])
 
         norm = 2 ** 24
+        current = self.sorted_boxes.boxes[index]
         current_vec = np.array(
             [current.pose.position.x, current.pose.position.y, current.pose.position.z])
 
         reference_box = None
         reference_index = None
         for i, box in enumerate(self.dynamic_boxes.boxes[index:]):
-            if i in ignore_indexes or box.label != task[0][1]:
+            # print(i in ignore_indexes, box.label, task[0][1])
+            if i in ignore_indexes or box.label != int(task[0][1]):
                 continue
 
             distance = np.linalg.norm(
@@ -131,12 +148,8 @@ class DisplayPlanner():
         for i, task in enumerate(plan):
             if task[1] == 'replace':
                 print(task)
-                display_plan = self.replace(i, task)
-                display_plans.tasks.append(display_plan)
+                self.replace(i, task)
 
-        display_plans.header = self.boxes.header
-
-        res.plan = display_plans
         res.status = True
         res.distance = cost
         return res
