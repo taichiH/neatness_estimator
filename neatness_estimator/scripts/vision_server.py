@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
+import sys
 import numpy as np
 
 import rospy
@@ -35,15 +36,22 @@ class NeatnessEstimatorVisionServer():
 
     ''' task get_obj_pos '''
     def get_obj_pos(self, req):
+        print('get_obj_pos')
+
         rospy.loginfo(req.task)
         res = VisionServerResponse()
 
         try:
             nearest_box = self.get_nearest_box(req)
 
+            print('----------------------')
+
             if req.parent_frame == '':
+                print('req.parent_frame is: empty')
                 transformed_box = nearest_box
             else:
+
+                print('req.parent_frame is: ', self.boxes.header.frame_id)
                 transformed_box = self.transform_poses(
                     nearest_box.pose, req.label, self.boxes.header.frame_id, req.parent_frame)
 
@@ -77,7 +85,7 @@ class NeatnessEstimatorVisionServer():
                     has_shelf = True
                     shelf_front = np.array([box.pose.position.x, box.pose.position.y])
                     shelf_edge = np.array([box.pose.position.x, box.pose.position.y]) +\
-                                 np.array([box.dimensions.x, box.dimensions.y])
+                                 np.array([box.dimensions.x * 0.5, box.dimensions.y * 0.5])
 
             if not has_shelf:
                 rospy.logwarn("cannot find shelf front")
@@ -85,7 +93,8 @@ class NeatnessEstimatorVisionServer():
                 return res
 
             nearest_box = self.get_nearest_box(req)
-            target_vec = np.array([nearest_box.pose.position.x, nearest_box.pose.position.y])
+            target_vec = np.array([nearest_box.pose.position.x - box.dimensions.x * 0.5,
+                                   nearest_box.pose.position.y])
             target_vec = target_vec - shelf_front
             shelf_vec = shelf_edge - shelf_front
             theta = np.arccos(
@@ -98,6 +107,84 @@ class NeatnessEstimatorVisionServer():
                 res.status = True
             else:
                 res.status = False
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
+    ''' task get_distance_from_shelf_front_simple '''
+    def get_distance_from_shelf_front_simple(self, req):
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+
+        try:
+            has_shelf = False
+            for box in self.boxes.boxes:
+                if box.label == int(self.label_lst.index('shelf_flont')):
+                    has_shelf = True
+                    shelf_front = box.pose.position.x
+
+            if not has_shelf:
+                rospy.logwarn("cannot find shelf front")
+                res.status = False
+                return res
+
+            nearest_box = self.get_nearest_box(req)
+            target = nearest_box.pose.position.x - box.dimensions.x * 0.5
+            distance  = target - shelf_front
+
+            if shelf_front is not None and target is not None:
+                res.pulling_dist = distance
+                res.status = True
+            else:
+                res.status = False
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
+
+    ''' task get_distance_between_two_items '''
+    def get_items_distance(self, req):
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+
+        has_item = False
+        has_ref_item = False
+
+        try:
+            left_side = -sys.maxsize # left side of right item
+            right_side = sys.maxsize # right side of left item
+
+            for box in self.boxes.boxes:
+                if box.pose.position.x == 0 and box.pose.position.y == 0 and box.pose.position.z == 0:
+                    continue
+
+                if box.label == int(self.label_lst.index(req.ref_label)):
+                    has_ref_item = True
+                    tmp_left_side = box.pose.position.y + box.dimensions.y * 0.5
+                    if tmp_left_side > left_side:
+                        left_side = tmp_left_side
+
+            for box in self.boxes.boxes:
+                if box.label == int(self.label_lst.index(req.label)):
+                    has_item = True
+                    tmp_right_side = box.pose.position.y - box.dimensions.y * 0.5
+                    if tmp_right_side < right_side:
+                        right_side = tmp_right_side
+
+            if right_side == sys.maxsize or left_side == -sys.maxsize \
+               or not has_item or not has_ref_item:
+                res.satus = False
+                res.filling_dist = 0
+                return res
+
+            res.filling_dist = right_side - left_side
+            res.status = True
         except:
             res.status = False
             import traceback
@@ -157,7 +244,11 @@ class NeatnessEstimatorVisionServer():
 
         elif req.task == 'get_distance':
             rospy.loginfo(req.task)
-            return self.get_distance_from_shelf_front(req)
+            return self.get_distance_from_shelf_front_simple(req)
+
+        elif req.task == 'get_items_distance':
+            rospy.loginfo(req.task)
+            return self.get_items_distance(req)
 
         elif req.task == 'get_empty_space':
             rospy.loginfo(req.task)
