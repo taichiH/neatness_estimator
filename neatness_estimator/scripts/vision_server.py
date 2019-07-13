@@ -40,8 +40,30 @@ class NeatnessEstimatorVisionServer():
 
         rospy.loginfo(req.task)
         res = VisionServerResponse()
+        res.status = False
+        has_nearest_item = False
 
         try:
+            nearest_box, has_nearest_item = self.get_nearest_box(req)
+
+            if has_nearest_item:
+                if req.parent_frame == '':
+                    transformed_box = nearest_box
+                else:
+                    transformed_box = self.transform_poses(
+                        nearest_box.pose, req.label, self.boxes.header.frame_id, req.parent_frame)
+
+                # faile lookup transform
+                if transformed_box == BoundingBox():
+                    transformed_box = nearest_box
+                    transformed_box.header = self.boxes.header
+                else:
+                    transformed_box.header = self.boxes.header
+                    transformed_box.header.frame_id = req.parent_frame
+                    transformed_box.dimensions = nearest_box.dimensions
+
+                res.boxes = transformed_box
+                res.status = True
             nearest_box = self.get_nearest_box(req)
 
             print('----------------------')
@@ -64,8 +86,6 @@ class NeatnessEstimatorVisionServer():
                 transformed_box.header.frame_id = req.parent_frame
                 transformed_box.dimensions = nearest_box.dimensions
 
-            res.boxes = transformed_box
-            res.status = True
         except:
             res.status = False
             import traceback
@@ -92,19 +112,21 @@ class NeatnessEstimatorVisionServer():
                 res.status = False
                 return res
 
-            nearest_box = self.get_nearest_box(req)
-            target_vec = np.array([nearest_box.pose.position.x - box.dimensions.x * 0.5,
-                                   nearest_box.pose.position.y])
-            target_vec = target_vec - shelf_front
-            shelf_vec = shelf_edge - shelf_front
-            theta = np.arccos(
-                np.dot(target_vec, shelf_vec) / np.linalg.norm(target_vec) * np.linalg.norm(shelf_vec))
-            theta = np.deg2rad(180) - theta if theta > np.deg2rad(90) else theta
-            distance  = np.linalg.norm(target_vec) * np.sin(theta)
+            nearest_box, has_nearest_item = self.get_nearest_box(req)
+            if has_nearest_item:
+                target_vec = np.array([nearest_box.pose.position.x, nearest_box.pose.position.y])
+                target_vec = target_vec - shelf_front
+                shelf_vec = shelf_edge - shelf_front
+                theta = np.arccos(
+                    np.dot(target_vec, shelf_vec) / np.linalg.norm(target_vec) * np.linalg.norm(shelf_vec))
+                theta = np.deg2rad(180) - theta if theta > np.deg2rad(90) else theta
+                distance  = np.linalg.norm(target_vec) * np.sin(theta)
 
-            if shelf_front is not None and target_vec is not None:
-                res.pulling_dist = distance
-                res.status = True
+                if shelf_front is not None and target_vec is not None:
+                    res.pulling_dist = distance
+                    res.status = True
+                else:
+                    res.status = False
             else:
                 res.status = False
         except:
@@ -131,13 +153,16 @@ class NeatnessEstimatorVisionServer():
                 res.status = False
                 return res
 
-            nearest_box = self.get_nearest_box(req)
-            target = nearest_box.pose.position.x - box.dimensions.x * 0.5
-            distance  = target - shelf_front
+            nearest_box, has_nearest_item = self.get_nearest_box(req)
+            if has_nearest_item:
+                target = nearest_box.pose.position.x - box.dimensions.x * 0.5
+                distance  = target - shelf_front
 
-            if shelf_front is not None and target is not None:
-                res.pulling_dist = distance
-                res.status = True
+                if shelf_front is not None and target is not None:
+                    res.pulling_dist = distance
+                    res.status = True
+                else:
+                    res.status = False
             else:
                 res.status = False
         except:
@@ -179,7 +204,7 @@ class NeatnessEstimatorVisionServer():
 
             if right_side == sys.maxsize or left_side == -sys.maxsize \
                or not has_item or not has_ref_item:
-                res.satus = False
+                res.status = False
                 res.filling_dist = 0
                 return res
 
@@ -201,9 +226,11 @@ class NeatnessEstimatorVisionServer():
 
     def get_nearest_box(self, req):
         distance = 100
+        has_request_item = False
         nearest_box = BoundingBox()
         for index, box in enumerate(self.boxes.boxes):
             if self.label_lst[box.label] == req.label:
+                has_request_item = True
                 ref_point = np.array([box.pose.position.x + (box.dimensions.x * 0.5),
                                       box.pose.position.y + (box.dimensions.y * 0.5),
                                       box.pose.position.z + (box.dimensions.z * 0.5)])
@@ -214,7 +241,8 @@ class NeatnessEstimatorVisionServer():
                     nearest_box.pose = box.pose
                     nearest_box.dimensions = box.dimensions
                     distance = np.linalg.norm(ref_point - target_point)
-        return nearest_box
+
+        return nearest_box, has_request_item
 
     def listen_transform(self, parent_frame, child_frame):
         box = BoundingBox()
