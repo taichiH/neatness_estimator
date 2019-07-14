@@ -8,7 +8,7 @@ import rospy
 import tf
 
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from neatness_estimator_msgs.srv import VisionServer, VisionServerResponse
 
 class NeatnessEstimatorVisionServer():
@@ -19,6 +19,7 @@ class NeatnessEstimatorVisionServer():
         self.labeled_boxes = BoundingBoxArray()
         self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
+        self.shelf_flont_angle = 181.28271996356708
 
         rospy.Subscriber(
             "~input_instance_boxes", BoundingBoxArray, self.instance_box_callback)
@@ -45,11 +46,13 @@ class NeatnessEstimatorVisionServer():
 
         try:
             nearest_box, has_nearest_item = self.get_nearest_box(req)
-
+            rospy.loginfo('has_nearest_item = true')
             if has_nearest_item:
                 if req.parent_frame == '':
+                    rospy.loginfo('req.parent_frame is: empty')
                     transformed_box = nearest_box
                 else:
+                    rospy.loginfo('req.parent_frame is: %s' %(self.boxes.header.frame_id))
                     transformed_box = self.transform_poses(
                         nearest_box.pose, req.label, self.boxes.header.frame_id, req.parent_frame)
 
@@ -64,28 +67,6 @@ class NeatnessEstimatorVisionServer():
 
                 res.boxes = transformed_box
                 res.status = True
-            nearest_box = self.get_nearest_box(req)
-
-            print('----------------------')
-
-            if req.parent_frame == '':
-                print('req.parent_frame is: empty')
-                transformed_box = nearest_box
-            else:
-
-                print('req.parent_frame is: ', self.boxes.header.frame_id)
-                transformed_box = self.transform_poses(
-                    nearest_box.pose, req.label, self.boxes.header.frame_id, req.parent_frame)
-
-            # faile lookup transform
-            if transformed_box == BoundingBox():
-                transformed_box = nearest_box
-                transformed_box.header = self.boxes.header
-            else:
-                transformed_box.header = self.boxes.header
-                transformed_box.header.frame_id = req.parent_frame
-                transformed_box.dimensions = nearest_box.dimensions
-
         except:
             res.status = False
             import traceback
@@ -224,6 +205,46 @@ class NeatnessEstimatorVisionServer():
         res.status = False
         return res
 
+    ''' task get_shelf_map_rotation '''
+    def get_shelf_map_rotation(self, req):
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+        res.status = False
+
+        # overwrite request label
+        req.label = 'shelf_flont'
+
+        get_obj_pos_res = self.get_obj_pos(req)
+        if get_obj_pos_res.status == True:
+
+            qua = (get_obj_pos_res.boxes.pose.orientation.x,
+                   get_obj_pos_res.boxes.pose.orientation.y,
+                   get_obj_pos_res.boxes.pose.orientation.z,
+                   get_obj_pos_res.boxes.pose.orientation.w)
+            e = tf.transformations.euler_from_quaternion(qua)
+            # print('rpy')
+            # print(np.rad2deg(e[0]), np.rad2deg(e[1]), np.rad2deg(e[2]))
+
+            res.boxes.pose.position.x = e[0]
+            res.boxes.pose.position.y = e[1]
+            res.boxes.pose.position.z = e[2]
+
+            print(np.rad2deg(e[2]))
+
+            if np.rad2deg(e[2]) == 0:
+                res.status == False
+                return res
+
+            if np.rad2deg(e[2]) < 0:
+                res.boxes.pose.orientation.z = -self.shelf_flont_angle - np.rad2deg(e[2])
+            else:
+                res.boxes.pose.orientation.z = self.shelf_flont_angle - np.rad2deg(e[2])
+
+            print('angle diff: ', res.boxes.pose.orientation.z)
+            res.status = True
+
+        return res
+
     def get_nearest_box(self, req):
         distance = 100
         has_request_item = False
@@ -281,6 +302,10 @@ class NeatnessEstimatorVisionServer():
         elif req.task == 'get_empty_space':
             rospy.loginfo(req.task)
             return self.get_empty_space(req)
+
+        elif req.task == 'get_shelf_map_rotation':
+            rospy.loginfo(req.task)
+            return self.get_shelf_map_rotation(req)
 
 if __name__ == "__main__":
     rospy.init_node("display_task_vision_server")
