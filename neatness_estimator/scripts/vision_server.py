@@ -67,6 +67,8 @@ class NeatnessEstimatorVisionServer():
 
                 res.boxes = transformed_box
                 res.status = True
+                print(res.boxes)
+
         except:
             res.status = False
             import traceback
@@ -250,6 +252,12 @@ class NeatnessEstimatorVisionServer():
         has_request_item = False
         nearest_box = BoundingBox()
         for index, box in enumerate(self.boxes.boxes):
+            if box.pose.position.x == 0 or \
+               box.pose.position.y == 0 or \
+               box.pose.position.z == 0:
+                rospy.logwarn('boxes has (0, 0, 0) position box')
+                continue
+
             if self.label_lst[box.label] == req.label:
                 has_request_item = True
                 ref_point = np.array([box.pose.position.x + (box.dimensions.x * 0.5),
@@ -272,6 +280,7 @@ class NeatnessEstimatorVisionServer():
                 parent_frame, child_frame, rospy.Time(0), rospy.Duration(3.0))
             (trans, rot) = self.listener.lookupTransform(
                 parent_frame, child_frame, rospy.Time(0))
+
             box.pose.position = Point(trans[0], trans[1], trans[2])
             box.pose.orientation = Quaternion(rot[0], rot[1], rot[2], rot[3])
             return box

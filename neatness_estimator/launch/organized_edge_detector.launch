@@ -1,0 +1,27 @@
+<launch>
+  <arg name="INPUT_CLOUD" value="/remote/point_cloud/cloud_registered/remote" />
+
+  <node pkg="nodelet" type="nodelet" name="filter"
+        args="standalone pcl/PassThrough">
+    <remap from="~input" to="$(arg INPUT_CLOUD)" />
+    <rosparam>
+      keep_organized: true
+      filter_field_name: x
+      filter_limit_min: -0.5
+      filter_limit_max: 0.5
+    </rosparam>
+  </node>
+
+  <node pkg="nodelet" type="nodelet" name="edge_detector"
+        args="standalone jsk_pcl/OrganizedEdgeDetector">
+    <remap from="~input" to="filter/output" />
+    <rosparam subst_value="true">
+      rho: 1.0
+      straightline_threshold: 25
+      min_line_length: 25
+      max_line_gap: 5.0
+    </rosparam>
+  </node>
+
+
+</launch>
