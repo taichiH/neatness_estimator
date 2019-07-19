@@ -8,3 +8,4 @@ bool status
 float32 filling_dist
 float32 pulling_dist
 jsk_recognition_msgs/BoundingBox boxes
+jsk_recognition_msgs/BoundingBox[] multi_boxes

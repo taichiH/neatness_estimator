@@ -76,6 +76,42 @@ class NeatnessEstimatorVisionServer():
 
         return res
 
+    ''' task get_multi_obj_pos '''
+    def get_multi_obj_pos(self, req):
+        print('get_multi_obj_pos')
+
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+        res.status = False
+        has_items = False
+
+        try:
+            multi_boxes, has_items = self.get_multi_boxes(req)
+            rospy.loginfo('has_items = true')
+
+            if has_items:
+                if req.parent_frame == '':
+                    rospy.loginfo('req.parent_frame is: empty')
+                else:
+                    rospy.loginfo('req.parent_frame is: %s' %(self.boxes.header.frame_id))
+
+                # faile lookup transform
+                if multi_boxes != BoundingBoxArray():
+                    multi_boxes.header = self.boxes.header
+                    multi_boxes.header.frame_id = req.parent_frame
+                    res.multi_boxes = multi_boxes.boxes
+                    res.status = True
+                else:
+                    res.status = False
+                print(res.boxes)
+
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
     ''' task get_distance_from_shelf_front '''
     def get_distance_from_shelf_front(self, req):
         rospy.loginfo(req.task)
@@ -273,6 +309,25 @@ class NeatnessEstimatorVisionServer():
 
         return nearest_box, has_request_item
 
+    def get_multi_boxes(self, req):
+        distance = 100
+        has_request_item = False
+        multi_boxes = BoundingBoxArray()
+        for index, box in enumerate(self.boxes.boxes):
+            if box.pose.position.x == 0 or \
+               box.pose.position.y == 0 or \
+               box.pose.position.z == 0:
+                rospy.logwarn('boxes has (0, 0, 0) position box')
+                continue
+
+            if self.label_lst[box.label] == req.label:
+                has_request_item = True
+                transformed_box = self.transform_poses(
+                    box.pose, req.label, self.boxes.header.frame_id, req.parent_frame)
+                multi_boxes.boxes.append(transformed_box)
+
+        return multi_boxes, has_request_item
+
     def listen_transform(self, parent_frame, child_frame):
         box = BoundingBox()
         try:
@@ -299,6 +354,10 @@ class NeatnessEstimatorVisionServer():
     def vision_server(self, req):
         if req.task == 'get_obj_pos':
             return self.get_obj_pos(req)
+
+        elif req.task == 'get_multi_obj_pos':
+            rospy.loginfo(req.task)
+            return self.get_multi_obj_pos(req)
 
         elif req.task == 'get_distance':
             rospy.loginfo(req.task)
