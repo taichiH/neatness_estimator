@@ -68,7 +68,6 @@ class EdgeHistogramArrayPublisher():
             return False
 
     def callback(self, rects_msg, labels_msg, edge_msg):
-        rospy.loginfo('--- callback ---')
         if not self.check_image_callback:
             rospy.logwarn('waiting for image callback ... ')
             return
