@@ -6,7 +6,7 @@
   <arg name="input_camera_info"
        default="/head_mount_kinect/hd/camera_info"/>
 
-  <arg name="input_rects" default="/qatm/output/rects" />
+  <arg name="input_rects" default="/qatm/output/original_size_rects" />
   <arg name="input_labels" default="/qatm/output/labels" />
 
   <node name="rect2label_array"
