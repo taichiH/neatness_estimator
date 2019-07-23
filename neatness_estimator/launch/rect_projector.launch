@@ -22,7 +22,7 @@
 
   <node name="rect_projector"
         pkg="what_i_see" type="ssd_projector"
-        output="screen">
+        output="log">
     <param name="lazy_sync" value="true"/>
     <remap from="~input_image" to="$(arg input_image)"/>
     <remap from="~input_cloud" to="$(arg input_cloud)"/>

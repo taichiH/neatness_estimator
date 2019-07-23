@@ -30,16 +30,20 @@
   </node>
 
   <include file="$(find qatm_ros)/launch/qatm.launch">
-    <arg name="templates_dir" default="$(find qatm_ros)/clothes_templates" />
+    <arg name="templates_dir" default="$(find neatness_estimator)/models/room610_templates" />
     <arg name="input_image" default="image_resizer_half/output/image" />
     <arg name="resize_scale" value="0.25" />
   </include>
+
+  <!-- 3d projector -->
+  <include file="$(find neatness_estimator)/launch/rect_projector.launch" />
 
   <!-- wrinkle detector -->
   <node name="edge_histogram_array"
         pkg="neatness_estimator" type="edge_histogram_array.py"
         output="screen">
     <remap from="~input_rgb" to="$(arg input_image)" />
+
     <remap from="~input_rects" to="/qatm/output/rects" />
     <remap from="~input_labels" to="/qatm/output/labels" />
     <remap from="~input_edge" to="/edge_detector/output_hough_msg" />
