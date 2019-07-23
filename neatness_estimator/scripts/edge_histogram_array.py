@@ -27,15 +27,15 @@ class EdgeHistogramArrayPublisher():
         self.edge_histograms_pub = rospy.Publisher(
             '~output', EdgeHistogramArray, queue_size=1)
 
-        queue_size = rospy.get_param('~queue_size', 1000)
+        queue_size = rospy.get_param('~queue_size', 100)
         rospy.Subscriber('~input_rgb', Image, self.image_callback)
 
         sub_rects = message_filters.Subscriber(
-            '~input_rects', RectArray, queue_size=queue_size, buff_size=2**24)
+            '~input_rects', RectArray, queue_size=queue_size)
         sub_labels = message_filters.Subscriber(
-            '~input_labels', LabelArray, queue_size=queue_size, buff_size=2**24)
+            '~input_labels', LabelArray, queue_size=queue_size)
         sub_edge = message_filters.Subscriber(
-            '~input_edge', LineArrayStamped, queue_size=queue_size, buff_size=2**24)
+            '~input_edge', LineArrayStamped, queue_size=queue_size)
 
         self.subs = [sub_rects, sub_labels, sub_edge]
         if self.approximate_sync:
@@ -74,9 +74,11 @@ class EdgeHistogramArrayPublisher():
 
         rgb_image = self.cv_bridge.imgmsg_to_cv2(self.rgb_msg, 'bgr8')
 
-        color = {'black_parker' : (255, 0, 0), 'flower_shirt' : (0, 255, 0)}
+        color = {}
         histogram_array = {}
         for label, rect in zip(labels_msg.labels, rects_msg.rects):
+            color[label.name] = (
+                np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255))
             if not histogram_array.has_key(label.name):
                 histogram_array[label.name] = []
 
