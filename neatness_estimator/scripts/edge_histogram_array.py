@@ -102,8 +102,6 @@ class EdgeHistogramArrayPublisher():
             histogram.lines_num = len(histogram_array[key])
             edge_histograms.histograms.append(histogram)
 
-            print('key: %s, array length: %d' %(key, len(histogram_array[key])))
-
         self.edge_histograms_pub.publish(edge_histograms)
         if self.debug:
             debug_img_msg = self.cv_bridge.cv2_to_imgmsg(rgb_image, 'bgr8')
