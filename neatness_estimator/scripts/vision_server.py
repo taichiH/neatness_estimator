@@ -10,13 +10,21 @@ import tf
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from neatness_estimator_msgs.srv import VisionServer, VisionServerResponse
+from what_i_see_msgs.msg import LabeledPose, LabeledPoseArray
 
 class NeatnessEstimatorVisionServer():
 
     def __init__(self):
-        self.label_lst = rospy.get_param('~fg_class_names')
+        mask_rcnn_label_lst = rospy.get_param('~fg_class_names')
+        qatm_label_lst = rospy.get_param('~qatm_class_names')
+        self.label_lst = mask_rcnn_label_lst + qatm_label_lst
+
         self.boxes = BoundingBoxArray()
+
         self.labeled_boxes = BoundingBoxArray()
+        self.mask_rcnn_boxes = BoundingBoxArray()
+        self.qatm_boxes = BoundingBoxArray()
+
         self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
         self.shelf_flont_angle = 181.28271996356708
@@ -25,19 +33,44 @@ class NeatnessEstimatorVisionServer():
             "~input_instance_boxes", BoundingBoxArray, self.instance_box_callback)
         rospy.Subscriber(
             "~input_cluster_boxes", BoundingBoxArray, self.cluster_box_callback)
+        rospy.Subscriber(
+            "~input_qatm_pos", LabeledPoseArray, self.labeled_pose_callback)
         rospy.Service(
             '/display_task_vision_server', VisionServer, self.vision_server)
 
     def instance_box_callback(self, msg):
-        self.boxes = msg
+        self.mask_rcnn_boxes = msg
+        # print('mask_rcnn_boxes size: %s' %(len(self.mask_rcnn_boxes.boxes)))
 
     def cluster_box_callback(self, msg):
         self.labeled_boxes = msg
 
+    def labeled_pose_callback(self, pose_msg):
+        self.qatm_boxes = BoundingBoxArray()
+        self.qatm_boxes.header = pose_msg.header
+        for pose in pose_msg.poses:
+            tmp_box = BoundingBox()
+            tmp_box.header = pose_msg.header
+            tmp_box.pose = pose.pose
+            tmp_box.dimensions.x = 0.03
+            tmp_box.dimensions.y = 0.03
+            tmp_box.dimensions.z = 0.03
+            tmp_box.label = self.label_lst.index(pose.label)
+            self.qatm_boxes.boxes.append(tmp_box)
+        # print('qatm_boxes size: %s' %(len(self.qatm_boxes.boxes)))
+
+
+    def merge_boxes(self, mask_rcnn_boxes, qatm_boxes):
+        boxes = BoundingBoxArray()
+        boxes.header = mask_rcnn_boxes.header
+        boxes.boxes = mask_rcnn_boxes.boxes + qatm_boxes.boxes
+        return boxes
 
     ''' task get_obj_pos '''
     def get_obj_pos(self, req):
         print('get_obj_pos')
+
+        self.boxes = self.merge_boxes(self.mask_rcnn_boxes, self.qatm_boxes)
 
         rospy.loginfo(req.task)
         res = VisionServerResponse()
