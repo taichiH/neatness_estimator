@@ -1,5 +1,11 @@
 <launch>
-  <arg name="INPUT_CLOUD" value="/remote/point_cloud/cloud_registered/remote" />
+  <arg name="pr2" default="true"/>
+  <arg name="aero" default="false"/>
+
+  <arg name="INPUT_CLOUD" value="/head_mount_kinect/hd/republished_points"
+       if="$(arg pr2)"/>
+  <arg name="INPUT_CLOUD" value="/remote/point_cloud/cloud_registered/remote"
+       if="$(arg aero)"/>
 
   <!--Extracting blue objects -->
   <arg name="h_max" default="127" />
@@ -36,7 +42,7 @@
     <remap from="~input" to="hsi_color_filter/output" />
     <rosparam>
       tolerance: 0.02
-      min_size: 30000
+      min_size: 300
       max_size: 100000
     </rosparam>
   </node>
