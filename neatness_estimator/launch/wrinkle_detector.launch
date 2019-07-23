@@ -32,6 +32,7 @@
   <include file="$(find qatm_ros)/launch/qatm.launch">
     <arg name="templates_dir" default="$(find qatm_ros)/clothes_templates" />
     <arg name="input_image" default="image_resizer_half/output/image" />
+    <arg name="resize_scale" value="0.25" />
   </include>
 
   <!-- wrinkle detector -->
