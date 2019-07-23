@@ -16,6 +16,8 @@ add_message_files(
   TargetAndGoalArray.msg
   DisplayPlan.msg
   DisplayPlanArray.msg
+  EdgeHistogram.msg
+  EdgeHistogramArray.msg
   )
 
 add_service_files(

@@ -1,0 +1,2 @@
+Header header
+EdgeHistogram[] histograms

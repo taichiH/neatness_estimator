@@ -11,8 +11,9 @@ from opencv_apps.msg import Line, LineArrayStamped, Point2D
 from sensor_msgs.msg import Image
 from jsk_recognition_msgs.msg import Rect, RectArray
 from jsk_recognition_msgs.msg import Label, LabelArray
+from neatness_estimator_msgs.msg import EdgeHistogram, EdgeHistogramArray
 
-class EdgeHistogramArray():
+class EdgeHistogramArrayPublisher():
 
     def __init__(self):
         self.debug = rospy.get_param('~debug', False)
@@ -21,7 +22,10 @@ class EdgeHistogramArray():
         self.approximate_sync = rospy.get_param('~approximate_sync', True)
 
         self.check_image_callback = False
-        self.debug_img_pub = rospy.Publisher('~debug_output', Image, queue_size=1)
+        self.debug_img_pub = rospy.Publisher(
+            '~debug_output', Image, queue_size=1)
+        self.edge_histograms_pub = rospy.Publisher(
+            '~output', EdgeHistogramArray, queue_size=1)
 
         queue_size = rospy.get_param('~queue_size', 1000)
         rospy.Subscriber('~input_rgb', Image, self.image_callback)
@@ -58,7 +62,7 @@ class EdgeHistogramArray():
            lt[1] < pt2[1] and pt2[1] < rb[1]:
             pt2_in_rect = True
 
-        if pt1_in_rect or pt2_in_rect:
+        if pt1_in_rect and pt2_in_rect:
             return True
         else:
             return False
@@ -91,9 +95,16 @@ class EdgeHistogramArray():
 
                     histogram_array[label.name].append(line)
 
+        edge_histograms = EdgeHistogramArray()
         for key in histogram_array.keys():
+            histogram = EdgeHistogram()
+            histogram.label = key
+            histogram.lines_num = len(histogram_array[key])
+            edge_histograms.histograms.append(histogram)
+
             print('key: %s, array length: %d' %(key, len(histogram_array[key])))
 
+        self.edge_histograms_pub.publish(edge_histograms)
         if self.debug:
             debug_img_msg = self.cv_bridge.cv2_to_imgmsg(rgb_image, 'bgr8')
             debug_img_msg.header = self.rgb_msg.header
@@ -106,5 +117,5 @@ class EdgeHistogramArray():
 
 if __name__=='__main__':
     rospy.init_node('edge_histogram_array')
-    edge_histogram_array = EdgeHistogramArray()
+    edge_histogram_array = EdgeHistogramArrayPublisher()
     rospy.spin()
