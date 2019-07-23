@@ -21,6 +21,7 @@ class NeatnessEstimatorVisionServer():
 
         self.boxes = BoundingBoxArray()
 
+        self.header = None
         self.labeled_boxes = BoundingBoxArray()
         self.mask_rcnn_boxes = BoundingBoxArray()
         self.qatm_boxes = BoundingBoxArray()
@@ -39,6 +40,7 @@ class NeatnessEstimatorVisionServer():
             '/display_task_vision_server', VisionServer, self.vision_server)
 
     def instance_box_callback(self, msg):
+        self.header = msg.header
         self.mask_rcnn_boxes = msg
         # print('mask_rcnn_boxes size: %s' %(len(self.mask_rcnn_boxes.boxes)))
 
@@ -46,6 +48,7 @@ class NeatnessEstimatorVisionServer():
         self.labeled_boxes = msg
 
     def labeled_pose_callback(self, pose_msg):
+        self.header = pose_msg.header
         self.qatm_boxes = BoundingBoxArray()
         self.qatm_boxes.header = pose_msg.header
         for pose in pose_msg.poses:
@@ -62,7 +65,7 @@ class NeatnessEstimatorVisionServer():
 
     def merge_boxes(self, mask_rcnn_boxes, qatm_boxes):
         boxes = BoundingBoxArray()
-        boxes.header = mask_rcnn_boxes.header
+        boxes.header = self.header
         boxes.boxes = mask_rcnn_boxes.boxes + qatm_boxes.boxes
         return boxes
 
