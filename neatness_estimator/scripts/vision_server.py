@@ -17,11 +17,13 @@ class NeatnessEstimatorVisionServer():
     def __init__(self):
         mask_rcnn_label_lst = rospy.get_param('~fg_class_names')
         qatm_label_lst = rospy.get_param('~qatm_class_names')
-        self.label_lst = mask_rcnn_label_lst + qatm_label_lst
+        color_label_lst = ['red']
+        self.label_lst = mask_rcnn_label_lst + qatm_label_lst + color_label_lst
 
         self.boxes = BoundingBoxArray()
 
         self.header = None
+        self.red_boxes = BoundingBoxArray()
         self.labeled_boxes = BoundingBoxArray()
         self.mask_rcnn_boxes = BoundingBoxArray()
         self.qatm_boxes = BoundingBoxArray()
@@ -36,6 +38,9 @@ class NeatnessEstimatorVisionServer():
             "~input_cluster_boxes", BoundingBoxArray, self.cluster_box_callback)
         rospy.Subscriber(
             "~input_qatm_pos", LabeledPoseArray, self.labeled_pose_callback)
+        rospy.Subscriber(
+            "~input_red_boxes", BoundingBoxArray, self.red_box_callback)
+
         rospy.Service(
             '/display_task_vision_server', VisionServer, self.vision_server)
 
@@ -43,6 +48,11 @@ class NeatnessEstimatorVisionServer():
         self.header = msg.header
         self.mask_rcnn_boxes = msg
         # print('mask_rcnn_boxes size: %s' %(len(self.mask_rcnn_boxes.boxes)))
+
+    def red_box_callback(self, msg):
+        for i in range(len(msg.boxes)):
+            msg.boxes[i].label = self.label_lst.index('red')
+        self.red_boxes = msg
 
     def cluster_box_callback(self, msg):
         self.labeled_boxes = msg
@@ -63,17 +73,19 @@ class NeatnessEstimatorVisionServer():
         # print('qatm_boxes size: %s' %(len(self.qatm_boxes.boxes)))
 
 
-    def merge_boxes(self, mask_rcnn_boxes, qatm_boxes):
+    def merge_boxes(self, mask_rcnn_boxes, qatm_boxes, red_boxes):
         boxes = BoundingBoxArray()
         boxes.header = self.header
-        boxes.boxes = mask_rcnn_boxes.boxes + qatm_boxes.boxes
+        boxes.boxes = mask_rcnn_boxes.boxes + qatm_boxes.boxes + red_boxes.boxes
         return boxes
 
     ''' task get_obj_pos '''
     def get_obj_pos(self, req):
         print('get_obj_pos')
 
-        self.boxes = self.merge_boxes(self.mask_rcnn_boxes, self.qatm_boxes)
+        print(self.red_boxes)
+
+        self.boxes = self.merge_boxes(self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
 
         rospy.loginfo(req.task)
         res = VisionServerResponse()
