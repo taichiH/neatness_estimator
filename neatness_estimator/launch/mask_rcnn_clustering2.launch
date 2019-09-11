@@ -3,11 +3,15 @@
 
   <arg name="info" default="/openni_camera/rgb/camera_info" />
   <arg name="input_image" default="/remote/openni_camera/rgb/image_rect_color" />
-  <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
   <arg name="input_cloud" default="/remote/point_cloud/cloud_registered/remote" />
+
+  <!-- <arg name="info" default="/head_mount_kinect/hd/camera_info" /> -->
+  <!-- <arg name="input_image" default="/head_mount_kinect/hd/image_color_rect" /> -->
+  <!-- <arg name="input_cloud" default="/head_mount_kinect/hd/republished_points" /> -->
+
+  <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
   <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
 
-  <arg name="transform_zed_pointcloud" default="false" />
   <arg name="score_thresh" default="0.75"/>
   <arg name="eco_mode" default="false"/>
   <arg name="visualize" default="false" />

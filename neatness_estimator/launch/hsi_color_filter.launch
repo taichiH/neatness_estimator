@@ -1,6 +1,6 @@
 <launch>
-  <arg name="pr2" default="true"/>
-  <arg name="aero" default="false"/>
+  <arg name="pr2" default="false"/>
+  <arg name="aero" default="true"/>
 
   <arg name="INPUT_CLOUD" value="/head_mount_kinect/hd/republished_points"
        if="$(arg pr2)"/>
@@ -8,12 +8,20 @@
        if="$(arg aero)"/>
 
   <!--Extracting blue objects -->
-  <arg name="h_max" default="127" />
-  <arg name="h_min" default="-128" />
+  <!-- adjusting tool -->
+  <arg name="h_max" default="2" />
+  <arg name="h_min" default="-42" />
   <arg name="s_max" default="255" />
-  <arg name="s_min" default="75" />
+  <arg name="s_min" default="60" />
   <arg name="i_max" default="255" />
-  <arg name="i_min" default="60" />
+  <arg name="i_min" default="50" />
+
+  <!-- <arg name="h_max" default="127" /> -->
+  <!-- <arg name="h_min" default="-128" /> -->
+  <!-- <arg name="s_max" default="255" /> -->
+  <!-- <arg name="s_min" default="75" /> -->
+  <!-- <arg name="i_max" default="255" /> -->
+  <!-- <arg name="i_min" default="60" /> -->
 
   <node name="hsi_filter_manager"
         pkg="nodelet" type="nodelet"

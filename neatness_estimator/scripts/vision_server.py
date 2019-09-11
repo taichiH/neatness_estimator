@@ -248,9 +248,12 @@ class NeatnessEstimatorVisionServer():
         has_item = False
         has_ref_item = False
 
+        self.boxes = self.merge_boxes(self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+
         try:
             left_side = -sys.maxsize # left side of right item
             right_side = sys.maxsize # right side of left item
+
 
             for box in self.boxes.boxes:
                 if box.pose.position.x == 0 and box.pose.position.y == 0 and box.pose.position.z == 0:
