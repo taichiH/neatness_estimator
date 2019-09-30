@@ -10,7 +10,7 @@
   <arg name="input_labels" default="/qatm/output/labels" />
 
   <node name="rect2label_array"
-        pkg="what_i_see" type="rect2labelarray.py"
+        pkg="rect_projector" type="rect2labelarray.py"
         output="screen">
     <remap from="~input/rect" to="$(arg input_rects)" />
     <remap from="~input/label" to="$(arg input_labels)" />
@@ -21,7 +21,7 @@
   </node>
 
   <node name="rect_projector"
-        pkg="what_i_see" type="ssd_projector"
+        pkg="rect_projector" type="ssd_projector"
         output="log">
     <param name="lazy_sync" value="true"/>
     <remap from="~input_image" to="$(arg input_image)"/>

@@ -14,7 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   tf
   nodelet
-  what_i_see
   )
 
 include_directories(

@@ -10,7 +10,7 @@ import tf
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from neatness_estimator_msgs.srv import VisionServer, VisionServerResponse
-from what_i_see_msgs.msg import LabeledPose, LabeledPoseArray
+from rect_projector_msgs.msg import LabeledPose, LabeledPoseArray
 
 class NeatnessEstimatorVisionServer():
 
