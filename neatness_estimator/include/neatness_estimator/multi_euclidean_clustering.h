@@ -46,10 +46,18 @@ namespace neatness_estimator
 
   protected:
     virtual void onInit();
+
     virtual void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_indices,
                           const sensor_msgs::PointCloud2::ConstPtr& point_cloud);
+
     virtual bool extract(const pcl_msgs::PointIndices& point_indices,
-                         pcl_msgs::PointIndices& point_indices_msg);
+                         pcl_msgs::PointIndices& point_indices_msg,
+                         const std_msgs::Header& header);
+
+    virtual void thread_func(int i,
+                             const pcl_msgs::PointIndices& point_indices,
+                             const std_msgs::Header& header);
+
 
     ros::NodeHandle nh_;
     ros::NodeHandle pnh_;
@@ -71,6 +79,8 @@ namespace neatness_estimator
     bool approximate_sync_ = true;
 
     std::mutex mtx_;
+
+    std::map<int, pcl_msgs::PointIndices> point_indices_map_;
 
   private:
   };

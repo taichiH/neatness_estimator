@@ -37,7 +37,8 @@ namespace neatness_estimator
 
 
   bool MultiEuclideanClustering::extract(const pcl_msgs::PointIndices& point_indices,
-                                         pcl_msgs::PointIndices& point_indices_msg)
+                                         pcl_msgs::PointIndices& point_indices_msg,
+                                         const std_msgs::Header& header)
   {
     // organized pointcloud
     pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
@@ -61,24 +62,38 @@ namespace neatness_estimator
     ec.extract (output_indices);
 
     int size, index = 0;
-    if(output_indices.size() > 0){
-      for(int i=0; i < output_indices.size(); i++){
-        if(output_indices[i].indices.size() > size){
+    if(output_indices.size() > 0) {
+      for(int i=0; i < output_indices.size(); i++) {
+        if(output_indices[i].indices.size() > size) {
           size = output_indices[i].indices.size();
           index = i;
         }
       }
-
       // set extracted indices to ros msg
       point_indices_msg.indices = output_indices.at(index).indices;
 
     }
+    point_indices_msg.header = header;
+
     return true;
+  }
+
+  void MultiEuclideanClustering::thread_func(int i,
+                                             const pcl_msgs::PointIndices& point_indices,
+                                             const std_msgs::Header& header)
+  {
+    mtx_.lock();
+    pcl_msgs::PointIndices point_indices_msg;
+    extract(point_indices, point_indices_msg, header);
+    point_indices_map_.emplace(i, point_indices_msg);
+    mtx_.unlock();
   }
 
   void MultiEuclideanClustering::callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_indices,
                                           const sensor_msgs::PointCloud2::ConstPtr& point_cloud)
   {
+    point_indices_map_.clear();
+
     jsk_recognition_msgs::ClusterPointIndices output_cluster_indices;
     cloud_->clear();
     pcl::fromROSMsg(*point_cloud, *cloud_);
@@ -87,29 +102,23 @@ namespace neatness_estimator
       return;
     }
 
-    std::map<int, pcl_msgs::PointIndices> point_indices_map;
+    std::cerr << "cluster_indices->cluster_indices.size(): "
+              << cluster_indices->cluster_indices.size() << std::endl;
+
     std::vector<std::thread> threads;
     for(int i=0; i<cluster_indices->cluster_indices.size(); ++i) {
       pcl_msgs::PointIndices point_indices = cluster_indices->cluster_indices.at(i);
       std_msgs::Header header = cluster_indices->header;
-
-      auto th = std::thread([&] {
-          mtx_.lock();
-          pcl_msgs::PointIndices point_indices_msg;
-          extract(point_indices, point_indices_msg);
-          point_indices_msg.header = header;
-          point_indices_map.emplace(i, point_indices_msg);
-          mtx_.unlock();
-        });
-
-      threads.push_back(std::move(th));
+      threads.push_back(std::thread
+                        (&MultiEuclideanClustering::thread_func,
+                         this, i, point_indices, header));
     }
 
     for(std::thread &th : threads) {
       th.join();
     }
 
-    for(auto it = point_indices_map.begin(); it != point_indices_map.end(); ++it) {
+    for(auto it = point_indices_map_.begin(); it != point_indices_map_.end(); ++it) {
       output_cluster_indices.cluster_indices.push_back(it->second);
     }
 
