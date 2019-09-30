@@ -1,5 +1,5 @@
 <launch>
-  <arg name="input_cloud" default="/higashide/point_cloud/cloud_registered/remote" />
+  <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
 
   <node name="multi_euclidean_clustering"
         pkg="nodelet" type="nodelet"
@@ -27,6 +27,7 @@
       queue_size: 100
       target_frame_id: base_link
       sort_by: input_indices
+      use_pca: true
     </rosparam>
   </node>
 
@@ -40,6 +41,19 @@
     <rosparam subst_value="true">
       approximate_sync: true
       with_cluster_box: false
+    </rosparam>
+  </node>
+
+  <node name="cluster_box_publisher"
+        pkg="neatness_estimator" type="cluster_box_publisher.py"
+        output="screen">
+    <remap from="~input"
+           to="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
+    <remap from="~output"
+           to="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
+    <rosparam command="load" file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+    <rosparam subst_value="true">
+      thresh: 0.2
     </rosparam>
   </node>
 

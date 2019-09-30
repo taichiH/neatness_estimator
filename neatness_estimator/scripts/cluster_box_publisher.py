@@ -48,7 +48,7 @@ class ClusterBoxPublisher():
                 center = candidates.min(axis=0) + (dimension * 0.5)
 
                 distances = self.get_distances(
-                    [boxes[i][0] for i in cluster.indices],
+                    np.array([boxes[i][0] for i in cluster.indices]),
                     [np.linalg.norm(boxes[i][1])*0.5 for i in cluster.indices])
                 tmp_box = BoundingBox()
                 tmp_box.header = box_msg.header
