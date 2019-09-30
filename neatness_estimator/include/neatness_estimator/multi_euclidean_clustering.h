@@ -3,6 +3,8 @@
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
+#include <thread>
+#include <mutex>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -14,6 +16,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_msgs/PointIndices.h>
+#include <std_msgs/Header.h>
 
 #include <pcl/point_types.h>
 #include <pcl/filters/extract_indices.h>
@@ -45,6 +48,8 @@ namespace neatness_estimator
     virtual void onInit();
     virtual void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_indices,
                           const sensor_msgs::PointCloud2::ConstPtr& point_cloud);
+    virtual bool extract(const pcl_msgs::PointIndices& point_indices,
+                         pcl_msgs::PointIndices& point_indices_msg);
 
     ros::NodeHandle nh_;
     ros::NodeHandle pnh_;
@@ -64,6 +69,8 @@ namespace neatness_estimator
     float minsize_ = 10;
     float maxsize_ = 5000;
     bool approximate_sync_ = true;
+
+    std::mutex mtx_;
 
   private:
   };
