@@ -7,4 +7,11 @@
     </description>
   </class>
 
+  <class name="neatness_estimator/DataSaver"
+         type="neatness_estimator::DataSaver"
+         base_class_type="nodelet::Nodelet">
+    <description>
+    </description>
+  </class>
+
 </library>

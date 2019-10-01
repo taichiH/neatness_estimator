@@ -6,6 +6,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
+  cv_bridge
+  image_transport
   geometry_msgs
   sensor_msgs
   jsk_recognition_msgs
@@ -16,10 +18,14 @@ find_package(catkin REQUIRED COMPONENTS
   nodelet
   )
 
+find_package(OpenCV REQUIRED)
+find_package(yaml-cpp)
+
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  )
+  ${OpenCV_INCLUDE_DIRS}
+  yaml-cpp)
 
 add_definitions(-std=c++11)
 
@@ -30,9 +36,13 @@ catkin_package(
 )
 
 add_library(${PROJECT_NAME} SHARED
-  src/multi_euclidean_clustering.cpp)
+  src/multi_euclidean_clustering.cpp
+  src/data_saver.cpp)
 target_link_libraries(${PROJECT_NAME}
-  ${catkin_LIBRARIES})
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+  yaml-cpp
+  )
 
 # add_executable(battery_state_publisher src/battery_state_publisher.cpp)
 # target_link_libraries(battery_state_publisher ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
