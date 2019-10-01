@@ -16,6 +16,12 @@ find_package(catkin REQUIRED COMPONENTS
   nodelet
   )
 
+# dounloads training data
+add_custom_target(
+  ${PROJECT_NAME}_install_trained_data
+  ALL COMMAND ${PROJECT_SOURCE_DIR}/install_trained_data.py
+  )
+
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
