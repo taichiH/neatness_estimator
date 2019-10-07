@@ -70,6 +70,8 @@ namespace neatness_estimator
 
     virtual bool read_boxes(std::string path);
 
+    virtual void read_files(std_srvs::SetBool::Response& res);
+
     // variables
 
     ros::NodeHandle nh_;

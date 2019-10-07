@@ -82,32 +82,38 @@ namespace neatness_estimator
   {
     prev_boxes_.reset(new jsk_recognition_msgs::BoundingBoxArray);
 
-    YAML::Node base = YAML::LoadFile(path);
-    YAML::Node header = base["header"];
+    try {
+      YAML::Node base = YAML::LoadFile(path);
+      YAML::Node header = base["header"];
 
-    prev_boxes_->header.frame_id = header["frame_id"].as<std::string>();
-    std::string sec_str = header["stamp_sec"].as<std::string>();
-    unsigned long sec = stoul(sec_str, nullptr, 0);
-    std::string nsec_str = header["stamp_nsec"].as<std::string>();
-    unsigned long nsec = stoul(nsec_str, nullptr, 0);
-    prev_boxes_->header.stamp = ros::Time(sec, nsec);
+      prev_boxes_->header.frame_id = header["frame_id"].as<std::string>();
+      std::string sec_str = header["stamp_sec"].as<std::string>();
+      unsigned long sec = stoul(sec_str, nullptr, 0);
+      std::string nsec_str = header["stamp_nsec"].as<std::string>();
+      unsigned long nsec = stoul(nsec_str, nullptr, 0);
+      prev_boxes_->header.stamp = ros::Time(sec, nsec);
 
-    YAML::Node boxes = base["boxes"];
-    for (std::size_t i=0; i<boxes.size(); ++i) {
-      jsk_recognition_msgs::BoundingBox box;
-      YAML::Node box_map = boxes[i]["box"];
-      box.pose.position.x = box_map["x"].as<double>();
-      box.pose.position.y = box_map["y"].as<double>();
-      box.pose.position.z = box_map["z"].as<double>();
-      box.pose.orientation.x = box_map["qx"].as<double>();
-      box.pose.orientation.y = box_map["qy"].as<double>();
-      box.pose.orientation.z = box_map["qz"].as<double>();
-      box.pose.orientation.w = box_map["qw"].as<double>();
-      box.dimensions.x = box_map["dimx"].as<double>();
-      box.dimensions.y = box_map["dimy"].as<double>();
-      box.dimensions.z = box_map["dimz"].as<double>();
+      YAML::Node boxes = base["boxes"];
+      for (std::size_t i=0; i<boxes.size(); ++i) {
+        jsk_recognition_msgs::BoundingBox box;
+        YAML::Node box_map = boxes[i]["box"];
+        box.pose.position.x = box_map["x"].as<double>();
+        box.pose.position.y = box_map["y"].as<double>();
+        box.pose.position.z = box_map["z"].as<double>();
+        box.pose.orientation.x = box_map["qx"].as<double>();
+        box.pose.orientation.y = box_map["qy"].as<double>();
+        box.pose.orientation.z = box_map["qz"].as<double>();
+        box.pose.orientation.w = box_map["qw"].as<double>();
+        box.dimensions.x = box_map["dimx"].as<double>();
+        box.dimensions.y = box_map["dimy"].as<double>();
+        box.dimensions.z = box_map["dimz"].as<double>();
 
-      prev_boxes_->boxes.push_back(box);
+        prev_boxes_->boxes.push_back(box);
+      }
+
+    } catch (YAML::ParserException& e) {
+      ROS_ERROR("failed read boxes: %s", e.what());
+      return false;
     }
 
     return true;
@@ -115,13 +121,46 @@ namespace neatness_estimator
 
 
 
+  void DataChecker::read_files(std_srvs::SetBool::Response& res)
+  {
+    std::string target_dir;
+    if ( !get_read_dir(target_dir) ) {
+      res.success = false;
+      return;
+    }
+
+    std::stringstream ss;
+    ss << prefix_ << "/" << target_dir;
+
+    std::stringstream pcd_read_path;
+    pcd_read_path << ss.str() << "/" << target_dir << ".pcd";
+    if (!read_pcd(pcd_read_path.str())) {
+      res.success = false;
+      return;
+    }
+
+    std::stringstream image_read_path;
+    image_read_path << ss.str() << "/" << target_dir << ".jpg";
+    if (!read_image(image_read_path.str())) {
+      res.success = false;
+      return;
+    }
+
+    std::stringstream boxes_read_path;
+    boxes_read_path << ss.str() << "/" << target_dir << ".yaml";
+    if (!read_boxes(boxes_read_path.str())) {
+      res.success = false;
+      return;
+    }
+
+  }
+
+
   void DataChecker::callback(const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& boxes_msg,
                              const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
                              const sensor_msgs::Image::ConstPtr& image_msg)
   {
     boost::mutex::scoped_lock lock(mutex_);
-
-    std::cerr << "callback !!! "<< std::endl;
 
     // current data
 
@@ -148,28 +187,8 @@ namespace neatness_estimator
                                      std_srvs::SetBool::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
+    read_files(res);
 
-    std::string target_dir;
-    if ( !get_read_dir(target_dir) ) {
-      res.success = false;
-    }
-
-    std::stringstream ss;
-    ss << prefix_ << "/" << target_dir;
-
-    std::stringstream pcd_read_path;
-    pcd_read_path << ss.str() << "/" << target_dir << ".pcd";
-    read_pcd(pcd_read_path.str());
-
-    std::stringstream image_read_path;
-    image_read_path << ss.str() << "/" << target_dir << ".jpg";
-    read_image(image_read_path.str());
-
-    std::stringstream boxes_read_path;
-    boxes_read_path << ss.str() << "/" << target_dir << ".yaml";
-    read_boxes(boxes_read_path.str());
-
-    res.success = true;
     return true;
   }
 
