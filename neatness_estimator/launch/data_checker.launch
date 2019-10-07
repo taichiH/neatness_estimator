@@ -1,0 +1,21 @@
+<launch>
+  <arg name="input_cloud" default="/openni_camera/point_cloud/cloud_registered/remote" />
+  <arg name="input_image" default="/openni_camera/rgb/image_rect_color" />
+  <arg name="input_boxes" default="/instance_cluster_point_indices_decomposer/boxes" />
+  <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
+
+  <node name="data_checker"
+        pkg="nodelet" type="nodelet"
+        args="standalone neatness_estimator/DataChecker"
+        output="screen">
+    <remap from="~input_cloud" to="$(arg input_cloud)" />
+    <remap from="~input_image" to="$(arg input_image)" />
+    <remap from="~input_boxes" to="$(arg input_boxes)" />
+    <rosparam subst_value="true">
+      approximate_sync_: false
+      prefix: $(arg prefix)
+    </rosparam>
+
+  </node>
+
+</launch>

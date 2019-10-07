@@ -14,4 +14,11 @@
     </description>
   </class>
 
+  <class name="neatness_estimator/DataChecker"
+         type="neatness_estimator::DataChecker"
+         base_class_type="nodelet::Nodelet">
+    <description>
+    </description>
+  </class>
+
 </library>

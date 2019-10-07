@@ -44,7 +44,8 @@ catkin_package(
 
 add_library(${PROJECT_NAME} SHARED
   src/multi_euclidean_clustering.cpp
-  src/data_saver.cpp)
+  src/data_saver.cpp
+  src/data_checker.cpp)
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
