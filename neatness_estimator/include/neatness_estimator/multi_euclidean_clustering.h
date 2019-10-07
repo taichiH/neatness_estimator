@@ -3,8 +3,6 @@
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
-#include <thread>
-#include <mutex>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -54,10 +52,6 @@ namespace neatness_estimator
                          pcl_msgs::PointIndices& point_indices_msg,
                          const std_msgs::Header& header);
 
-    virtual void thread_func(int i,
-                             const pcl_msgs::PointIndices& point_indices,
-                             const std_msgs::Header& header);
-
 
     ros::NodeHandle nh_;
     ros::NodeHandle pnh_;
@@ -78,9 +72,6 @@ namespace neatness_estimator
     float maxsize_ = 5000;
     bool approximate_sync_ = true;
 
-    std::mutex mtx_;
-
-    std::map<int, pcl_msgs::PointIndices> point_indices_map_;
 
   private:
   };
