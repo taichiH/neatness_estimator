@@ -107,6 +107,8 @@ namespace neatness_estimator
 
     std::string prefix_ = "./";
 
+    std_msgs::Header header_;
+
   private:
 
   };

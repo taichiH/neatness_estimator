@@ -91,22 +91,23 @@ namespace neatness_estimator
   bool DataSaver::save_boxes(std::string save_path)
   {
     ROS_INFO("save yaml path: \n%s", save_path.c_str());
+
+    std::map <std::string, std::string> header_map;
+    header_map["frame_id"] = boxes_->header.frame_id;
+    header_map["stamp_sec"] = std::to_string(boxes_->header.stamp.sec);
+    header_map["stamp_nsec"] = std::to_string(boxes_->header.stamp.nsec);
+
+
     YAML::Emitter emitter;
     emitter.SetOutputCharset(YAML::EscapeNonAscii);
     emitter.SetIndent(2);
-    emitter.SetMapFormat(YAML::Flow);
 
     // start all map
     emitter << YAML::BeginMap; // all
 
     // start header map
     emitter << YAML::Key << "header";
-    emitter << YAML::Value; // header
-    emitter << YAML::BeginSeq;
-    emitter << YAML::BeginMap << YAML::Key << "frame_id" << YAML::Value << boxes_->header.frame_id << YAML::EndMap
-            << YAML::BeginMap << YAML::Key << "stamp" << YAML::Key << std::to_string(boxes_->header.stamp.toSec()) << YAML::EndMap;
-    emitter << YAML::EndSeq;
-    // end header map
+    emitter << YAML::Value << header_map;
 
     // start boxes map
     emitter << YAML::Key << "boxes";
@@ -115,22 +116,22 @@ namespace neatness_estimator
     emitter << YAML::Flow; // list
     emitter << YAML::BeginSeq; // list begin
     for (auto box : boxes_->boxes){
+      std::map<std::string, std::string> box_map;
+      box_map["x"] = std::to_string(box.pose.position.x);
+      box_map["y"] = std::to_string(box.pose.position.y);
+      box_map["z"] = std::to_string(box.pose.position.z);
+      box_map["qx"] = std::to_string(box.pose.orientation.x);
+      box_map["qy"] = std::to_string(box.pose.orientation.y);
+      box_map["qz"] = std::to_string(box.pose.orientation.z);
+      box_map["qw"] = std::to_string(box.pose.orientation.w);
+      box_map["dimx"] = std::to_string(box.dimensions.x);
+      box_map["dimy"] = std::to_string(box.dimensions.y);
+      box_map["dimz"] = std::to_string(box.dimensions.z);
+
       // start box map
       emitter << YAML::BeginMap;
       emitter << YAML::Key << "box";
-      emitter << YAML::Value;
-      emitter << YAML::BeginSeq
-              << YAML::BeginMap << YAML::Key << "x" << YAML::Value << std::to_string(box.pose.position.x) << YAML::EndMap
-              << YAML::BeginMap << YAML::Key << "y" << YAML::Value << std::to_string(box.pose.position.y) << YAML::EndMap
-              << YAML::BeginMap << YAML::Key << "z" << YAML::Value << std::to_string(box.pose.position.z) << YAML::EndMap
-              << YAML::BeginMap << YAML::Key << "qx" << YAML::Value << std::to_string(box.pose.orientation.x) << YAML::EndMap
-              << YAML::BeginMap << YAML::Key << "qy" << YAML::Value << std::to_string(box.pose.orientation.y) << YAML::EndMap
-              << YAML::BeginMap << YAML::Key << "qz" << YAML::Value << std::to_string(box.pose.orientation.z) << YAML::EndMap
-              << YAML::BeginMap << YAML::Key << "qw" << YAML::Value << std::to_string(box.pose.orientation.w) << YAML::EndMap
-              << YAML::BeginMap << YAML::Key << "dimx" << YAML::Value << std::to_string(box.dimensions.x) << YAML::EndMap
-              << YAML::BeginMap << YAML::Key << "dimy" << YAML::Value << std::to_string(box.dimensions.y) << YAML::EndMap
-              << YAML::BeginMap << YAML::Key << "dimz" << YAML::Value << std::to_string(box.dimensions.z) << YAML::EndMap
-              << YAML::EndSeq;
+      emitter << YAML::Value << box_map;
       emitter << YAML::EndMap;
       // end box map
     }
@@ -153,6 +154,8 @@ namespace neatness_estimator
                            const sensor_msgs::Image::ConstPtr& image_msg)
   {
     boost::mutex::scoped_lock lock(mutex_);
+
+    header_ = cloud_msg->header;
 
     std::cerr << "callback!!!" << std::endl;
     cloud_.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -186,13 +189,13 @@ namespace neatness_estimator
     }
 
     std::stringstream ss;
-    std::string dir_name = std::to_string(cloud_->header.stamp);
+    std::string dir_name = std::to_string(header_.stamp.sec);
     if ( !create_save_dir(ss, dir_name) ) {
       res.success = false;
     }
 
     std::stringstream pcd_save_path;
-    pcd_save_path << ss.str() << "/" << cloud_->header.stamp << ".pcd";
+    pcd_save_path << ss.str() << "/" << header_.stamp.sec << ".pcd";
     if ( !save_pcd(pcd_save_path.str()) ) {
       res.success = false;
       return false;
@@ -200,14 +203,14 @@ namespace neatness_estimator
 
 
     std::stringstream image_save_path;
-    image_save_path << ss.str() << "/" << cloud_->header.stamp << ".jpg";
+    image_save_path << ss.str() << "/" << header_.stamp.sec << ".jpg";
     if ( !save_image(image_save_path.str()) ) {
       res.success = false;
       return false;
     }
 
     std::stringstream boxes_save_path;
-    boxes_save_path << ss.str() << "/" << cloud_->header.stamp << ".yaml";
+    boxes_save_path << ss.str() << "/" << header_.stamp.sec << ".yaml";
     if ( !save_boxes(boxes_save_path.str()) ) {
       res.success = false;
       return false;
