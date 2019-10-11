@@ -89,11 +89,14 @@ namespace neatness_estimator
 
     sensor_msgs::Image::ConstPtr prev_image_;
 
-    int bin_size_;
+    int bin_size_ = 10;
 
-    double white_threshold_, black_threshold_;
+    double white_threshold_ = 0.3;
 
-    jsk_recognition_utils::HistogramPolicy histogram_policy_;
+    double black_threshold_ = 0.2;
+
+    // 0: HUE, 1: HUE_AND_SATURATION
+    jsk_recognition_utils::HistogramPolicy histogram_policy_ = jsk_recognition_utils::HUE;
 
   private:
 

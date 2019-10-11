@@ -7,6 +7,10 @@
         output="screen">
     <rosparam subst_value="true">
       prefix: $(arg prefix)
+      bin_size: 10
+      histogram_policy: 0
+      white_threshold: 0.3
+      black_threshold: 0.2
     </rosparam>
 
   </node>

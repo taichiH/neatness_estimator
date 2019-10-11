@@ -11,6 +11,7 @@ namespace neatness_estimator
     pnh_.getParam("bin_size", bin_size_);
     pnh_.getParam("white_threshold", white_threshold_);
     pnh_.getParam("black_threshold", black_threshold_);
+    pnh_.getParam("histogram_policy", histogram_policy_);
 
     pnh_.getParam("cloud_topic", cloud_topic_);
     pnh_.getParam("cloud_topic", image_topic_);
@@ -97,20 +98,13 @@ namespace neatness_estimator
                                                    jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
                                                    jsk_recognition_msgs::ColorHistogramArray& histogram_array)
   {
-    std::cerr << __func__ << std::endl;
-
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*input_cloud, *rgb_cloud);
-
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr hsv_cloud(new pcl::PointCloud<pcl::PointXYZHSV>);
     pcl::PointCloudXYZRGBtoXYZHSV(*rgb_cloud, *hsv_cloud);
 
-    std::cerr << 1 << std::endl;
-
     if ( rgb_cloud->points.empty() || hsv_cloud->points.empty() )
       return false;
-
-    std::cerr << 2 << std::endl;
 
     for (size_t i = 0; i < rgb_cloud->points.size(); i++) {
       hsv_cloud->points.at(i).x = rgb_cloud->points.at(i).x;
@@ -118,38 +112,24 @@ namespace neatness_estimator
       hsv_cloud->points.at(i).z = rgb_cloud->points.at(i).z;
     }
 
-    std::cerr << 3 << std::endl;
-
-    pcl::ExtractIndices<pcl::PointXYZHSV> extract;
-    extract.setInputCloud(hsv_cloud);
-
-    std::cerr << 4 << std::endl;
-
     histogram_array.histograms.resize(input_indices->cluster_indices.size());
     histogram_array.header = input_indices->header;
-    for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
 
+    for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
       // organized pointcloud
-      pcl_msgs::PointIndices::Ptr nonnan_indices (new pcl_msgs::PointIndices);
+      pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
       for (auto index : input_indices->cluster_indices.at(i).indices) {
-        pcl::PointXYZRGB p = rgb_cloud->points.at(index);
+        pcl::PointXYZHSV p = hsv_cloud->points.at(index);
         if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
           nonnan_indices->indices.push_back(index);
         }
       }
 
-
-      std::cerr << 5 << std::endl;
-
-      pcl::IndicesPtr indices(new std::vector<int>(nonnan_indices->indices));
-      extract.setIndices(indices);
-
-      std::cerr << 6 << std::endl;
-
+      pcl::ExtractIndices<pcl::PointXYZHSV> extract;
+      extract.setInputCloud(hsv_cloud);
+      extract.setIndices(nonnan_indices);
       pcl::PointCloud<pcl::PointXYZHSV> segmented_cloud;
       extract.filter(segmented_cloud);
-
-      std::cerr << 7 << std::endl;
 
       histogram_array.histograms.at(i).header = input_indices->header;
       if (histogram_policy_ == jsk_recognition_utils::HUE) {
@@ -168,9 +148,8 @@ namespace neatness_estimator
         ROS_WARN("Invalid histogram policy");
         return false;
       }
-    }
 
-    std::cerr << 8 << std::endl;
+    }
 
     return true;
   }
@@ -192,10 +171,8 @@ namespace neatness_estimator
       return false;
     }
 
-
     jsk_recognition_msgs::ColorHistogramArray histogram_array;
     compute_color_histogram(current_cloud_, current_cluster_, histogram_array);
-
 
     res.success = true;
     return true;
