@@ -21,4 +21,11 @@
     </description>
   </class>
 
+  <class name="neatness_estimator/DifferenceReasoner"
+         type="neatness_estimator::DifferenceReasoner"
+         base_class_type="nodelet::Nodelet">
+    <description>
+    </description>
+  </class>
+
 </library>

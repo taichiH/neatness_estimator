@@ -1,0 +1,14 @@
+<launch>
+  <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
+
+  <node name="difference_reasoner"
+        pkg="nodelet" type="nodelet"
+        args="standalone neatness_estimator/DifferenceReasoner"
+        output="screen">
+    <rosparam subst_value="true">
+      prefix: $(arg prefix)
+    </rosparam>
+
+  </node>
+
+</launch>
