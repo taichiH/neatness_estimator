@@ -9,6 +9,8 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 
+#include <jsk_recognition_msgs/ColorHistogram.h>
+#include <jsk_recognition_msgs/ColorHistogramArray.h>
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
@@ -19,6 +21,8 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/io/io.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/point_types_conversion.h>
 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
@@ -26,6 +30,8 @@
 
 #include <mutex>
 #include <boost/filesystem.hpp>
+
+#include <jsk_recognition_utils/pcl/color_histogram.h>
 
 namespace neatness_estimator
 {
@@ -45,6 +51,10 @@ namespace neatness_estimator
     virtual bool get_read_dirs(std::string& current_dir, std::string& prev_dir);
 
     virtual bool read_data(std::string& current_dir, std::string& prev_dir);
+
+    virtual bool compute_color_histogram(sensor_msgs::PointCloud2::ConstPtr& input_cloud,
+                                         jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
+                                         jsk_recognition_msgs::ColorHistogramArray& histogram_array);
 
 
     // variables
@@ -79,6 +89,11 @@ namespace neatness_estimator
 
     sensor_msgs::Image::ConstPtr prev_image_;
 
+    int bin_size_;
+
+    double white_threshold_, black_threshold_;
+
+    jsk_recognition_utils::HistogramPolicy histogram_policy_;
 
   private:
 

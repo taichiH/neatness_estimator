@@ -8,6 +8,9 @@ namespace neatness_estimator
     nh_ = getNodeHandle();
     pnh_ = getPrivateNodeHandle();
     pnh_.getParam("prefix", prefix_);
+    pnh_.getParam("bin_size", bin_size_);
+    pnh_.getParam("white_threshold", white_threshold_);
+    pnh_.getParam("black_threshold", black_threshold_);
 
     pnh_.getParam("cloud_topic", cloud_topic_);
     pnh_.getParam("cloud_topic", image_topic_);
@@ -80,11 +83,100 @@ namespace neatness_estimator
       return false;
     }
 
+    if (current_cloud_->width * current_cloud_->height == 0) {
+      return false;
+    }
+    if (prev_cloud_->width * prev_cloud_->height == 0) {
+      return false;
+    }
+
+    return true;
+  }
+
+  bool DifferenceReasoner::compute_color_histogram(sensor_msgs::PointCloud2::ConstPtr& input_cloud,
+                                                   jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
+                                                   jsk_recognition_msgs::ColorHistogramArray& histogram_array)
+  {
+    std::cerr << __func__ << std::endl;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::fromROSMsg(*input_cloud, *rgb_cloud);
+
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr hsv_cloud(new pcl::PointCloud<pcl::PointXYZHSV>);
+    pcl::PointCloudXYZRGBtoXYZHSV(*rgb_cloud, *hsv_cloud);
+
+    std::cerr << 1 << std::endl;
+
+    if ( rgb_cloud->points.empty() || hsv_cloud->points.empty() )
+      return false;
+
+    std::cerr << 2 << std::endl;
+
+    for (size_t i = 0; i < rgb_cloud->points.size(); i++) {
+      hsv_cloud->points.at(i).x = rgb_cloud->points.at(i).x;
+      hsv_cloud->points.at(i).y = rgb_cloud->points.at(i).y;
+      hsv_cloud->points.at(i).z = rgb_cloud->points.at(i).z;
+    }
+
+    std::cerr << 3 << std::endl;
+
+    pcl::ExtractIndices<pcl::PointXYZHSV> extract;
+    extract.setInputCloud(hsv_cloud);
+
+    std::cerr << 4 << std::endl;
+
+    histogram_array.histograms.resize(input_indices->cluster_indices.size());
+    histogram_array.header = input_indices->header;
+    for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
+
+      // organized pointcloud
+      pcl_msgs::PointIndices::Ptr nonnan_indices (new pcl_msgs::PointIndices);
+      for (auto index : input_indices->cluster_indices.at(i).indices) {
+        pcl::PointXYZRGB p = rgb_cloud->points.at(index);
+        if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
+          nonnan_indices->indices.push_back(index);
+        }
+      }
+
+
+      std::cerr << 5 << std::endl;
+
+      pcl::IndicesPtr indices(new std::vector<int>(nonnan_indices->indices));
+      extract.setIndices(indices);
+
+      std::cerr << 6 << std::endl;
+
+      pcl::PointCloud<pcl::PointXYZHSV> segmented_cloud;
+      extract.filter(segmented_cloud);
+
+      std::cerr << 7 << std::endl;
+
+      histogram_array.histograms.at(i).header = input_indices->header;
+      if (histogram_policy_ == jsk_recognition_utils::HUE) {
+        jsk_recognition_utils::computeColorHistogram1d(segmented_cloud,
+                                                       histogram_array.histograms.at(i).histogram,
+                                                       bin_size_,
+                                                       white_threshold_,
+                                                       black_threshold_);
+      } else if (histogram_policy_ == jsk_recognition_utils::HUE_AND_SATURATION) {
+        jsk_recognition_utils::computeColorHistogram2d(segmented_cloud,
+                                                       histogram_array.histograms.at(i).histogram,
+                                                       bin_size_,
+                                                       white_threshold_,
+                                                       black_threshold_);
+      } else {
+        ROS_WARN("Invalid histogram policy");
+        return false;
+      }
+    }
+
+    std::cerr << 8 << std::endl;
+
     return true;
   }
 
   bool DifferenceReasoner::service_callback(std_srvs::SetBool::Request& req,
-                                     std_srvs::SetBool::Response& res)
+                                            std_srvs::SetBool::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
     std::string current_dir;
@@ -100,8 +192,10 @@ namespace neatness_estimator
       return false;
     }
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::fromROSMsg(*current_cloud_, *cloud);
+
+    jsk_recognition_msgs::ColorHistogramArray histogram_array;
+    compute_color_histogram(current_cloud_, current_cluster_, histogram_array);
+
 
     res.success = true;
     return true;
