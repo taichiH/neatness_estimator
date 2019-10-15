@@ -21,6 +21,13 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(OpenCV REQUIRED)
 find_package(yaml-cpp)
 
+find_package(PCL 1.8 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+
+message("PCL_VERSION: ")
+message(${PCL_VERSION})
+
 # dounloads training data
 add_custom_target(
   ${PROJECT_NAME}_install_trained_data
@@ -35,6 +42,7 @@ include_directories(
   yaml-cpp)
 
 add_definitions(-std=c++11)
+
 
 catkin_package(
   CATKIN_DEPENDS

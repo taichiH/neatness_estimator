@@ -19,10 +19,17 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_msgs/PointIndices.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
 #include <pcl/io/io.h>
-#include <pcl/filters/extract_indices.h>
 #include <pcl/point_types_conversion.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/extract_indices.h>
+/* #include <pcl/filters/uniform_sampling.h> */
+#include <pcl/keypoints/uniform_sampling.h>
+#include <pcl/features/vfh.h>
+
+#include <pcl/features/normal_3d_omp.h>
+/* #include <pcl/features/shot_omp.h> */
+#include <pcl/features/shot.h>
 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
@@ -55,6 +62,8 @@ namespace neatness_estimator
     virtual bool compute_color_histogram(sensor_msgs::PointCloud2::ConstPtr& input_cloud,
                                          jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
                                          jsk_recognition_msgs::ColorHistogramArray& histogram_array);
+
+    virtual bool compute_shot_feature(sensor_msgs::PointCloud2::ConstPtr& input_cloud);
 
 
     // variables
@@ -94,6 +103,8 @@ namespace neatness_estimator
     double white_threshold_ = 0.3;
 
     double black_threshold_ = 0.2;
+
+    double normal_search_radius_ = 0.01;
 
     // 0: HUE, 1: HUE_AND_SATURATION
     jsk_recognition_utils::HistogramPolicy histogram_policy_ = jsk_recognition_utils::HUE;

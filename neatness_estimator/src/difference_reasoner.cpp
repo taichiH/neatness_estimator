@@ -1,5 +1,23 @@
 #include "neatness_estimator/difference_reasoner.h"
 
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/histogram_visualizer.h>
+#include <thread>
+pcl::visualization::PCLVisualizer::Ptr normalsVis (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud,
+                                                   pcl::PointCloud<pcl::Normal>::ConstPtr normals)
+{
+  pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+  viewer->setBackgroundColor (0, 0, 0);
+  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
+  viewer->addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "sample cloud");
+  viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
+  viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal> (cloud, normals, 10, 0.05, "normals");
+  viewer->addCoordinateSystem (1.0);
+  viewer->initCameraParameters ();
+  return (viewer);
+}
+
+
 namespace neatness_estimator
 {
 
@@ -11,7 +29,15 @@ namespace neatness_estimator
     pnh_.getParam("bin_size", bin_size_);
     pnh_.getParam("white_threshold", white_threshold_);
     pnh_.getParam("black_threshold", black_threshold_);
-    pnh_.getParam("histogram_policy", histogram_policy_);
+    pnh_.getParam("normal_search_radius", normal_search_radius_);
+
+    int policy;
+    pnh_.getParam("histogram_policy", policy);
+    if (policy == 1) {
+      histogram_policy_ = jsk_recognition_utils::HUE_AND_SATURATION;
+    } else {
+      histogram_policy_ = jsk_recognition_utils::HUE;
+    }
 
     pnh_.getParam("cloud_topic", cloud_topic_);
     pnh_.getParam("cloud_topic", image_topic_);
@@ -154,6 +180,54 @@ namespace neatness_estimator
     return true;
   }
 
+  bool DifferenceReasoner::compute_shot_feature(sensor_msgs::PointCloud2::ConstPtr& input_cloud)
+  {
+    std::cerr << input_cloud->width << ", " << input_cloud->height << std::endl;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::fromROSMsg(*input_cloud, *rgb_cloud);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    cloud->points.resize(rgb_cloud->points.size());
+    for (size_t i=0; i<rgb_cloud->points.size(); ++i) {
+      cloud->points.at(i).x = rgb_cloud->points.at(i).x;
+      cloud->points.at(i).y = rgb_cloud->points.at(i).y;
+      cloud->points.at(i).z = rgb_cloud->points.at(i).z;
+    }
+
+    std::cerr << normal_search_radius_ << std::endl;
+
+    pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> normal_estimation;
+    pcl::PointCloud<pcl::Normal>::Ptr cloud_normal(new pcl::PointCloud<pcl::Normal>());
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>());
+    normal_estimation.setSearchMethod (tree);
+    normal_estimation.setRadiusSearch(normal_search_radius_);
+    normal_estimation.setInputCloud(cloud);
+    normal_estimation.compute(*cloud_normal);
+
+    pcl::VFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> vfh;
+    pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs(new pcl::PointCloud<pcl::VFHSignature308>());
+    vfh.setInputCloud(cloud);
+    vfh.setInputNormals(cloud_normal);
+    vfh.setSearchMethod(tree);
+    vfh.compute(*vfhs);
+    pcl::VFHSignature308 vfh_feature = vfhs->points.at(0);
+    size_t feature_size = sizeof(pcl::VFHSignature308)/sizeof(vfh_feature.histogram[0]);
+
+    // std::cerr << "feature_vec" << std::endl;
+    // for (size_t i=0; i<feature_size; ++i) {
+    //   std::cerr << vfh_feature.histogram[i] << ", ";
+    // }
+    // std::cerr << std::endl;
+
+    pcl::visualization::PCLVisualizer::Ptr viewer;
+    viewer = normalsVis(rgb_cloud, cloud_normal);
+    viewer->saveScreenshot("/tmp/normal_viewer.png");
+    viewer->spin();
+
+    return true;
+  }
+
   bool DifferenceReasoner::service_callback(std_srvs::SetBool::Request& req,
                                             std_srvs::SetBool::Response& res)
   {
@@ -173,6 +247,8 @@ namespace neatness_estimator
 
     jsk_recognition_msgs::ColorHistogramArray histogram_array;
     compute_color_histogram(current_cloud_, current_cluster_, histogram_array);
+
+    compute_shot_feature(current_cloud_);
 
     res.success = true;
     return true;

@@ -1,5 +1,6 @@
 <launch>
   <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
+  <arg name="radius" default="0.01" />
 
   <node name="difference_reasoner"
         pkg="nodelet" type="nodelet"
@@ -11,6 +12,7 @@
       histogram_policy: 0
       white_threshold: 0.3
       black_threshold: 0.2
+      normal_search_radius: $(arg radius)
     </rosparam>
 
   </node>
