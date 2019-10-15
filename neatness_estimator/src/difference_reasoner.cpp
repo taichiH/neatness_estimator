@@ -40,14 +40,15 @@ namespace neatness_estimator
     }
 
     pnh_.getParam("cloud_topic", cloud_topic_);
-    pnh_.getParam("cloud_topic", image_topic_);
-    pnh_.getParam("cloud_topic", cluster_topic_);
+    pnh_.getParam("image_topic", image_topic_);
+    pnh_.getParam("cluster_topic", cluster_topic_);
     server_ = pnh_.advertiseService("read", &DifferenceReasoner::service_callback, this);
 
   }
 
   bool DifferenceReasoner::get_read_dirs(std::string& current_dir, std::string& prev_dir)
   {
+
     const boost::filesystem::path path(prefix_.c_str());
 
     std::vector<double> saved_dirs;
@@ -111,9 +112,12 @@ namespace neatness_estimator
     }
 
     if (current_cloud_->width * current_cloud_->height == 0) {
+      ROS_WARN("current_cloud size: 0");
       return false;
     }
+
     if (prev_cloud_->width * prev_cloud_->height == 0) {
+      ROS_WARN("prev_cloud size: 0");
       return false;
     }
 
@@ -182,8 +186,6 @@ namespace neatness_estimator
 
   bool DifferenceReasoner::compute_shot_feature(sensor_msgs::PointCloud2::ConstPtr& input_cloud)
   {
-    std::cerr << input_cloud->width << ", " << input_cloud->height << std::endl;
-
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*input_cloud, *rgb_cloud);
 
@@ -194,8 +196,6 @@ namespace neatness_estimator
       cloud->points.at(i).y = rgb_cloud->points.at(i).y;
       cloud->points.at(i).z = rgb_cloud->points.at(i).z;
     }
-
-    std::cerr << normal_search_radius_ << std::endl;
 
     pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> normal_estimation;
     pcl::PointCloud<pcl::Normal>::Ptr cloud_normal(new pcl::PointCloud<pcl::Normal>());
@@ -212,18 +212,18 @@ namespace neatness_estimator
     vfh.setSearchMethod(tree);
     vfh.compute(*vfhs);
     pcl::VFHSignature308 vfh_feature = vfhs->points.at(0);
-    size_t feature_size = sizeof(pcl::VFHSignature308)/sizeof(vfh_feature.histogram[0]);
+    size_t feature_size = sizeof(pcl::VFHSignature308) / sizeof(vfh_feature.histogram[0]);
 
-    // std::cerr << "feature_vec" << std::endl;
-    // for (size_t i=0; i<feature_size; ++i) {
-    //   std::cerr << vfh_feature.histogram[i] << ", ";
-    // }
-    // std::cerr << std::endl;
+    std::cerr << "feature_vec" << std::endl;
+    for (size_t i=0; i<feature_size; ++i) {
+      std::cerr << vfh_feature.histogram[i] << ", ";
+    }
+    std::cerr << std::endl;
 
-    pcl::visualization::PCLVisualizer::Ptr viewer;
-    viewer = normalsVis(rgb_cloud, cloud_normal);
-    viewer->saveScreenshot("/tmp/normal_viewer.png");
-    viewer->spin();
+    // pcl::visualization::PCLVisualizer::Ptr viewer;
+    // viewer = normalsVis(rgb_cloud, cloud_normal);
+    // viewer->saveScreenshot("/tmp/normal_viewer.png");
+    // viewer->spin();
 
     return true;
   }

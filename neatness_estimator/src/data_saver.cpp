@@ -103,10 +103,10 @@ namespace neatness_estimator
     bag_save_path << ss.str() << "/" << cloud_msg_->header.stamp.sec << ".bag";
     rosbag::Bag bag;
     bag.open(bag_save_path.str(), rosbag::bagmode::Write);
-    // topics : [clock, cloud, rgb, cluster]
-    bag.write(topics_.at(1), cloud_msg_->header.stamp, *cloud_msg_);
-    bag.write(topics_.at(2), image_msg_->header.stamp, *image_msg_);
-    bag.write(topics_.at(3), cluster_msg_->header.stamp, *cluster_msg_);
+    // topics : [cloud, rgb, cluster]
+    bag.write(topics_.at(0), cloud_msg_->header.stamp, *cloud_msg_);
+    bag.write(topics_.at(1), image_msg_->header.stamp, *image_msg_);
+    bag.write(topics_.at(2), cluster_msg_->header.stamp, *cluster_msg_);
     bag.close();
 
 
