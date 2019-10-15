@@ -9,6 +9,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 
+#include <jsk_recognition_msgs/Histogram.h>
 #include <jsk_recognition_msgs/ColorHistogram.h>
 #include <jsk_recognition_msgs/ColorHistogramArray.h>
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
@@ -61,11 +62,19 @@ namespace neatness_estimator
 
     virtual bool read_data(std::string& current_dir, std::string& prev_dir);
 
-    virtual bool compute_color_histogram(sensor_msgs::PointCloud2::ConstPtr& input_cloud,
-                                         jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
-                                         jsk_recognition_msgs::ColorHistogramArray& histogram_array);
+    virtual bool compute_histograms
+      (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
+       jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
+       jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
+       std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array);
 
-    virtual bool compute_shot_feature(sensor_msgs::PointCloud2::ConstPtr& input_cloud);
+    virtual bool compute_color_histogram
+      (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
+       jsk_recognition_msgs::ColorHistogram& color_histogram);
+
+    virtual bool compute_geometry_histogram
+      (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
+       jsk_recognition_msgs::Histogram& geometry_histogram);
 
 
     // variables

@@ -125,17 +125,12 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::compute_color_histogram(sensor_msgs::PointCloud2::ConstPtr& input_cloud,
-                                                   jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
-                                                   jsk_recognition_msgs::ColorHistogramArray& histogram_array)
+  bool DifferenceReasoner::compute_color_histogram
+  (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
+   jsk_recognition_msgs::ColorHistogram& color_histogram)
   {
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::fromROSMsg(*input_cloud, *rgb_cloud);
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr hsv_cloud(new pcl::PointCloud<pcl::PointXYZHSV>);
     pcl::PointCloudXYZRGBtoXYZHSV(*rgb_cloud, *hsv_cloud);
-
-    if ( rgb_cloud->points.empty() || hsv_cloud->points.empty() )
-      return false;
 
     for (size_t i = 0; i < rgb_cloud->points.size(); i++) {
       hsv_cloud->points.at(i).x = rgb_cloud->points.at(i).x;
@@ -143,72 +138,42 @@ namespace neatness_estimator
       hsv_cloud->points.at(i).z = rgb_cloud->points.at(i).z;
     }
 
-    histogram_array.histograms.resize(input_indices->cluster_indices.size());
-    histogram_array.header = input_indices->header;
-
-    for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
-      // organized pointcloud
-      pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
-      for (auto index : input_indices->cluster_indices.at(i).indices) {
-        pcl::PointXYZHSV p = hsv_cloud->points.at(index);
-        if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
-          nonnan_indices->indices.push_back(index);
-        }
-      }
-
-      pcl::ExtractIndices<pcl::PointXYZHSV> extract;
-      extract.setInputCloud(hsv_cloud);
-      extract.setIndices(nonnan_indices);
-      pcl::PointCloud<pcl::PointXYZHSV> segmented_cloud;
-      extract.filter(segmented_cloud);
-
-      histogram_array.histograms.at(i).header = input_indices->header;
-      if (histogram_policy_ == jsk_recognition_utils::HUE) {
-        jsk_recognition_utils::computeColorHistogram1d(segmented_cloud,
-                                                       histogram_array.histograms.at(i).histogram,
-                                                       bin_size_,
-                                                       white_threshold_,
-                                                       black_threshold_);
-      } else if (histogram_policy_ == jsk_recognition_utils::HUE_AND_SATURATION) {
-        jsk_recognition_utils::computeColorHistogram2d(segmented_cloud,
-                                                       histogram_array.histograms.at(i).histogram,
-                                                       bin_size_,
-                                                       white_threshold_,
-                                                       black_threshold_);
-      } else {
-        ROS_WARN("Invalid histogram policy");
-        return false;
-      }
-
+    if (histogram_policy_ == jsk_recognition_utils::HUE) {
+      jsk_recognition_utils::computeColorHistogram1d(*hsv_cloud,
+                                                     color_histogram.histogram,
+                                                     bin_size_,
+                                                     white_threshold_,
+                                                     black_threshold_);
+    } else if (histogram_policy_ == jsk_recognition_utils::HUE_AND_SATURATION) {
+      jsk_recognition_utils::computeColorHistogram2d(*hsv_cloud,
+                                                     color_histogram.histogram,
+                                                     bin_size_,
+                                                     white_threshold_,
+                                                     black_threshold_);
+    } else {
+      ROS_WARN("Invalid histogram policy");
+      return false;
     }
-
     return true;
   }
 
-  bool DifferenceReasoner::compute_shot_feature(sensor_msgs::PointCloud2::ConstPtr& input_cloud)
+
+  bool DifferenceReasoner::compute_geometry_histogram
+  (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
+   jsk_recognition_msgs::Histogram& geometry_histogram)
   {
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::fromROSMsg(*input_cloud, *rgb_cloud);
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    cloud->points.resize(rgb_cloud->points.size());
-    for (size_t i=0; i<rgb_cloud->points.size(); ++i) {
-      cloud->points.at(i).x = rgb_cloud->points.at(i).x;
-      cloud->points.at(i).y = rgb_cloud->points.at(i).y;
-      cloud->points.at(i).z = rgb_cloud->points.at(i).z;
-    }
-
-    pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> normal_estimation;
-    pcl::PointCloud<pcl::Normal>::Ptr cloud_normal(new pcl::PointCloud<pcl::Normal>());
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>());
+    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> normal_estimation;
+    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
+    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>());
     normal_estimation.setSearchMethod (tree);
     normal_estimation.setRadiusSearch(normal_search_radius_);
-    normal_estimation.setInputCloud(cloud);
-    normal_estimation.compute(*cloud_normal);
+    normal_estimation.setInputCloud(rgb_cloud);
+    normal_estimation.compute(*cloud_normals);
 
-    pcl::CVFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> cvfh;
-    cvfh.setInputCloud(cloud);
-    cvfh.setInputNormals(cloud_normal);
+    pcl::CVFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::VFHSignature308> cvfh;
+    cvfh.setInputCloud(rgb_cloud);
+    cvfh.setInputNormals(cloud_normals);
     cvfh.setSearchMethod(tree);
     cvfh.setEPSAngleThreshold(5.0f / 180.0f * M_PI);
     cvfh.setCurvatureThreshold(1.0f);
@@ -223,28 +188,65 @@ namespace neatness_estimator
     for (int i = 0; i < histogram.cols; i++) {
       histogram.at<float>(0, i) = cvfhs->points[0].histogram[i];
     }
+
     float curvature = 0.0f;
-    for (int i = 0; i < cloud_normal->size(); i++) {
-      curvature += cloud_normal->points[i].curvature;
+    for (int i = 0; i < cloud_normals->size(); i++) {
+      curvature += cloud_normals->points[i].curvature;
     }
-    curvature /= static_cast<float>(cloud_normal->size());
+    curvature /= static_cast<float>(cloud_normals->size());
     cv::normalize(histogram, histogram, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
 
-    std::cerr << "histogram size: " << histogram.cols << std::endl;
     for (int i = 0; i < histogram.cols; i++) {
-      std::cerr << histogram.at<float>(0, i) << ", ";
+      geometry_histogram.histogram.push_back(histogram.at<float>(0, i));
     }
-    std::cerr << std::endl;
 
     if (debug_view_) {
       pcl::visualization::PCLVisualizer::Ptr viewer;
-      viewer = normalsVis(rgb_cloud, cloud_normal);
+      viewer = normalsVis(rgb_cloud, cloud_normals);
       viewer->saveScreenshot("/tmp/normal_viewer.png");
       viewer->spin();
     }
 
     return true;
   }
+
+  bool DifferenceReasoner::compute_histograms
+  (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
+   jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
+   jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
+   std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array)
+  {
+
+    for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
+
+      pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
+      for (auto index : input_indices->cluster_indices.at(i).indices) {
+        pcl::PointXYZRGB p = rgb_cloud->points.at(index);
+        if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
+          nonnan_indices->indices.push_back(index);
+        }
+      }
+
+      pcl::ExtractIndices<pcl::PointXYZRGB> extract;
+      extract.setInputCloud(rgb_cloud);
+      extract.setIndices(nonnan_indices);
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr clustered_cloud
+        (new pcl::PointCloud<pcl::PointXYZRGB>());
+      extract.filter(*clustered_cloud);
+
+      jsk_recognition_msgs::ColorHistogram color_histogram;
+      compute_color_histogram(clustered_cloud, color_histogram);
+      color_histogram_array.histograms.push_back(color_histogram);
+
+      jsk_recognition_msgs::Histogram geometry_histogram;
+      compute_geometry_histogram(clustered_cloud, geometry_histogram);
+      geometry_histogram_array.push_back(geometry_histogram);
+
+    }
+
+    return true;
+  }
+
 
   bool DifferenceReasoner::service_callback(std_srvs::SetBool::Request& req,
                                             std_srvs::SetBool::Response& res)
@@ -263,10 +265,15 @@ namespace neatness_estimator
       return false;
     }
 
-    jsk_recognition_msgs::ColorHistogramArray histogram_array;
-    compute_color_histogram(current_cloud_, current_cluster_, histogram_array);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::fromROSMsg(*current_cloud_, *rgb_cloud);
 
-    compute_shot_feature(current_cloud_);
+    jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
+    std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
+    compute_histograms(rgb_cloud,
+                       current_cluster_,
+                       color_histogram_array,
+                       geometry_histogram_array);
 
     res.success = true;
     return true;
