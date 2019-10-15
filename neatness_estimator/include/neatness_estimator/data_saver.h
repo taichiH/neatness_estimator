@@ -11,6 +11,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
+#include <jsk_recognition_msgs/LabelArray.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
 #include <std_srvs/SetBool.h>
@@ -28,19 +29,22 @@ namespace neatness_estimator
     typedef message_filters::sync_policies::ExactTime<
       sensor_msgs::PointCloud2,
       sensor_msgs::Image,
-      jsk_recognition_msgs::ClusterPointIndices
+      jsk_recognition_msgs::ClusterPointIndices,
+      jsk_recognition_msgs::LabelArray
       > SyncPolicy;
 
     typedef message_filters::sync_policies::ApproximateTime<
       sensor_msgs::PointCloud2,
       sensor_msgs::Image,
-      jsk_recognition_msgs::ClusterPointIndices
+      jsk_recognition_msgs::ClusterPointIndices,
+      jsk_recognition_msgs::LabelArray
       > ApproximateSyncPolicy;
 
     enum Topics {
       CLOUD,
       IMAGE,
-      CLUSTER
+      CLUSTER,
+      LABELS
     };
 
   protected:
@@ -51,7 +55,8 @@ namespace neatness_estimator
 
     virtual void callback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
                           const sensor_msgs::Image::ConstPtr& image_msg,
-                          const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg);
+                          const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
+                          const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg);
 
     virtual bool service_callback(std_srvs::SetBool::Request& req,
                                   std_srvs::SetBool::Response& res);
@@ -78,11 +83,15 @@ namespace neatness_estimator
 
     message_filters::Subscriber<jsk_recognition_msgs::ClusterPointIndices> sub_cluster_;
 
+    message_filters::Subscriber<jsk_recognition_msgs::LabelArray> sub_labels_;
+
     sensor_msgs::PointCloud2::ConstPtr cloud_msg_;
 
     sensor_msgs::Image::ConstPtr image_msg_;
 
     jsk_recognition_msgs::ClusterPointIndices::ConstPtr cluster_msg_;
+
+    jsk_recognition_msgs::LabelArray::ConstPtr labels_msg_;
 
     boost::mutex mutex_;
 

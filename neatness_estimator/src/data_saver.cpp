@@ -14,6 +14,7 @@ namespace neatness_estimator
     sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
     sub_image_.subscribe(pnh_, "input_image", 1);
     sub_cluster_.subscribe(pnh_, "input_cluster", 1);
+    sub_labels_.subscribe(pnh_, "input_labels", 1);
 
     // topic name added to topic_manager when subscribe function is called
     ros::this_node::getSubscribedTopics(topics_);
@@ -27,13 +28,13 @@ namespace neatness_estimator
 
     if (approximate_sync) {
       async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
-      async_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_);
-      async_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3));
+      async_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_, sub_labels_);
+      async_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3, _4));
     } else {
 
       sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
-      sync_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_);
-      sync_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3));
+      sync_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_, sub_labels_);
+      sync_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3, _4));
     }
 
   }
@@ -69,7 +70,8 @@ namespace neatness_estimator
 
   void DataSaver::callback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
                            const sensor_msgs::Image::ConstPtr& image_msg,
-                           const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg)
+                           const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
+                           const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg)
   {
     boost::mutex::scoped_lock lock(mutex_);
 
@@ -78,6 +80,7 @@ namespace neatness_estimator
     cloud_msg_ = cloud_msg;
     image_msg_ = image_msg;
     cluster_msg_ = cluster_msg;
+    labels_msg_ = labels_msg;
   }
 
 
@@ -103,12 +106,12 @@ namespace neatness_estimator
     bag_save_path << ss.str() << "/" << cloud_msg_->header.stamp.sec << ".bag";
     rosbag::Bag bag;
     bag.open(bag_save_path.str(), rosbag::bagmode::Write);
-    // topics : [cloud, rgb, cluster]
+    // topics : [cloud, rgb, cluster, labels]
     bag.write(topics_.at(0), cloud_msg_->header.stamp, *cloud_msg_);
     bag.write(topics_.at(1), image_msg_->header.stamp, *image_msg_);
     bag.write(topics_.at(2), cluster_msg_->header.stamp, *cluster_msg_);
+    bag.write(topics_.at(3), labels_msg_->header.stamp, *labels_msg_);
     bag.close();
-
 
     res.success = true;
     return true;
