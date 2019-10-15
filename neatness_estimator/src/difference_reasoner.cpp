@@ -1,26 +1,7 @@
 #include "neatness_estimator/difference_reasoner.h"
 
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/visualization/histogram_visualizer.h>
-#include <thread>
-pcl::visualization::PCLVisualizer::Ptr normalsVis (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud,
-                                                   pcl::PointCloud<pcl::Normal>::ConstPtr normals)
-{
-  pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-  viewer->setBackgroundColor (0, 0, 0);
-  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
-  viewer->addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "sample cloud");
-  viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
-  viewer->addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal> (cloud, normals, 10, 0.05, "normals");
-  viewer->addCoordinateSystem (1.0);
-  viewer->initCameraParameters ();
-  return (viewer);
-}
-
-
 namespace neatness_estimator
 {
-
   void DifferenceReasoner::onInit()
   {
     nh_ = getNodeHandle();
@@ -47,7 +28,7 @@ namespace neatness_estimator
 
   }
 
-  bool DifferenceReasoner::get_read_dirs(std::string& current_dir, std::string& prev_dir)
+  bool DifferenceReasoner::get_read_dirs()
   {
 
     const boost::filesystem::path path(prefix_.c_str());
@@ -58,23 +39,40 @@ namespace neatness_estimator
     }
     std::sort(saved_dirs.begin(), saved_dirs.end(), std::greater<double>());
 
+
     std::stringstream current_ss;
     current_ss << prefix_ << "/"
                << std::to_string(static_cast<int>(saved_dirs.at(0))) << "/"
                << std::to_string(static_cast<int>(saved_dirs.at(0))) << ".bag";
-    current_dir = current_ss.str();
+    current_dir_ = current_ss.str();
 
     std::stringstream prev_ss;
     prev_ss << prefix_ << "/"
             << std::to_string(static_cast<int>(saved_dirs.at(1))) << "/"
             << std::to_string(static_cast<int>(saved_dirs.at(1))) << ".bag";
-    prev_dir = prev_ss.str();
+    prev_dir_ = prev_ss.str();
+
+
+    boost::system::error_code error;
+    current_log_dir_ =
+      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(0))) + "/logs/";
+    if (!boost::filesystem::create_directory(current_log_dir_, error) || error) {
+      ROS_ERROR("failed create current logs dir : \n%s", current_log_dir_.c_str());
+      return false;
+    }
+
+    save_data_dir_ =
+      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(0))) + "/data/";
+    if (!boost::filesystem::create_directory(save_data_dir_, error) || error) {
+      ROS_ERROR("failed create data dir : \n%s", save_data_dir_.c_str());
+      return false;
+    }
 
     return true;
   }
 
 
-  bool DifferenceReasoner::read_data(std::string& current_dir, std::string& prev_dir)
+  bool DifferenceReasoner::read_data()
   {
     current_cluster_.reset(new jsk_recognition_msgs::ClusterPointIndices);
     current_cloud_.reset(new sensor_msgs::PointCloud2);
@@ -85,7 +83,7 @@ namespace neatness_estimator
 
     rosbag::Bag bag;
     try {
-      bag.open(current_dir);
+      bag.open(current_dir_);
       for (rosbag::MessageInstance const m : rosbag::View(bag)) {
         if (m.getTopic() == cluster_topic_)
           current_cluster_ = m.instantiate<jsk_recognition_msgs::ClusterPointIndices>();
@@ -96,7 +94,7 @@ namespace neatness_estimator
       }
       bag.close();
 
-      bag.open(prev_dir);
+      bag.open(prev_dir_);
       for (rosbag::MessageInstance const m : rosbag::View(bag)) {
         if (m.getTopic() == cluster_topic_)
           prev_cluster_ = m.instantiate<jsk_recognition_msgs::ClusterPointIndices>();
@@ -154,6 +152,11 @@ namespace neatness_estimator
       ROS_WARN("Invalid histogram policy");
       return false;
     }
+
+    std::string save_data_name =
+      save_data_dir_ + "color_histogram_" + std::to_string(index_) + ".csv";
+    save_histogram(save_data_name, color_histogram.histogram);
+
     return true;
   }
 
@@ -200,12 +203,13 @@ namespace neatness_estimator
       geometry_histogram.histogram.push_back(histogram.at<float>(0, i));
     }
 
-    if (debug_view_) {
-      pcl::visualization::PCLVisualizer::Ptr viewer;
-      viewer = normalsVis(rgb_cloud, cloud_normals);
-      viewer->saveScreenshot("/tmp/normal_viewer.png");
-      viewer->spin();
-    }
+    std::string save_data_name =
+      save_data_dir_ + "geometry_histogram_" + std::to_string(index_) + ".csv";
+    save_histogram(save_data_name, geometry_histogram.histogram);
+
+    pcl::visualization::PCLVisualizer::Ptr viewer;
+    viewer = normalsVis(rgb_cloud, cloud_normals);
+    viewer->saveScreenshot(current_log_dir_ + "normal_viewer_" + std::to_string(index_) + ".png");
 
     return true;
   }
@@ -218,6 +222,7 @@ namespace neatness_estimator
   {
 
     for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
+      index_ = i;
 
       pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
       for (auto index : input_indices->cluster_indices.at(i).indices) {
@@ -252,15 +257,12 @@ namespace neatness_estimator
                                             std_srvs::SetBool::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
-    std::string current_dir;
-    std::string prev_dir;
-
-    if ( !get_read_dirs(current_dir, prev_dir) ) {
+    if ( !get_read_dirs() ) {
       res.success = false;
       return false;
     }
 
-    if ( !read_data(current_dir, prev_dir) ) {
+    if ( !read_data() ) {
       res.success = false;
       return false;
     }
