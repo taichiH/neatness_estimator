@@ -2,6 +2,10 @@
   <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
   <arg name="radius" default="0.01" />
 
+  <arg name="cloud_topic" default="/openni_camera/depth_registered/points" />
+  <arg name="image_topic" default="/openni_camera/rgb/image_rect_color" />
+  <arg name="cluster_topic" default="/multi_euclidean_clustering/output_indices" />
+
   <node name="difference_reasoner"
         pkg="nodelet" type="nodelet"
         args="standalone neatness_estimator/DifferenceReasoner"
@@ -13,6 +17,10 @@
       white_threshold: 0.3
       black_threshold: 0.2
       normal_search_radius: $(arg radius)
+      cloud_topic: $(arg cloud_topic)
+      image_topic: $(arg image_topic)
+      cluster_topic: $(arg cluster_topic)
+
     </rosparam>
 
   </node>
