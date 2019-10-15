@@ -206,18 +206,22 @@ namespace neatness_estimator
     normal_estimation.setInputCloud(cloud);
     normal_estimation.compute(*cloud_normal);
 
-    pcl::VFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> vfh;
-    vfh.setInputCloud(cloud);
-    vfh.setInputNormals(cloud_normal);
-    vfh.setSearchMethod(tree);
+    pcl::CVFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> cvfh;
+    cvfh.setInputCloud(cloud);
+    cvfh.setInputNormals(cloud_normal);
+    cvfh.setSearchMethod(tree);
+    cvfh.setEPSAngleThreshold(5.0f / 180.0f * M_PI);
+    cvfh.setCurvatureThreshold(1.0f);
+    cvfh.setNormalizeBins(false);
 
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs(new pcl::PointCloud<pcl::VFHSignature308>());
-    vfh.compute(*vfhs);
+    pcl::PointCloud<pcl::VFHSignature308>::Ptr cvfhs
+      (new pcl::PointCloud<pcl::VFHSignature308>());
+    cvfh.compute(*cvfhs);
 
-    int feature_size = sizeof(pcl::VFHSignature308) / sizeof(vfhs->points[0].histogram[0]);
+    int feature_size = sizeof(pcl::VFHSignature308) / sizeof(cvfhs->points[0].histogram[0]);
     cv::Mat histogram = cv::Mat(sizeof(char), feature_size, CV_32F);
     for (int i = 0; i < histogram.cols; i++) {
-      histogram.at<float>(0, i) = vfhs->points[0].histogram[i];
+      histogram.at<float>(0, i) = cvfhs->points[0].histogram[i];
     }
     float curvature = 0.0f;
     for (int i = 0; i < cloud_normal->size(); i++) {
