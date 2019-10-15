@@ -39,6 +39,7 @@
 #include <boost/filesystem.hpp>
 
 #include <jsk_recognition_utils/pcl/color_histogram.h>
+#include <jsk_pcl_ros/region_adjacency_graph.h>
 
 namespace neatness_estimator
 {
@@ -97,6 +98,8 @@ namespace neatness_estimator
     sensor_msgs::PointCloud2::ConstPtr prev_cloud_;
 
     sensor_msgs::Image::ConstPtr prev_image_;
+
+    bool debug_view_ = false;
 
     int bin_size_ = 10;
 

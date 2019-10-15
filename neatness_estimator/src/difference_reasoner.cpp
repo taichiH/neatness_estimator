@@ -25,6 +25,7 @@ namespace neatness_estimator
   {
     nh_ = getNodeHandle();
     pnh_ = getPrivateNodeHandle();
+    pnh_.getParam("debug_view", debug_view_);
     pnh_.getParam("prefix", prefix_);
     pnh_.getParam("bin_size", bin_size_);
     pnh_.getParam("white_threshold", white_threshold_);
@@ -206,24 +207,37 @@ namespace neatness_estimator
     normal_estimation.compute(*cloud_normal);
 
     pcl::VFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> vfh;
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs(new pcl::PointCloud<pcl::VFHSignature308>());
     vfh.setInputCloud(cloud);
     vfh.setInputNormals(cloud_normal);
     vfh.setSearchMethod(tree);
-    vfh.compute(*vfhs);
-    pcl::VFHSignature308 vfh_feature = vfhs->points.at(0);
-    size_t feature_size = sizeof(pcl::VFHSignature308) / sizeof(vfh_feature.histogram[0]);
 
-    std::cerr << "feature_vec" << std::endl;
-    for (size_t i=0; i<feature_size; ++i) {
-      std::cerr << vfh_feature.histogram[i] << ", ";
+    pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhs(new pcl::PointCloud<pcl::VFHSignature308>());
+    vfh.compute(*vfhs);
+
+    int feature_size = sizeof(pcl::VFHSignature308) / sizeof(vfhs->points[0].histogram[0]);
+    cv::Mat histogram = cv::Mat(sizeof(char), feature_size, CV_32F);
+    for (int i = 0; i < histogram.cols; i++) {
+      histogram.at<float>(0, i) = vfhs->points[0].histogram[i];
+    }
+    float curvature = 0.0f;
+    for (int i = 0; i < cloud_normal->size(); i++) {
+      curvature += cloud_normal->points[i].curvature;
+    }
+    curvature /= static_cast<float>(cloud_normal->size());
+    cv::normalize(histogram, histogram, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+
+    std::cerr << "histogram size: " << histogram.cols << std::endl;
+    for (int i = 0; i < histogram.cols; i++) {
+      std::cerr << histogram.at<float>(0, i) << ", ";
     }
     std::cerr << std::endl;
 
-    // pcl::visualization::PCLVisualizer::Ptr viewer;
-    // viewer = normalsVis(rgb_cloud, cloud_normal);
-    // viewer->saveScreenshot("/tmp/normal_viewer.png");
-    // viewer->spin();
+    if (debug_view_) {
+      pcl::visualization::PCLVisualizer::Ptr viewer;
+      viewer = normalsVis(rgb_cloud, cloud_normal);
+      viewer->saveScreenshot("/tmp/normal_viewer.png");
+      viewer->spin();
+    }
 
     return true;
   }

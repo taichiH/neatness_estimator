@@ -1,4 +1,6 @@
 <launch>
+  <arg name="debug_view" default="false" />
+
   <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
   <arg name="radius" default="0.01" />
 
@@ -20,7 +22,7 @@
       cloud_topic: $(arg cloud_topic)
       image_topic: $(arg image_topic)
       cluster_topic: $(arg cluster_topic)
-
+      debug_view: $(arg debug_view)
     </rosparam>
 
   </node>
