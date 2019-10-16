@@ -24,7 +24,7 @@ class NeatnessEstimator():
 
         self.label_lst = rospy.get_param('~fg_class_names')
         self.neatness_pub = rospy.Publisher(
-            '~output', Neatness, queue_size=1)
+            '~neatness_mean', Neatness, queue_size=1)
 
         self.instance_msg = BoundingBoxArray()
         self.cluster_msg = BoundingBoxArray()
@@ -121,29 +121,24 @@ class NeatnessEstimator():
             rospy.logwarn('cluster labels does not match instance labels')
             return
 
+        filling_dist = {}
+        pulling_dist = {}
+        group_dist = {}
+
         group_dist = self.calc_group_dist(category_boxes, labeled_boxes, label_buf)
-        group_dist_mean = np.array(group_dist.values()).mean()
-
-        filling_dist = self.calc_filling_dist(category_boxes, label_buf)
-        if len(filling_dist) == 0:
-            rospy.logwarn('not found shelf')
-            return
-        filling_dist_mean = np.array(filling_dist.values()).mean()
-
-        pulling_dist = self.calc_pulling_dist(category_boxes, label_buf)
-        pulling_dist_mean = np.array(pulling_dist.values()).mean()
-
-        neatest_key, neatest_items = self.neat_planner(labeled_boxes, group_dist, filling_dist, pulling_dist, self.thresh)
+        if self.label_lst.index('shelf_flont') in labels:
+            filling_dist = self.calc_filling_dist(category_boxes, label_buf)
+            pulling_dist = self.calc_pulling_dist(category_boxes, label_buf)
 
 
-        neatness = np.array([group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
         neatness_msg = Neatness()
         neatness_msg.header = instance_msg.header
-        neatness_msg.group_neatness = group_dist_mean
-        neatness_msg.filling_neatness = filling_dist_mean
-        neatness_msg.pulling_neatness = pulling_dist_mean
-        neatness_msg.neatness = neatness
+        neatness_msg.group_neatness = np.array(group_dist.values()).mean()
+        neatness_msg.filling_neatness = np.array(filling_dist.values()).mean()
+        neatness_msg.pulling_neatness = np.array(pulling_dist.values()).mean()
+        neatness_msg.neatness = np.array([group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
         self.neatness_pub.publish(neatness_msg)
+
 
         if self.save_log:
             self.output_data['neatness'].append(neatness)
@@ -173,25 +168,26 @@ class NeatnessEstimator():
             for no_recognized_label in no_recognized_labels:
                 self.pulling_dist_array[no_recognized_label] += [0]
 
-
             items_group_neatness_output = os.path.join(self.output_dir, self.items_group_neatness)
             pd.DataFrame(data=self.group_dist_array).to_csv(items_group_neatness_output)
-
             items_filling_neatness_output = os.path.join(self.output_dir, self.items_filling_neatness)
             pd.DataFrame(data=self.filling_dist_array).to_csv(items_filling_neatness_output)
-
-
             items_pulling_neatness_output = os.path.join(self.output_dir, self.items_pulling_neatness)
             pd.DataFrame(data=self.pulling_dist_array).to_csv(items_pulling_neatness_output)
 
-        recognized_items = []
-        for label in cluster_buf:
-            recognized_items.append(self.label_lst[label])
 
         if debug:
             print('save_dir: ', self.output_dir)
+
+            neatest_key, neatest_items = self.neat_planner(
+                labeled_boxes, group_dist, filling_dist, pulling_dist, self.thresh)
             print('key, items', self.label_lst[neatest_key], neatest_items)
+
+            recognized_items = []
+            for label in cluster_buf:
+                recognized_items.append(self.label_lst[label])
             print('recognized items: ', recognized_items)
+
             print('neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean')
             print(neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean)
 
@@ -252,10 +248,6 @@ class NeatnessEstimator():
 
     def calc_filling_dist(self, category_boxes, labels):
         filling_dist = {}
-        shelf_i = self.label_lst.index('shelf_flont')
-        if not shelf_i in labels:
-            return filling_dist
-
         shelf_lt = np.array(np.array([category_boxes[shelf_i][0][0] + category_boxes[shelf_i][1][0]* 0.5,
                                       category_boxes[shelf_i][0][1] + category_boxes[shelf_i][1][1]* 0.5,
                                       category_boxes[shelf_i][0][2] + category_boxes[shelf_i][1][2]* 0.5]))
