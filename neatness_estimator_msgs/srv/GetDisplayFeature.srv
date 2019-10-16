@@ -1,3 +1,6 @@
 string save_dir
+jsk_recognition_msgs/BoundingBoxArray instance_boxes
+jsk_recognition_msgs/BoundingBoxArray cluster_boxes
 ---
 bool success
+neatness_estimator_msgs/NeatnessArray
