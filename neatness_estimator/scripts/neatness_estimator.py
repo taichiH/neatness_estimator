@@ -13,7 +13,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 import message_filters
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
-from neatness_estimator_msgs.msg import Neatness
+from neatness_estimator_msgs.msg import Neatness, NeatnessArray
 from neatness_estimator_msgs.srv import GetDisplayFeature, GetDisplayFeatureResponse
 
 class NeatnessEstimator():
@@ -26,6 +26,7 @@ class NeatnessEstimator():
         self.neatness_pub = rospy.Publisher(
             '~neatness_mean', Neatness, queue_size=1)
 
+        self.has_requested_boxes = False
         self.instance_msg = BoundingBoxArray()
         self.cluster_msg = BoundingBoxArray()
 
@@ -91,12 +92,25 @@ class NeatnessEstimator():
             self.save_log = True
             self.output_dir = req.save_dir
             self.neatness_log = 'neatness_output.csv'
-            self.items_group_neatness = 'items_group_neatness.csv'
-            self.items_filling_neatness = 'items_filling_neatness.csv'
-            self.items_pulling_neatness = 'items_pulling_neatness.csv'
-            self.run(self.instance_msg, self.cluster_msg, True)
+            self.items_group_neatness = 'group_neatness.csv'
+            self.items_filling_neatness = 'filling_neatness.csv'
+            self.items_pulling_neatness = 'pulling_neatness.csv'
+
+            instance_msg = self.instance_msg
+            cluster_msg = self.cluster_msg
+            if len(req.instance_boxes.boxes) > 0 or \
+               len(req.cluster_boxes.boxes) > 0:
+                self.has_requested_boxes = True
+                instance_msg = req.instance_boxes
+                cluster_msg = req.cluster_boxes
+                rospy.loginfo('instance and cluster boxes is requested, use requested boxes to calc neatness')
+
+            res_group_neatness = self.run(instance_msg, cluster_msg, True)
+
+            self.has_requested_boxes = True
             res = GetDisplayFeatureResponse()
             res.success = True
+            res.res_neatness = res_group_neatness
             return res
 
     def run(self, instance_msg, cluster_msg, debug):
@@ -138,6 +152,17 @@ class NeatnessEstimator():
         neatness_msg.pulling_neatness = np.array(pulling_dist.values()).mean()
         neatness_msg.neatness = np.array([group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
         self.neatness_pub.publish(neatness_msg)
+
+        res_group_neatness = NeatnessArray()
+        if self.has_requested_boxes:
+            res_group_neatness = NeatnessArray()
+            res_group_neatness.header = instance_msg.header
+            for key, val in zip(group_dist.keys(), group_dist.values()):
+                tmp_neatness = Neatness()
+                tmp_neatness.header = instance_msg.header
+                tmp_neatness.group_neatness = val
+                tmp_neatness.label = key
+                res_group_neatness.neatness.append(tmp_neatness)
 
 
         if self.save_log:
@@ -190,6 +215,9 @@ class NeatnessEstimator():
 
             print('neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean')
             print(neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean)
+
+
+        return res_group_neatness
 
     def get_array(self, box):
         array = np.array([box.pose.position.x,
