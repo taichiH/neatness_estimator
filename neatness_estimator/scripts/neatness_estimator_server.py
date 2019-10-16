@@ -4,6 +4,7 @@ import os
 import datetime
 import pandas as pd
 import cv2
+from threading import Lock
 
 import numpy as np
 import rospy
@@ -13,15 +14,20 @@ from cv_bridge import CvBridge, CvBridgeError
 import message_filters
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from neatness_estimator_msgs.msg import Neatness
+from neatness_estimator_msgs.srv import GetDisplayFeature, GetDisplayFeatureResponse
 
-from neatness_estimator import 
-
-class NeatnessEstimatorServer():
+class NeatnessEstimator():
 
     def __init__(self):
+        self.lock = Lock()
+        self.save_log = False
+
         self.label_lst = rospy.get_param('~fg_class_names')
         self.neatness_pub = rospy.Publisher(
             '~output', Neatness, queue_size=1)
+
+        self.instance_msg = BoundingBoxArray()
+        self.cluster_msg = BoundingBoxArray()
 
         self.group_dist_array = {}
         self.pulling_dist_array = {}
@@ -36,18 +42,23 @@ class NeatnessEstimatorServer():
 
         self.output_data = {'neatness':[], 'group_neatness':[],
                             'filling_neatness':[], 'pulling_neatness':[]}
-        self.output_dir = os.path.join(rospkg.RosPack().get_path('neatness_estimator'), 'output')
+        self.output_dir_name = os.path.join(rospkg.RosPack().get_path('neatness_estimator'), 'output')
+        self.output_dir = self.output_dir_name
+        self.neatness_log = 'neatness_output.csv'
+        self.items_group_neatness = 'items_group_neatness.csv'
+        self.items_filling_neatness = 'items_filling_neatness.csv'
+        self.items_pulling_neatness = 'items_pulling_neatness.csv'
 
-        self.save_log = rospy.get_param('~save_log', False)
         self.thresh = rospy.get_param('~thresh', 0.8)
         self.boxes = []
         self.bridge = CvBridge()
+
+        rospy.Service(
+            '~get_display_feature', GetDisplayFeature, self.service_callback)
         self.subscribe()
-        pass
 
     def subscribe(self):
         queue_size = rospy.get_param('~queue_size', 10)
-
         sub_cluster_box = message_filters.Subscriber(
             '~input/cluster_boxes',
             BoundingBoxArray,queue_size=1, buff_size=2**24)
@@ -67,6 +78,28 @@ class NeatnessEstimatorServer():
         sync.registerCallback(self.callback)
 
     def callback(self, instance_msg, cluster_msg):
+        with self.lock:
+            self.save_log = False
+            self.output_dir = self.output_dir_name
+            self.instance_msg = instance_msg
+            self.cluster_msg = cluster_msg
+            self.run(instance_msg, cluster_msg, False)
+
+    def service_callback(self, req):
+        with self.lock:
+            print('service_callback')
+            self.save_log = True
+            self.output_dir = req.save_dir
+            self.neatness_log = 'neatness_output.csv'
+            self.items_group_neatness = 'items_group_neatness.csv'
+            self.items_filling_neatness = 'items_filling_neatness.csv'
+            self.items_pulling_neatness = 'items_pulling_neatness.csv'
+            self.run(self.instance_msg, self.cluster_msg, True)
+            res = GetDisplayFeatureResponse()
+            res.success = True
+            return res
+
+    def run(self, instance_msg, cluster_msg, debug):
         bridge = self.bridge
         labeled_boxes = {}
         category_boxes = {}
@@ -101,7 +134,7 @@ class NeatnessEstimatorServer():
         pulling_dist_mean = np.array(pulling_dist.values()).mean()
 
         neatest_key, neatest_items = self.neat_planner(labeled_boxes, group_dist, filling_dist, pulling_dist, self.thresh)
-        # print('key, items', self.label_lst[neatest_key], neatest_items)
+
 
         neatness = np.array([group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
         neatness_msg = Neatness()
@@ -118,8 +151,8 @@ class NeatnessEstimatorServer():
             self.output_data['filling_neatness'].append(filling_dist_mean)
             self.output_data['pulling_neatness'].append(pulling_dist_mean)
             # file_name = 'neatness_{0:%Y%m%d-%H%M%S}.csv'.format(datetime.datetime.now())
-            neatness_log = 'neatness_output.csv'
-            output_file = os.path.join(self.output_dir, neatness_log)
+
+            output_file = os.path.join(self.output_dir, self.neatness_log)
             pd.DataFrame(data=self.output_data).to_csv(output_file)
 
             for key, val in zip(group_dist.keys(), group_dist.values()):
@@ -140,25 +173,27 @@ class NeatnessEstimatorServer():
             for no_recognized_label in no_recognized_labels:
                 self.pulling_dist_array[no_recognized_label] += [0]
 
-            items_group_neatness = 'items_group_neatness.csv'
-            items_group_neatness_output = os.path.join(self.output_dir, items_group_neatness)
+
+            items_group_neatness_output = os.path.join(self.output_dir, self.items_group_neatness)
             pd.DataFrame(data=self.group_dist_array).to_csv(items_group_neatness_output)
 
-            items_filling_neatness = 'items_filling_neatness.csv'
-            items_filling_neatness_output = os.path.join(self.output_dir, items_filling_neatness)
+            items_filling_neatness_output = os.path.join(self.output_dir, self.items_filling_neatness)
             pd.DataFrame(data=self.filling_dist_array).to_csv(items_filling_neatness_output)
 
-            items_pulling_neatness = 'items_pulling_neatness.csv'
-            items_pulling_neatness_output = os.path.join(self.output_dir, items_pulling_neatness)
+
+            items_pulling_neatness_output = os.path.join(self.output_dir, self.items_pulling_neatness)
             pd.DataFrame(data=self.pulling_dist_array).to_csv(items_pulling_neatness_output)
 
         recognized_items = []
         for label in cluster_buf:
             recognized_items.append(self.label_lst[label])
 
-        # print('recognized items: ', recognized_items)
-        # print('neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean')
-        # print(neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean)
+        if debug:
+            print('save_dir: ', self.output_dir)
+            print('key, items', self.label_lst[neatest_key], neatest_items)
+            print('recognized items: ', recognized_items)
+            print('neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean')
+            print(neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean)
 
     def get_array(self, box):
         array = np.array([box.pose.position.x,
@@ -280,6 +315,6 @@ class NeatnessEstimatorServer():
         return neatest_key, neatest_items
 
 if __name__ == '__main__':
-    rospy.init_node('neatness_estimator_server')
-    neatness_estimator_server = NeatnessEstimatorServer()
+    rospy.init_node('neatness_estimator')
+    neatness_estimator = NeatnessEstimator()
     rospy.spin()
