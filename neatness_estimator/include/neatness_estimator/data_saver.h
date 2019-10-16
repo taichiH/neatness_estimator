@@ -32,6 +32,7 @@ namespace neatness_estimator
       sensor_msgs::Image,
       jsk_recognition_msgs::ClusterPointIndices,
       jsk_recognition_msgs::LabelArray,
+      jsk_recognition_msgs::BoundingBoxArray,
       jsk_recognition_msgs::BoundingBoxArray
       > SyncPolicy;
 
@@ -40,6 +41,7 @@ namespace neatness_estimator
       sensor_msgs::Image,
       jsk_recognition_msgs::ClusterPointIndices,
       jsk_recognition_msgs::LabelArray,
+      jsk_recognition_msgs::BoundingBoxArray,
       jsk_recognition_msgs::BoundingBoxArray
       > ApproximateSyncPolicy;
 
@@ -48,7 +50,8 @@ namespace neatness_estimator
       IMAGE = 2,
       CLUSTER = 3,
       LABELS = 4,
-      BOXES = 5
+      INSTANCE_BOXES = 5,
+      CLUSTER_BOXES = 6
     };
 
   protected:
@@ -61,7 +64,8 @@ namespace neatness_estimator
                           const sensor_msgs::Image::ConstPtr& image_msg,
                           const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
                           const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg,
-                          const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& boxes_msg);
+                          const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& instance_boxes_msg,
+                          const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& cluster_boxes_msg);
 
     virtual bool service_callback(std_srvs::SetBool::Request& req,
                                   std_srvs::SetBool::Response& res);
@@ -73,39 +77,29 @@ namespace neatness_estimator
     // variables
 
     ros::NodeHandle nh_;
-
     ros::NodeHandle pnh_;
 
     ros::ServiceServer server_;
 
     boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
-
     boost::shared_ptr<message_filters::Synchronizer<ApproximateSyncPolicy> > async_;
 
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub_point_cloud_;
-
     message_filters::Subscriber<sensor_msgs::Image> sub_image_;
-
     message_filters::Subscriber<jsk_recognition_msgs::ClusterPointIndices> sub_cluster_;
-
     message_filters::Subscriber<jsk_recognition_msgs::LabelArray> sub_labels_;
-
-    message_filters::Subscriber<jsk_recognition_msgs::BoundingBoxArray> sub_boxes_;
+    message_filters::Subscriber<jsk_recognition_msgs::BoundingBoxArray> sub_instance_boxes_;
+    message_filters::Subscriber<jsk_recognition_msgs::BoundingBoxArray> sub_cluster_boxes_;
 
     sensor_msgs::PointCloud2::ConstPtr cloud_msg_;
-
     sensor_msgs::Image::ConstPtr image_msg_;
-
     jsk_recognition_msgs::ClusterPointIndices::ConstPtr cluster_msg_;
-
     jsk_recognition_msgs::LabelArray::ConstPtr labels_msg_;
-
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr boxes_msg_;
+    jsk_recognition_msgs::BoundingBoxArray::ConstPtr instance_boxes_msg_;
+    jsk_recognition_msgs::BoundingBoxArray::ConstPtr cluster_boxes_msg_;
 
     boost::mutex mutex_;
-
     std::string prefix_ = "./";
-
     std::vector<std::string> topics_;
 
   private:

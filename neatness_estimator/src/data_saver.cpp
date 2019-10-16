@@ -15,7 +15,8 @@ namespace neatness_estimator
     sub_image_.subscribe(pnh_, "input_image", 1);
     sub_cluster_.subscribe(pnh_, "input_cluster", 1);
     sub_labels_.subscribe(pnh_, "input_labels", 1);
-    sub_boxes_.subscribe(pnh_, "input_boxes", 1);
+    sub_instance_boxes_.subscribe(pnh_, "input_instance_boxes", 1);
+    sub_cluster_boxes_.subscribe(pnh_, "input_cluster_boxes", 1);
 
     // topic name added to topic_manager when subscribe function is called
     ros::this_node::getSubscribedTopics(topics_);
@@ -29,13 +30,22 @@ namespace neatness_estimator
 
     if (approximate_sync) {
       async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
-      async_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_, sub_labels_, sub_boxes_);
-      async_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3, _4, _5));
+      async_->connectInput(sub_point_cloud_,
+                           sub_image_,
+                           sub_cluster_,
+                           sub_labels_,
+                           sub_instance_boxes_,
+                           sub_cluster_boxes_);
+      async_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3, _4, _5, _6));
     } else {
-
       sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
-      sync_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_, sub_labels_, sub_boxes_);
-      sync_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3, _4, _5));
+      sync_->connectInput(sub_point_cloud_,
+                          sub_image_,
+                          sub_cluster_,
+                          sub_labels_,
+                          sub_instance_boxes_,
+                          sub_cluster_boxes_);
+      sync_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3, _4, _5, _6));
     }
 
   }
@@ -73,7 +83,8 @@ namespace neatness_estimator
                            const sensor_msgs::Image::ConstPtr& image_msg,
                            const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
                            const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg,
-                           const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& boxes_msg)
+                           const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& instance_boxes_msg,
+                           const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& cluster_boxes_msg)
   {
     boost::mutex::scoped_lock lock(mutex_);
 
@@ -83,7 +94,8 @@ namespace neatness_estimator
     image_msg_ = image_msg;
     cluster_msg_ = cluster_msg;
     labels_msg_ = labels_msg;
-    boxes_msg_ = boxes_msg;
+    instance_boxes_msg_ = instance_boxes_msg;
+    cluster_boxes_msg_ = cluster_boxes_msg;
   }
 
 
@@ -114,7 +126,8 @@ namespace neatness_estimator
     bag.write(topics_.at(1), image_msg_->header.stamp, *image_msg_);
     bag.write(topics_.at(2), cluster_msg_->header.stamp, *cluster_msg_);
     bag.write(topics_.at(3), labels_msg_->header.stamp, *labels_msg_);
-    bag.write(topics_.at(4), boxes_msg_->header.stamp, *boxes_msg_);
+    bag.write(topics_.at(4), instance_boxes_msg_->header.stamp, *instance_boxes_msg_);
+    bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
     bag.close();
 
     res.success = true;
