@@ -7,6 +7,8 @@
   <arg name="cloud_topic" default="/openni_camera/depth_registered/points" />
   <arg name="image_topic" default="/openni_camera/rgb/image_rect_color" />
   <arg name="cluster_topic" default="/multi_euclidean_clustering/output_indices" />
+  <arg name="instance_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
+  <arg name="cluster_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
 
   <node name="difference_reasoner"
         pkg="nodelet" type="nodelet"
@@ -22,6 +24,8 @@
       cloud_topic: $(arg cloud_topic)
       image_topic: $(arg image_topic)
       cluster_topic: $(arg cluster_topic)
+      instance_boxes_topic: $(arg instance_boxes_topic)
+      cluster_boxes_topic: $(arg cluster_boxes_topic)
       debug_view: $(arg debug_view)
     </rosparam>
 

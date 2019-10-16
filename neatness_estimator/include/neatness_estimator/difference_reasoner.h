@@ -13,6 +13,7 @@
 #include <jsk_recognition_msgs/ColorHistogram.h>
 #include <jsk_recognition_msgs/ColorHistogramArray.h>
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
+#include <jsk_recognition_msgs/BoundingBoxArray.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
 #include <std_srvs/SetBool.h>
@@ -122,56 +123,42 @@ namespace neatness_estimator
     // variables
 
     ros::NodeHandle nh_;
-
     ros::NodeHandle pnh_;
 
     ros::ServiceServer server_;
 
     boost::mutex mutex_;
-
     std::string prefix_ = "./";
 
-    std::map<std::string, std::string> topics_;
-
     std::string cloud_topic_ = "/openni_camera/point_cloud/cloud_registered/remote";
-
     std::string image_topic_ = "/openni_camera/rgb/image_rect_color";
-
     std::string cluster_topic_ = "/multi_euclidean_clustering/output_indices";
+    std::string instance_boxes_topic_ = "/labeled_bounding_box_publisher/output/labeled_instance_boxes";
+    std::string cluster_boxes_topic_ = "/labeled_bounding_box_publisher/output/labeled_cluster_boxes";
 
     jsk_recognition_msgs::ClusterPointIndices::ConstPtr current_cluster_;
-
     sensor_msgs::PointCloud2::ConstPtr current_cloud_;
-
     sensor_msgs::Image::ConstPtr current_image_;
+    jsk_recognition_msgs::BoundingBoxArray::ConstPtr current_instance_boxes_;
+    jsk_recognition_msgs::BoundingBoxArray::ConstPtr current_cluster_boxes_;
 
     jsk_recognition_msgs::ClusterPointIndices::ConstPtr prev_cluster_;
-
     sensor_msgs::PointCloud2::ConstPtr prev_cloud_;
-
     sensor_msgs::Image::ConstPtr prev_image_;
-
+    jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_instance_boxes_;
+    jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_cluster_boxes_;
 
     std::string save_data_dir_;
-
     std::string current_log_dir_;
-
     std::string prev_log_dir_;
-
     std::string current_dir_;
-
     std::string prev_dir_;
 
     int index_ = 0;
-
     bool debug_view_ = false;
-
     int bin_size_ = 10;
-
     double white_threshold_ = 0.3;
-
     double black_threshold_ = 0.2;
-
     double normal_search_radius_ = 0.01;
 
     // 0: HUE, 1: HUE_AND_SATURATION

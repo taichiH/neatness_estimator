@@ -24,6 +24,9 @@ namespace neatness_estimator
     pnh_.getParam("cloud_topic", cloud_topic_);
     pnh_.getParam("image_topic", image_topic_);
     pnh_.getParam("cluster_topic", cluster_topic_);
+    pnh_.getParam("instance_boxes_topic", instance_boxes_topic_);
+    pnh_.getParam("cluster_boxes_topic", cluster_boxes_topic_);
+
     server_ = pnh_.advertiseService("read", &DifferenceReasoner::service_callback, this);
 
   }
@@ -77,9 +80,15 @@ namespace neatness_estimator
     current_cluster_.reset(new jsk_recognition_msgs::ClusterPointIndices);
     current_cloud_.reset(new sensor_msgs::PointCloud2);
     current_image_.reset(new sensor_msgs::Image);
+    current_instance_boxes_.reset(new jsk_recognition_msgs::BoundingBoxArray);
+    current_cluster_boxes_.reset(new jsk_recognition_msgs::BoundingBoxArray);
+
     prev_cluster_.reset(new jsk_recognition_msgs::ClusterPointIndices);
     prev_cloud_.reset(new sensor_msgs::PointCloud2);
     prev_image_.reset(new sensor_msgs::Image);
+    prev_instance_boxes_.reset(new jsk_recognition_msgs::BoundingBoxArray);
+    prev_cluster_boxes_.reset(new jsk_recognition_msgs::BoundingBoxArray);
+
 
     rosbag::Bag bag;
     try {
@@ -91,6 +100,10 @@ namespace neatness_estimator
           current_cloud_ = m.instantiate<sensor_msgs::PointCloud2>();
         if (m.getTopic() == image_topic_)
           current_image_ = m.instantiate<sensor_msgs::Image>();
+        if (m.getTopic() == instance_boxes_topic_)
+          current_instance_boxes_ = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
+        if (m.getTopic() == cluster_boxes_topic_)
+          current_cluster_boxes_ = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
       }
       bag.close();
 
@@ -102,6 +115,10 @@ namespace neatness_estimator
           prev_cloud_ = m.instantiate<sensor_msgs::PointCloud2>();
         if (m.getTopic() == image_topic_)
           prev_image_ = m.instantiate<sensor_msgs::Image>();
+        if (m.getTopic() == instance_boxes_topic_)
+          prev_instance_boxes_ = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
+        if (m.getTopic() == cluster_boxes_topic_)
+          prev_cluster_boxes_ = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
       }
       bag.close();
 
