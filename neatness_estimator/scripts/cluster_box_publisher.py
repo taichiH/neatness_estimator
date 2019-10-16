@@ -64,7 +64,7 @@ class ClusterBoxPublisher():
                 bounding_box_msg.boxes.append(tmp_box)
 
             bounding_box_msg.header = box_msg.header
-            self.box_pub.publish(bounding_box_msg)
+        self.box_pub.publish(bounding_box_msg)
 
     def get_distances(self, centers, diagonals):
         distances = []
