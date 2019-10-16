@@ -12,6 +12,7 @@
 
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
 #include <jsk_recognition_msgs/LabelArray.h>
+#include <jsk_recognition_msgs/BoundingBoxArray.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
 #include <std_srvs/SetBool.h>
@@ -30,21 +31,24 @@ namespace neatness_estimator
       sensor_msgs::PointCloud2,
       sensor_msgs::Image,
       jsk_recognition_msgs::ClusterPointIndices,
-      jsk_recognition_msgs::LabelArray
+      jsk_recognition_msgs::LabelArray,
+      jsk_recognition_msgs::BoundingBoxArray
       > SyncPolicy;
 
     typedef message_filters::sync_policies::ApproximateTime<
       sensor_msgs::PointCloud2,
       sensor_msgs::Image,
       jsk_recognition_msgs::ClusterPointIndices,
-      jsk_recognition_msgs::LabelArray
+      jsk_recognition_msgs::LabelArray,
+      jsk_recognition_msgs::BoundingBoxArray
       > ApproximateSyncPolicy;
 
     enum Topics {
-      CLOUD,
-      IMAGE,
-      CLUSTER,
-      LABELS
+      CLOUD = 1,
+      IMAGE = 2,
+      CLUSTER = 3,
+      LABELS = 4,
+      BOXES = 5
     };
 
   protected:
@@ -56,7 +60,8 @@ namespace neatness_estimator
     virtual void callback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
                           const sensor_msgs::Image::ConstPtr& image_msg,
                           const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
-                          const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg);
+                          const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg,
+                          const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& boxes_msg);
 
     virtual bool service_callback(std_srvs::SetBool::Request& req,
                                   std_srvs::SetBool::Response& res);
@@ -85,6 +90,8 @@ namespace neatness_estimator
 
     message_filters::Subscriber<jsk_recognition_msgs::LabelArray> sub_labels_;
 
+    message_filters::Subscriber<jsk_recognition_msgs::BoundingBoxArray> sub_boxes_;
+
     sensor_msgs::PointCloud2::ConstPtr cloud_msg_;
 
     sensor_msgs::Image::ConstPtr image_msg_;
@@ -92,6 +99,8 @@ namespace neatness_estimator
     jsk_recognition_msgs::ClusterPointIndices::ConstPtr cluster_msg_;
 
     jsk_recognition_msgs::LabelArray::ConstPtr labels_msg_;
+
+    jsk_recognition_msgs::BoundingBoxArray::ConstPtr boxes_msg_;
 
     boost::mutex mutex_;
 

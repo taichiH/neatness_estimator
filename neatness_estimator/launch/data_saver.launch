@@ -1,8 +1,9 @@
 <launch>
-  <arg name="input_cloud" default="/openni_camera/point_cloud/cloud_registered/remote" />
+  <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
   <arg name="input_image" default="/openni_camera/rgb/image_rect_color" />
   <arg name="input_cluster" default="/multi_euclidean_clustering/output_indices" />
   <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
+  <arg name="input_boxes" default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
 
   <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
 
@@ -14,6 +15,7 @@
     <remap from="~input_image" to="$(arg input_image)" />
     <remap from="~input_cluster" to="$(arg input_cluster)" />
     <remap from="~input_labels" to="$(arg input_labels)" />
+    <remap from="~input_boxes" to="$(arg input_boxes)" />
     <rosparam subst_value="true">
       approximate_sync: true
       prefix: $(arg prefix)
