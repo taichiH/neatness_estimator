@@ -27,7 +27,7 @@
       queue_size: 100
       target_frame_id: base_link
       sort_by: input_indices
-      use_pca: true
+      use_pca: false
     </rosparam>
   </node>
 
