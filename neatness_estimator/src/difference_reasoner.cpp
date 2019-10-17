@@ -28,6 +28,8 @@ namespace neatness_estimator
     pnh_.getParam("cluster_boxes_topic", cluster_boxes_topic_);
 
     server_ = pnh_.advertiseService("read", &DifferenceReasoner::service_callback, this);
+    display_feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDisplayFeature>
+      ("/neatness_estimator/get_display_feature");
 
   }
 
@@ -293,6 +295,13 @@ namespace neatness_estimator
                        current_cluster_,
                        color_histogram_array,
                        geometry_histogram_array);
+
+    neatness_estimator_msgs::GetDisplayFeature client_msg;
+    client_msg.request.save_dir = save_data_dir_;
+    client_msg.request.instance_boxes = *current_instance_boxes_;
+    client_msg.request.cluster_boxes = *current_cluster_boxes_;
+    display_feature_client_.call(client_msg);
+    neatness_estimator_msgs::NeatnessArray nestness = client_msg.response.res_neatness;
 
     res.success = true;
     return true;

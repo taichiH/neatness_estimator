@@ -9,6 +9,9 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 
+#include <neatness_estimator_msgs/GetDisplayFeature.h>
+#include <neatness_estimator_msgs/Neatness.h>
+#include <neatness_estimator_msgs/NeatnessArray.h>
 #include <jsk_recognition_msgs/Histogram.h>
 #include <jsk_recognition_msgs/ColorHistogram.h>
 #include <jsk_recognition_msgs/ColorHistogramArray.h>
@@ -126,6 +129,7 @@ namespace neatness_estimator
     ros::NodeHandle pnh_;
 
     ros::ServiceServer server_;
+    ros::ServiceClient display_feature_client_;
 
     boost::mutex mutex_;
     std::string prefix_ = "./";
