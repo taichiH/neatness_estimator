@@ -149,6 +149,27 @@ namespace neatness_estimator
     return true;
   }
 
+  bool DifferenceReasoner::save_pcd(std::string save_path,
+                                    const pcl::PointCloud<pcl::PointXYZRGB>& cloud)
+  {
+    ROS_INFO("save pcd path: \n%s", save_path.c_str());
+    pcl::PCDWriter writer;
+    try {
+      writer.writeASCII(save_path, cloud);
+    } catch (...) {
+      return false;
+    }
+    return true;
+  }
+
+  bool DifferenceReasoner::save_image(std::string save_path,
+                                      const cv::Mat& image)
+  {
+    ROS_INFO("save image path: \n%s", save_path.c_str());
+    cv::imwrite(save_path, image);
+    return true;
+  }
+
   bool DifferenceReasoner::compute_color_histogram
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
    jsk_recognition_msgs::ColorHistogram& color_histogram)
@@ -300,6 +321,17 @@ namespace neatness_estimator
       return false;
     }
 
+    cv::Mat image;
+    try {
+      cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy
+        (current_image_, current_image_->encoding);
+      image = cv_image->image;
+    } catch (cv_bridge::Exception& e) {
+      ROS_ERROR("Failed to convert sensor_msgs::Image to cv::Mat \n%s", e.what());
+      return false;
+    }
+    save_image(current_log_dir_ + "log_image.jpg", image);
+
     labels_.resize(current_instance_boxes_->boxes.size());
     for (size_t i = 0; i < current_instance_boxes_->boxes.size(); ++i) {
       labels_.at(i) = current_instance_boxes_->boxes.at(i).label;
@@ -308,6 +340,7 @@ namespace neatness_estimator
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*current_cloud_, *rgb_cloud);
+    save_pcd(current_log_dir_ + "log_pcd.pcd", *rgb_cloud);
 
     jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
     std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;

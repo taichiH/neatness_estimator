@@ -103,6 +103,12 @@ namespace neatness_estimator
        jsk_recognition_msgs::Histogram& geometry_histogram);
 
 
+    virtual bool save_pcd(std::string save_path,
+                          const pcl::PointCloud<pcl::PointXYZRGB>& cloud);
+
+    virtual bool save_image(std::string save_path,
+                            const cv::Mat& image);
+
     template<typename T>
       inline bool save_histogram(std::string filename,
                                  const std::vector<T>& histogram)
