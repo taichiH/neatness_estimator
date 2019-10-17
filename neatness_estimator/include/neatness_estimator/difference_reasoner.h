@@ -109,24 +109,6 @@ namespace neatness_estimator
     virtual bool save_image(std::string save_path,
                             const cv::Mat& image);
 
-    template<typename T>
-      inline bool save_histogram(std::string filename,
-                                 const std::vector<T>& histogram)
-      {
-        std::ofstream f;
-        try {
-          f.open(filename);
-          for (auto v : histogram) {
-            f << std::to_string(v) + "\n";
-          }
-          f.close();
-        } catch (...) {
-          ROS_ERROR("failed save histogram");
-          return false;
-        }
-
-        return true;
-      }
 
 
     // variables

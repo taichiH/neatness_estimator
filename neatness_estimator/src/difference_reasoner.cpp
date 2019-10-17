@@ -200,12 +200,6 @@ namespace neatness_estimator
       return false;
     }
 
-    std::stringstream save_data_name;
-    save_data_name << save_data_dir_
-                   << "color_histogram_"
-                   << std::to_string(index_) << "_"
-                   << std::to_string(labels_.at(index_)) << ".csv";
-    save_histogram(save_data_name.str(), color_histogram.histogram);
 
     return true;
   }
@@ -253,14 +247,6 @@ namespace neatness_estimator
       geometry_histogram.histogram.push_back(histogram.at<float>(0, i));
     }
 
-    std::stringstream save_data_name;
-    save_data_name << save_data_dir_
-                   << "geometry_histogram_"
-                   << std::to_string(index_) << "_"
-                   << std::to_string(labels_.at(index_)) << ".csv";
-
-    save_histogram(save_data_name.str(), geometry_histogram.histogram);
-
     // pcl::visualization::PCLVisualizer::Ptr viewer;
     // viewer = normalsVis(rgb_cloud, cloud_normals);
     // viewer->saveScreenshot(current_log_dir_ + "normal_viewer_" + std::to_string(index_) + ".png");
@@ -300,7 +286,6 @@ namespace neatness_estimator
       jsk_recognition_msgs::Histogram geometry_histogram;
       compute_geometry_histogram(clustered_cloud, geometry_histogram);
       geometry_histogram_array.push_back(geometry_histogram);
-
     }
 
     return true;
@@ -349,6 +334,34 @@ namespace neatness_estimator
                        color_histogram_array,
                        geometry_histogram_array);
 
+    std::ofstream f;
+    try {
+      f.open(save_data_dir_ + "color_histograms.csv");
+      for (size_t i=0; i<color_histogram_array.histograms.size(); ++i) {
+        f << std::to_string(labels_.at(i)) + ", ";
+        for (auto v : color_histogram_array.histograms.at(i).histogram) {
+          f << std::to_string(v) + ",";
+        }
+        f << "\n";
+      }
+      f.close();
+    } catch (...){
+      ROS_ERROR("failed save histogram");
+    }
+
+    try {
+      f.open(save_data_dir_ + "geometry_histograms.csv");
+      for (size_t i=0; i<geometry_histogram_array.size(); ++i) {
+        f << std::to_string(labels_.at(i)) + ", ";
+        for (auto v : geometry_histogram_array.at(i).histogram) {
+          f << std::to_string(v) + ",";
+        }
+        f << "\n";
+      }
+      f.close();
+    } catch (...){
+      ROS_ERROR("failed save histogram");
+    }
 
     neatness_estimator_msgs::GetDisplayFeature client_msg;
     client_msg.request.save_dir = save_data_dir_;
