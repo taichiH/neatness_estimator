@@ -1,0 +1,7 @@
+<launch>
+  <node name="compair_data"
+        pkg="neatness_estimator" type="compair_data.py"
+        output="screen">
+  </node>
+
+</launch>
