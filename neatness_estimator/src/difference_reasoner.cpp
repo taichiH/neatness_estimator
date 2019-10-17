@@ -29,7 +29,7 @@ namespace neatness_estimator
 
     server_ = pnh_.advertiseService("read", &DifferenceReasoner::service_callback, this);
     display_feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDisplayFeature>
-      ("/neatness_estimator/get_display_feature");
+      ("service_topic");
 
   }
 
@@ -61,18 +61,25 @@ namespace neatness_estimator
     boost::system::error_code error;
     current_log_dir_ =
       prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(0))) + "/logs/";
-    if (!boost::filesystem::create_directory(current_log_dir_, error) || error) {
-      ROS_ERROR("failed create current logs dir : \n%s", current_log_dir_.c_str());
-      return false;
+
+    const boost::filesystem::path log_dir_path(current_log_dir_.c_str());
+    if (!boost::filesystem::exists(log_dir_path)) {
+      if (!boost::filesystem::create_directory(current_log_dir_, error) || error) {
+        ROS_ERROR("failed create current logs dir : \n%s", current_log_dir_.c_str());
+        return false;
+      }
     }
 
     save_data_dir_ =
       prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(0))) + "/data/";
-    if (!boost::filesystem::create_directory(save_data_dir_, error) || error) {
-      ROS_ERROR("failed create data dir : \n%s", save_data_dir_.c_str());
-      return false;
-    }
 
+    const boost::filesystem::path data_dir_path(save_data_dir_.c_str());
+    if (!boost::filesystem::exists(data_dir_path)) {
+      if (!boost::filesystem::create_directory(save_data_dir_, error) || error) {
+        ROS_ERROR("failed create data dir : \n%s", save_data_dir_.c_str());
+        return false;
+      }
+    }
     return true;
   }
 
@@ -172,9 +179,12 @@ namespace neatness_estimator
       return false;
     }
 
-    std::string save_data_name =
-      save_data_dir_ + "color_histogram_" + std::to_string(index_) + ".csv";
-    save_histogram(save_data_name, color_histogram.histogram);
+    std::stringstream save_data_name;
+    save_data_name << save_data_dir_
+                   << "color_histogram_"
+                   << std::to_string(index_) << "_"
+                   << std::to_string(labels_.at(index_)) << ".csv";
+    save_histogram(save_data_name.str(), color_histogram.histogram);
 
     return true;
   }
@@ -222,13 +232,17 @@ namespace neatness_estimator
       geometry_histogram.histogram.push_back(histogram.at<float>(0, i));
     }
 
-    std::string save_data_name =
-      save_data_dir_ + "geometry_histogram_" + std::to_string(index_) + ".csv";
-    save_histogram(save_data_name, geometry_histogram.histogram);
+    std::stringstream save_data_name;
+    save_data_name << save_data_dir_
+                   << "geometry_histogram_"
+                   << std::to_string(index_) << "_"
+                   << std::to_string(labels_.at(index_)) << ".csv";
 
-    pcl::visualization::PCLVisualizer::Ptr viewer;
-    viewer = normalsVis(rgb_cloud, cloud_normals);
-    viewer->saveScreenshot(current_log_dir_ + "normal_viewer_" + std::to_string(index_) + ".png");
+    save_histogram(save_data_name.str(), geometry_histogram.histogram);
+
+    // pcl::visualization::PCLVisualizer::Ptr viewer;
+    // viewer = normalsVis(rgb_cloud, cloud_normals);
+    // viewer->saveScreenshot(current_log_dir_ + "normal_viewer_" + std::to_string(index_) + ".png");
 
     return true;
   }
@@ -286,6 +300,12 @@ namespace neatness_estimator
       return false;
     }
 
+    labels_.resize(current_instance_boxes_->boxes.size());
+    for (size_t i = 0; i < current_instance_boxes_->boxes.size(); ++i) {
+      labels_.at(i) = current_instance_boxes_->boxes.at(i).label;
+    }
+
+
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*current_cloud_, *rgb_cloud);
 
@@ -295,6 +315,7 @@ namespace neatness_estimator
                        current_cluster_,
                        color_histogram_array,
                        geometry_histogram_array);
+
 
     neatness_estimator_msgs::GetDisplayFeature client_msg;
     client_msg.request.save_dir = save_data_dir_;

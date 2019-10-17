@@ -140,17 +140,22 @@ class NeatnessEstimator():
         group_dist = {}
 
         group_dist = self.calc_group_dist(category_boxes, labeled_boxes, label_buf)
-        if self.label_lst.index('shelf_flont') in labels:
+        if self.label_lst.index('shelf_flont') in label_buf:
             filling_dist = self.calc_filling_dist(category_boxes, label_buf)
             pulling_dist = self.calc_pulling_dist(category_boxes, label_buf)
 
+        group_dist_mean = np.array(group_dist.values()).mean()
+        filling_dist_mean = np.array(filling_dist.values()).mean()
+        pulling_dist_mean = np.array(pulling_dist.values()).mean()
+        neatness = np.array(
+            [group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
 
         neatness_msg = Neatness()
         neatness_msg.header = instance_msg.header
-        neatness_msg.group_neatness = np.array(group_dist.values()).mean()
-        neatness_msg.filling_neatness = np.array(filling_dist.values()).mean()
-        neatness_msg.pulling_neatness = np.array(pulling_dist.values()).mean()
-        neatness_msg.neatness = np.array([group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
+        neatness_msg.group_neatness = group_dist_mean
+        neatness_msg.filling_neatness = filling_dist_mean
+        neatness_msg.pulling_neatness = pulling_dist_mean
+        neatness_msg.neatness = neatness
         self.neatness_pub.publish(neatness_msg)
 
         res_group_neatness = NeatnessArray()
@@ -276,6 +281,7 @@ class NeatnessEstimator():
 
     def calc_filling_dist(self, category_boxes, labels):
         filling_dist = {}
+        shelf_i = self.label_lst.index('shelf_flont')
         shelf_lt = np.array(np.array([category_boxes[shelf_i][0][0] + category_boxes[shelf_i][1][0]* 0.5,
                                       category_boxes[shelf_i][0][1] + category_boxes[shelf_i][1][1]* 0.5,
                                       category_boxes[shelf_i][0][2] + category_boxes[shelf_i][1][2]* 0.5]))

@@ -164,6 +164,7 @@ namespace neatness_estimator
     double white_threshold_ = 0.3;
     double black_threshold_ = 0.2;
     double normal_search_radius_ = 0.01;
+    std::vector<size_t> labels_;
 
     // 0: HUE, 1: HUE_AND_SATURATION
     jsk_recognition_utils::HistogramPolicy histogram_policy_ = jsk_recognition_utils::HUE;

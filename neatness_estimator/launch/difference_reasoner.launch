@@ -10,10 +10,13 @@
   <arg name="instance_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
   <arg name="cluster_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
 
+  <arg name="service_node_name" default="neatness_estimator_server" />
+
   <node name="difference_reasoner"
         pkg="nodelet" type="nodelet"
         args="standalone neatness_estimator/DifferenceReasoner"
         output="screen">
+    <remap from="~service_topic" to="$(arg service_node_name)/get_display_feature"/>
     <rosparam subst_value="true">
       prefix: $(arg prefix)
       bin_size: 10
@@ -28,7 +31,16 @@
       cluster_boxes_topic: $(arg cluster_boxes_topic)
       debug_view: $(arg debug_view)
     </rosparam>
+  </node>
 
+  <node name="$(arg service_node_name)"
+        pkg="neatness_estimator" type="neatness_estimator.py"
+        output="screen">
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+    <rosparam subst_value="true">
+      thresh: 0.8
+    </rosparam>
   </node>
 
 </launch>
