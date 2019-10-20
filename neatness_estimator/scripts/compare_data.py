@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import rospy
 from std_srvs.srv import SetBool, SetBoolResponse
 
-class CompairData():
+class CompareData():
 
     def __init__(self):
 
@@ -18,7 +18,7 @@ class CompairData():
 
         self.label_lst = rospy.get_param('~fg_class_names')
         rospy.Service(
-            '~compair', SetBool, self.service_callback)
+            '~compare', SetBool, self.service_callback)
 
     def get_data(self, dir_path):
         group_neatness_path = os.path.join(dir_path, 'data/group_neatness.csv')
@@ -89,6 +89,6 @@ class CompairData():
 
 
 if __name__=='__main__':
-    rospy.init_node('compair_data')
-    compair_data = CompairData()
+    rospy.init_node('compare_data')
+    compare_data = CompareData()
     rospy.spin()

@@ -1,6 +1,6 @@
 <launch>
-  <node name="compair_data"
-        pkg="neatness_estimator" type="compair_data.py"
+  <node name="compare_data"
+        pkg="neatness_estimator" type="compare_data.py"
         output="screen">
     <rosparam command="load"
               file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
