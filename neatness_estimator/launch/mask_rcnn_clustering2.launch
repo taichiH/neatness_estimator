@@ -2,4 +2,5 @@
   <include file="$(find neatness_estimator)/launch/mask_rcnn_clustering.launch"/>
   <include file="$(find neatness_estimator)/launch/multi_euclidean_clustering.launch"/>
   <include file="$(find neatness_estimator)/launch/vision_server.launch"/>
+  <include file="$(find neatness_estimator)/launch/neatness_estimator.launch"/>
 </launch>
