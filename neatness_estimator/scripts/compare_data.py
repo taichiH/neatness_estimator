@@ -70,17 +70,23 @@ class CompareData():
 
             index = int(prev_histogram[0])
             print(self.label_lst[index], prev_histogram[1:])
-            sample_prev_hist = np.array(prev_histogram[1:])
+            prev_histogram.remove('')
+            sample_prev_hist = map(lambda x: float(x), prev_histogram[1:])
 
-        x_axes = [i for i in range(len(sample_current_hist))]
-        print(x_axes)
         print(sample_current_hist)
 
         plt.figure()
-        plt.subplot(1,1,1)
+
+        plt.subplot(1,2,1)
+        plt.title('sample_color_histogram')
         plt.xlabel('bin')
-        plt.title('sample_current_hist')
-        plt.bar(x_axes, sample_current_hist)
+        plt.bar([i for i in range(len(sample_current_hist))], sample_current_hist)
+
+        plt.subplot(1,2,2)
+        plt.title('sample_color_histogram')
+        plt.xlabel('bin')
+        plt.bar([i for i in range(len(sample_prev_hist))], sample_prev_hist)
+
         plt.show()
 
         res = SetBoolResponse()
