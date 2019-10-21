@@ -309,7 +309,7 @@ namespace neatness_estimator
     cv::Mat image;
     try {
       cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy
-        (current_image_, current_image_->encoding);
+        (current_image_, "bgr8");
       image = cv_image->image;
     } catch (cv_bridge::Exception& e) {
       ROS_ERROR("Failed to convert sensor_msgs::Image to cv::Mat \n%s", e.what());
