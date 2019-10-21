@@ -109,7 +109,20 @@ namespace neatness_estimator
     virtual bool save_image(std::string save_path,
                             const cv::Mat& image);
 
+    virtual bool load_image(const sensor_msgs::Image::ConstPtr& input_msg,
+                            cv::Mat& input_image);
 
+    virtual bool save_color_histogram
+      (std::string save_dir,
+       const jsk_recognition_msgs::ColorHistogramArray& color_histogram_array);
+
+    virtual bool save_geometry_histogram
+      (std::string save_dir,
+       const std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array);
+
+    virtual bool run_current();
+
+    virtual bool run_prev();
 
     // variables
 
@@ -140,7 +153,8 @@ namespace neatness_estimator
     jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_instance_boxes_;
     jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_cluster_boxes_;
 
-    std::string save_data_dir_;
+    std::string current_save_data_dir_;
+    std::string prev_save_data_dir_;
     std::string current_log_dir_;
     std::string prev_log_dir_;
     std::string current_dir_;

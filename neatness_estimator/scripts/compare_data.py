@@ -56,6 +56,8 @@ class CompareData():
         current_dir = os.path.join(self.prefix, saved_dirs[0])
         prev_dir = os.path.join(self.prefix, saved_dirs[1])
 
+        print('current_dir: ', current_dir)
+        print('prev_dir: ', prev_dir)
         current_color_histograms, current_geometry_histograms, current_group_neatnesses = self.get_data(current_dir)
         prev_color_histograms, prev_geometry_histograms, prev_group_neatnesses = self.get_data(prev_dir)
 
@@ -65,7 +67,6 @@ class CompareData():
             res.success = False
             return res
 
-        target_label = 'yakisoba'
         cnt = 0
         for cur_color_hist, prev_color_hist, cur_geo_hist, prev_geo_hist in zip(
                 current_color_histograms,
@@ -74,14 +75,11 @@ class CompareData():
                 prev_geometry_histograms):
 
             index = int(cur_color_hist[0])
-            if not self.label_lst[index] == target_label:
-                continue
 
             cur_color_hist = map(lambda x : float(x), cur_color_hist[1:])
             prev_color_hist = map(lambda x: float(x), prev_color_hist[1:])
             cur_geo_hist = map(lambda x : float(x), cur_geo_hist[1:])
             prev_geo_hist = map(lambda x: float(x), prev_geo_hist[1:])
-
 
             color_distance = 1 - dist.cosine(
                 np.array(cur_color_hist), np.array(prev_color_hist))
@@ -98,28 +96,28 @@ class CompareData():
             plt.figure(figsize=(15,15))
 
             plt.subplot(3,2,1)
-            plt.title('current_color_histogram')
+            plt.title('current_color_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.bar([i for i in range(len(cur_color_hist))], cur_color_hist)
 
             plt.subplot(3,2,2)
-            plt.title('prev_color_histogram')
+            plt.title('prev_color_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.bar([i for i in range(len(prev_color_hist))], prev_color_hist)
 
             plt.subplot(3,2,3)
-            plt.title('current_geometry_histogram')
+            plt.title('current_geometry_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.bar([i for i in range(len(cur_geo_hist))], cur_geo_hist)
 
             plt.subplot(3,2,4)
-            plt.title('prev_geometry_histogram')
+            plt.title('prev_geometry_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.bar([i for i in range(len(prev_geo_hist))], prev_geo_hist)
 
             similarities = [color_distance, geo_distance, group_distance]
             plt.subplot(3,2,5)
-            plt.title('similarities')
+            plt.title('similarities-' + self.label_lst[index])
             plt.xlabel('semantics')
 
             plt.bar(['color', 'geo', 'group'], similarities, width=0.1)
@@ -128,6 +126,7 @@ class CompareData():
                 current_dir,
                 'logs',
                 'histograms_' + saved_dirs[0] + '_' + saved_dirs[1] + '_' + str(cnt) + '-' + str(index) + '.png')
+            print('save to :', savefig_name)
             plt.savefig(savefig_name)
 
             cnt += 1
