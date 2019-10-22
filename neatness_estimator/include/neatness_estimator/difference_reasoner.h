@@ -92,7 +92,8 @@ namespace neatness_estimator
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
        jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
        jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
-       std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array);
+       std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
+       cv::Mat& mask_image);
 
     virtual bool compute_color_histogram
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
@@ -107,7 +108,8 @@ namespace neatness_estimator
                           const pcl::PointCloud<pcl::PointXYZRGB>& cloud);
 
     virtual bool save_image(std::string save_path,
-                            const cv::Mat& image);
+                            const cv::Mat& image,
+                            const cv::Mat& mask_image);
 
     virtual bool load_image(const sensor_msgs::Image::ConstPtr& input_msg,
                             cv::Mat& input_image);
@@ -171,6 +173,7 @@ namespace neatness_estimator
     double black_threshold_ = 0.2;
     double normal_search_radius_ = 0.01;
     std::vector<size_t> labels_;
+    std::vector<size_t> sorted_indices_;
 
     // 0: HUE, 1: HUE_AND_SATURATION
     jsk_recognition_utils::HistogramPolicy histogram_policy_ = jsk_recognition_utils::HUE;

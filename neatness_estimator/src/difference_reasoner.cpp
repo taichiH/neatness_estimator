@@ -194,10 +194,13 @@ namespace neatness_estimator
   }
 
   bool DifferenceReasoner::save_image(std::string save_path,
-                                      const cv::Mat& image)
+                                      const cv::Mat& image,
+                                      const cv::Mat& mask_image)
   {
     ROS_INFO("save image path: \n%s", save_path.c_str());
-    cv::imwrite(save_path, image);
+    cv::imwrite(save_path + "log_image.jpg", image);
+    cv::imwrite(save_path + "log_mask_image.jpg", mask_image);
+
     return true;
   }
 
@@ -289,17 +292,22 @@ namespace neatness_estimator
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
    jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
    jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
-   std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array)
+   std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
+   cv::Mat& mask_image)
   {
 
     for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
-      index_ = i;
+      index_ = sorted_indices_.at(i);
 
       pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
-      for (auto index : input_indices->cluster_indices.at(i).indices) {
-        pcl::PointXYZRGB p = rgb_cloud->points.at(index);
+      for (auto point_index : input_indices->cluster_indices.at(index_).indices) {
+        size_t y = int(point_index / current_image_->width);
+        size_t x = int(point_index % current_image_->width);
+        mask_image.at<unsigned char>(y,x) = 255;
+
+        pcl::PointXYZRGB p = rgb_cloud->points.at(point_index);
         if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
-          nonnan_indices->indices.push_back(index);
+          nonnan_indices->indices.push_back(point_index);
         }
       }
 
@@ -394,10 +402,15 @@ namespace neatness_estimator
               {return input_boxes.at(l).pose.position.y >
                   input_boxes.at(r).pose.position.y;});
 
-    std::cerr << "after sort indices: " << std::endl;
-    for(auto v : sorted_indices)
-      std::cerr << v << ", ";
-    std::cerr << std::endl;
+    // std::cerr << "sorted indices: " << std::endl;
+    // for(auto v : sorted_indices) {
+    //   std::cerr << "{";
+    //   std::cerr << v << ", ";
+    //   std::cerr << input_boxes.at(v).pose.position.y << ", ";
+    //   std::cerr << "label: " << input_boxes.at(v).label << ", ";
+    //   std::cerr << "}";
+    // }
+    // std::cerr << std::endl;
 
     return true;
   }
@@ -411,11 +424,9 @@ namespace neatness_estimator
     std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
 
     load_image(prev_image_, image);
-    save_image(prev_log_dir_ + "log_image.jpg", image);
 
-    std::vector<size_t> sorted_indices;
     create_sorted_indices(prev_instance_boxes_->boxes,
-                          sorted_indices);
+                          sorted_indices_);
 
     labels_.resize(prev_instance_boxes_->boxes.size());
     for (size_t i = 0; i < prev_instance_boxes_->boxes.size(); ++i) {
@@ -425,10 +436,16 @@ namespace neatness_estimator
     pcl::fromROSMsg(*prev_cloud_, *rgb_cloud);
     save_pcd(prev_log_dir_ + "log_pcd.pcd", *rgb_cloud);
 
+    cv::Mat prev_mask_image = cv::Mat::zeros
+      (prev_image_->width, prev_image_->height, CV_8UC1);
+
     compute_histograms(rgb_cloud,
                        prev_cluster_,
                        color_histogram_array,
-                       geometry_histogram_array);
+                       geometry_histogram_array,
+                       prev_mask_image);
+
+    save_image(prev_log_dir_, image, prev_mask_image);
     save_color_histogram(prev_save_data_dir_, color_histogram_array);
     save_geometry_histogram(prev_save_data_dir_, geometry_histogram_array);
 
@@ -450,24 +467,29 @@ namespace neatness_estimator
     std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
 
     load_image(current_image_, image);
-    save_image(current_log_dir_ + "log_image.jpg", image);
 
-    std::vector<size_t> sorted_indices;
+
     create_sorted_indices(current_instance_boxes_->boxes,
-                          sorted_indices);
+                          sorted_indices_);
 
     labels_.resize(current_instance_boxes_->boxes.size());
     for (size_t i = 0; i < current_instance_boxes_->boxes.size(); ++i) {
-      labels_.at(i) = current_instance_boxes_->boxes.at(i).label;
+      labels_.at(i) = current_instance_boxes_->boxes.at(sorted_indices_.at(i)).label;
     }
 
     pcl::fromROSMsg(*current_cloud_, *rgb_cloud);
     save_pcd(current_log_dir_ + "log_pcd.pcd", *rgb_cloud);
 
+    cv::Mat current_mask_image = cv::Mat::zeros
+      (current_image_->width, current_image_->height, CV_8UC1);
+
     compute_histograms(rgb_cloud,
                        current_cluster_,
                        color_histogram_array,
-                       geometry_histogram_array);
+                       geometry_histogram_array,
+                       current_mask_image);
+
+    save_image(current_log_dir_, image, current_mask_image);
     save_color_histogram(current_save_data_dir_, color_histogram_array);
     save_geometry_histogram(current_save_data_dir_, geometry_histogram_array);
 
@@ -493,6 +515,7 @@ namespace neatness_estimator
       res.success = false;
       return false;
     }
+
 
     run_current();
     run_prev();
