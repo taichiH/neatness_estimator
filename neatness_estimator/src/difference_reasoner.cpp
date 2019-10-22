@@ -322,18 +322,39 @@ namespace neatness_estimator
       cv::findContours(tmp_mask, contours, hierarchy,
                        CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
 
+      cv::Point base_point;
       for (auto contour : contours) {
         for (size_t i=0; i<contour.size(); ++i) {
           cv::Point pt1;
           auto pt2 = contour.at(i);
           if (i == 0) {
             pt1 = contour.at(contour.size() - 1);
+            base_point = contour.at(i);
           } else {
             pt1 = contour.at(i-1);
           }
           cv::line(debug_image, pt1, pt2, cv::Scalar(0,0,255), 3);
         }
       }
+
+      std::string txt1 =
+        "label: " +
+        std::to_string(labels_.at(index_));
+      std::string txt2 =
+        "index: " +
+        std::to_string(i);
+
+
+      cv::putText(debug_image,
+                  txt1,
+                  cv::Point(base_point.x, base_point.y - 15),
+                  cv::FONT_HERSHEY_SIMPLEX,
+                  0.3, cv::Scalar(0,0,0), 1);
+      cv::putText(debug_image,
+                  txt2,
+                  cv::Point(base_point.x, base_point.y - 5),
+                  cv::FONT_HERSHEY_SIMPLEX,
+                  0.3, cv::Scalar(0,0,0), 1);
 
       pcl::ExtractIndices<pcl::PointXYZRGB> extract;
       extract.setInputCloud(rgb_cloud);
@@ -377,8 +398,9 @@ namespace neatness_estimator
     try {
       f.open(save_dir + "color_histograms.csv");
       for (size_t i=0; i<color_histogram_array.histograms.size(); ++i) {
-        f << std::to_string(labels_.at(i)) + ", ";
-        for (auto v : color_histogram_array.histograms.at(i).histogram) {
+        size_t index = sorted_indices_.at(i);
+        f << std::to_string(labels_.at(index)) + ", ";
+        for (auto v : color_histogram_array.histograms.at(index).histogram) {
           f << std::to_string(v) + ",";
         }
         f << "\n";
@@ -399,8 +421,9 @@ namespace neatness_estimator
       std::ofstream f;
       f.open(save_dir + "geometry_histograms.csv");
       for (size_t i=0; i<geometry_histogram_array.size(); ++i) {
-        f << std::to_string(labels_.at(i)) + ", ";
-        for (auto v : geometry_histogram_array.at(i).histogram) {
+        size_t index = sorted_indices_.at(i);
+        f << std::to_string(labels_.at(index)) + ", ";
+        for (auto v : geometry_histogram_array.at(index).histogram) {
           f << std::to_string(v) + ",";
         }
         f << "\n";
@@ -426,15 +449,16 @@ namespace neatness_estimator
               {return input_boxes.at(l).pose.position.y >
                   input_boxes.at(r).pose.position.y;});
 
-    // std::cerr << "sorted indices: " << std::endl;
-    // for(auto v : sorted_indices) {
-    //   std::cerr << "{";
-    //   std::cerr << v << ", ";
-    //   std::cerr << input_boxes.at(v).pose.position.y << ", ";
-    //   std::cerr << "label: " << input_boxes.at(v).label << ", ";
-    //   std::cerr << "}";
-    // }
-    // std::cerr << std::endl;
+    std::cerr << "sorted indices: " << std::endl;
+    for(size_t i=0; i<sorted_indices.size(); ++i) {
+      auto v = sorted_indices.at(i);
+      std::cerr << "{";
+      std::cerr << v << ", ";
+      std::cerr << input_boxes.at(v).pose.position.y << ", ";
+      std::cerr << "label: " << input_boxes.at(v).label << ", ";
+      std::cerr << "}";
+    }
+    std::cerr << std::endl;
 
     return true;
   }
@@ -500,7 +524,7 @@ namespace neatness_estimator
 
     labels_.resize(current_instance_boxes_->boxes.size());
     for (size_t i = 0; i < current_instance_boxes_->boxes.size(); ++i) {
-      labels_.at(i) = current_instance_boxes_->boxes.at(sorted_indices_.at(i)).label;
+      labels_.at(i) = current_instance_boxes_->boxes.at(i).label;
     }
 
     pcl::fromROSMsg(*current_cloud_, *rgb_cloud);
