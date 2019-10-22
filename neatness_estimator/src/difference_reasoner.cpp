@@ -169,25 +169,12 @@ namespace neatness_estimator
   bool DifferenceReasoner::save_pcd(std::string save_path,
                                     const pcl::PointCloud<pcl::PointXYZRGB>& cloud)
   {
-    pcl::PointCloud<pcl::PointXYZRGBA>::Ptr converted_cloud
-      (new pcl::PointCloud<pcl::PointXYZRGBA>);
-
-    converted_cloud->points.resize(cloud.points.size());
-    for (size_t i = 0; i < cloud.points.size(); i++) {
-      converted_cloud->points.at(i).x = cloud.points.at(i).x;
-      converted_cloud->points.at(i).y = cloud.points.at(i).y;
-      converted_cloud->points.at(i).z = cloud.points.at(i).z;
-      converted_cloud->points.at(i).r = cloud.points.at(i).r;
-      converted_cloud->points.at(i).g = cloud.points.at(i).g;
-      converted_cloud->points.at(i).b = cloud.points.at(i).b;
-      converted_cloud->points.at(i).a = 1;
-    }
-
     ROS_INFO("save pcd path: \n%s", save_path.c_str());
     pcl::PCDWriter writer;
     try {
-      writer.writeASCII(save_path, *converted_cloud);
+      writer.writeBinary<pcl::PointXYZRGB>(save_path, cloud);
     } catch (...) {
+      ROS_ERROR("failed save pcd");
       return false;
     }
     return true;
@@ -283,10 +270,6 @@ namespace neatness_estimator
       geometry_histogram.histogram.push_back(histogram.at<float>(0, i));
     }
 
-    // pcl::visualization::PCLVisualizer::Ptr viewer;
-    // viewer = normalsVis(rgb_cloud, cloud_normals);
-    // viewer->saveScreenshot(current_log_dir_ + "normal_viewer_" + std::to_string(index_) + ".png");
-
     return true;
   }
 
@@ -337,21 +320,13 @@ namespace neatness_estimator
         }
       }
 
-      std::string txt1 =
-        "label: " +
-        std::to_string(labels_.at(index_));
-      std::string txt2 =
-        "index: " +
-        std::to_string(i);
-
-
-      cv::putText(debug_image,
-                  txt1,
+      std::string txt1 = "label: " + std::to_string(labels_.at(index_));
+      std::string txt2 = "index: " + std::to_string(i);
+      cv::putText(debug_image, txt1,
                   cv::Point(base_point.x, base_point.y - 15),
                   cv::FONT_HERSHEY_SIMPLEX,
                   0.3, cv::Scalar(0,0,0), 1);
-      cv::putText(debug_image,
-                  txt2,
+      cv::putText(debug_image, txt2,
                   cv::Point(base_point.x, base_point.y - 5),
                   cv::FONT_HERSHEY_SIMPLEX,
                   0.3, cv::Scalar(0,0,0), 1);
@@ -441,6 +416,7 @@ namespace neatness_estimator
   (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
    std::vector<size_t>& sorted_indices)
   {
+    sorted_indices.clear();
     sorted_indices.resize(input_boxes.size());
     std::iota(sorted_indices.begin(), sorted_indices.end(), 0);
 
@@ -483,6 +459,7 @@ namespace neatness_estimator
 
     pcl::fromROSMsg(*prev_cloud_, *rgb_cloud);
     save_pcd(prev_log_dir_ + "log_pcd.pcd", *rgb_cloud);
+
 
     cv::Mat prev_mask_image = cv::Mat::zeros
       (prev_image_->width, prev_image_->height, CV_8UC1);
@@ -567,7 +544,6 @@ namespace neatness_estimator
       res.success = false;
       return false;
     }
-
 
     run_current();
     run_prev();

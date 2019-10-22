@@ -19,7 +19,7 @@
     <remap from="~service_topic" to="$(arg service_node_name)/get_display_feature"/>
     <rosparam subst_value="true">
       prefix: $(arg prefix)
-      bin_size: 10
+      bin_size: 100
       histogram_policy: 0
       white_threshold: 0.3
       black_threshold: 0.2
