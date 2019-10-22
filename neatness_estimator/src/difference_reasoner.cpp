@@ -382,6 +382,26 @@ namespace neatness_estimator
     return true;
   }
 
+  bool DifferenceReasoner::create_sorted_indices
+  (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
+   std::vector<size_t>& sorted_indices)
+  {
+    sorted_indices.resize(input_boxes.size());
+    std::iota(sorted_indices.begin(), sorted_indices.end(), 0);
+
+    std::sort(sorted_indices.begin(), sorted_indices.end(),
+              [&input_boxes](size_t l, size_t r)
+              {return input_boxes.at(l).pose.position.y >
+                  input_boxes.at(r).pose.position.y;});
+
+    std::cerr << "after sort indices: " << std::endl;
+    for(auto v : sorted_indices)
+      std::cerr << v << ", ";
+    std::cerr << std::endl;
+
+    return true;
+  }
+
   bool DifferenceReasoner::run_prev()
   {
     cv::Mat image;
@@ -392,6 +412,10 @@ namespace neatness_estimator
 
     load_image(prev_image_, image);
     save_image(prev_log_dir_ + "log_image.jpg", image);
+
+    std::vector<size_t> sorted_indices;
+    create_sorted_indices(prev_instance_boxes_->boxes,
+                          sorted_indices);
 
     labels_.resize(prev_instance_boxes_->boxes.size());
     for (size_t i = 0; i < prev_instance_boxes_->boxes.size(); ++i) {
@@ -427,6 +451,10 @@ namespace neatness_estimator
 
     load_image(current_image_, image);
     save_image(current_log_dir_ + "log_image.jpg", image);
+
+    std::vector<size_t> sorted_indices;
+    create_sorted_indices(current_instance_boxes_->boxes,
+                          sorted_indices);
 
     labels_.resize(current_instance_boxes_->boxes.size());
     for (size_t i = 0; i < current_instance_boxes_->boxes.size(); ++i) {

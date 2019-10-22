@@ -124,6 +124,10 @@ namespace neatness_estimator
 
     virtual bool run_prev();
 
+    virtual bool create_sorted_indices
+      (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
+       std::vector<size_t>& sorted_indices);
+
     // variables
 
     ros::NodeHandle nh_;
