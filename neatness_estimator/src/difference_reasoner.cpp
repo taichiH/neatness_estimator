@@ -61,7 +61,6 @@ namespace neatness_estimator
     boost::system::error_code error;
     current_log_dir_ =
       prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(0))) + "/logs/";
-
     const boost::filesystem::path log_dir_path(current_log_dir_.c_str());
     if (!boost::filesystem::exists(log_dir_path)) {
       if (!boost::filesystem::create_directory(current_log_dir_, error) || error) {
@@ -70,16 +69,34 @@ namespace neatness_estimator
       }
     }
 
-    save_data_dir_ =
-      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(0))) + "/data/";
-
-    const boost::filesystem::path data_dir_path(save_data_dir_.c_str());
-    if (!boost::filesystem::exists(data_dir_path)) {
-      if (!boost::filesystem::create_directory(save_data_dir_, error) || error) {
-        ROS_ERROR("failed create data dir : \n%s", save_data_dir_.c_str());
+    prev_log_dir_ =
+      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(1))) + "/logs/";
+    if (!boost::filesystem::exists(boost::filesystem::path(prev_log_dir_.c_str()))) {
+      if (!boost::filesystem::create_directory(prev_log_dir_, error) || error) {
+        ROS_ERROR("failed create prev logs dir : \n%s", prev_log_dir_.c_str());
         return false;
       }
     }
+
+    current_save_data_dir_ =
+      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(0))) + "/data/";
+    const boost::filesystem::path data_dir_path(current_save_data_dir_.c_str());
+    if (!boost::filesystem::exists(data_dir_path)) {
+      if (!boost::filesystem::create_directory(current_save_data_dir_, error) || error) {
+        ROS_ERROR("failed create data dir : \n%s", current_save_data_dir_.c_str());
+        return false;
+      }
+    }
+
+    prev_save_data_dir_ =
+      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(1))) + "/data/";
+    if (!boost::filesystem::exists(boost::filesystem::path(prev_save_data_dir_.c_str()))) {
+      if (!boost::filesystem::create_directory(prev_save_data_dir_, error) || error) {
+        ROS_ERROR("failed create data dir : \n%s", current_save_data_dir_.c_str());
+        return false;
+      }
+    }
+
     return true;
   }
 
@@ -155,18 +172,24 @@ namespace neatness_estimator
     ROS_INFO("save pcd path: \n%s", save_path.c_str());
     pcl::PCDWriter writer;
     try {
-      writer.writeASCII(save_path, cloud);
+      writer.writeBinary<pcl::PointXYZRGB>(save_path, cloud);
     } catch (...) {
+      ROS_ERROR("failed save pcd");
       return false;
     }
     return true;
   }
 
   bool DifferenceReasoner::save_image(std::string save_path,
-                                      const cv::Mat& image)
+                                      const cv::Mat& image,
+                                      const cv::Mat& mask_image,
+                                      const cv::Mat& debug_image)
   {
     ROS_INFO("save image path: \n%s", save_path.c_str());
-    cv::imwrite(save_path, image);
+    cv::imwrite(save_path + "log_image.jpg", image);
+    cv::imwrite(save_path + "log_mask_image.jpg", mask_image);
+    cv::imwrite(save_path + "log_debug_image.jpg", debug_image);
+
     return true;
   }
 
@@ -247,10 +270,6 @@ namespace neatness_estimator
       geometry_histogram.histogram.push_back(histogram.at<float>(0, i));
     }
 
-    // pcl::visualization::PCLVisualizer::Ptr viewer;
-    // viewer = normalsVis(rgb_cloud, cloud_normals);
-    // viewer->saveScreenshot(current_log_dir_ + "normal_viewer_" + std::to_string(index_) + ".png");
-
     return true;
   }
 
@@ -258,19 +277,59 @@ namespace neatness_estimator
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
    jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
    jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
-   std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array)
+   std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
+   cv::Mat& mask_image,
+   cv::Mat& debug_image)
   {
 
     for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
-      index_ = i;
+      index_ = sorted_indices_.at(i);
+
+      cv::Mat tmp_mask = cv::Mat::zeros
+        (mask_image.cols, mask_image.rows, CV_8UC1);
 
       pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
-      for (auto index : input_indices->cluster_indices.at(i).indices) {
-        pcl::PointXYZRGB p = rgb_cloud->points.at(index);
+      for (auto point_index : input_indices->cluster_indices.at(index_).indices) {
+        size_t y = int(point_index / current_image_->width);
+        size_t x = int(point_index % current_image_->width);
+        mask_image.at<unsigned char>(y,x) = 255;
+        tmp_mask.at<unsigned char>(y,x) = 255;
+        pcl::PointXYZRGB p = rgb_cloud->points.at(point_index);
         if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
-          nonnan_indices->indices.push_back(index);
+          nonnan_indices->indices.push_back(point_index);
         }
       }
+
+      std::vector<std::vector<cv::Point> > contours;
+      std::vector<cv::Vec4i> hierarchy;
+      cv::findContours(tmp_mask, contours, hierarchy,
+                       CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+
+      cv::Point base_point;
+      for (auto contour : contours) {
+        for (size_t i=0; i<contour.size(); ++i) {
+          cv::Point pt1;
+          auto pt2 = contour.at(i);
+          if (i == 0) {
+            pt1 = contour.at(contour.size() - 1);
+            base_point = contour.at(i);
+          } else {
+            pt1 = contour.at(i-1);
+          }
+          cv::line(debug_image, pt1, pt2, cv::Scalar(0,0,255), 3);
+        }
+      }
+
+      std::string txt1 = "label: " + std::to_string(labels_.at(index_));
+      std::string txt2 = "index: " + std::to_string(i);
+      cv::putText(debug_image, txt1,
+                  cv::Point(base_point.x, base_point.y - 15),
+                  cv::FONT_HERSHEY_SIMPLEX,
+                  0.3, cv::Scalar(0,0,0), 1);
+      cv::putText(debug_image, txt2,
+                  cv::Point(base_point.x, base_point.y - 5),
+                  cv::FONT_HERSHEY_SIMPLEX,
+                  0.3, cv::Scalar(0,0,0), 1);
 
       pcl::ExtractIndices<pcl::PointXYZRGB> extract;
       extract.setInputCloud(rgb_cloud);
@@ -291,6 +350,186 @@ namespace neatness_estimator
     return true;
   }
 
+  bool DifferenceReasoner::load_image(const sensor_msgs::Image::ConstPtr& input_msg,
+                                      cv::Mat& input_image)
+  {
+    try {
+      cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy
+        (input_msg, "bgr8");
+      input_image = cv_image->image;
+    } catch (cv_bridge::Exception& e) {
+      ROS_ERROR("Failed to convert sensor_msgs::Image to cv::Mat \n%s", e.what());
+      return false;
+    }
+
+    return true;
+  }
+
+  bool DifferenceReasoner::save_color_histogram
+  (std::string save_dir,
+   const jsk_recognition_msgs::ColorHistogramArray& color_histogram_array)
+  {
+    std::ofstream f;
+    try {
+      f.open(save_dir + "color_histograms.csv");
+      for (size_t i=0; i<color_histogram_array.histograms.size(); ++i) {
+        size_t index = sorted_indices_.at(i);
+        f << std::to_string(labels_.at(index)) + ", ";
+        for (auto v : color_histogram_array.histograms.at(index).histogram) {
+          f << std::to_string(v) + ",";
+        }
+        f << "\n";
+      }
+      f.close();
+    } catch (...){
+      ROS_ERROR("failed save histogram");
+      return false;
+    }
+    return true;
+  }
+
+  bool DifferenceReasoner::save_geometry_histogram
+  (std::string save_dir,
+   const std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array)
+  {
+    try {
+      std::ofstream f;
+      f.open(save_dir + "geometry_histograms.csv");
+      for (size_t i=0; i<geometry_histogram_array.size(); ++i) {
+        size_t index = sorted_indices_.at(i);
+        f << std::to_string(labels_.at(index)) + ", ";
+        for (auto v : geometry_histogram_array.at(index).histogram) {
+          f << std::to_string(v) + ",";
+        }
+        f << "\n";
+      }
+      f.close();
+    } catch (...){
+      ROS_ERROR("failed save histogram");
+      return false;
+    }
+
+    return true;
+  }
+
+  bool DifferenceReasoner::create_sorted_indices
+  (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
+   std::vector<size_t>& sorted_indices)
+  {
+    sorted_indices.clear();
+    sorted_indices.resize(input_boxes.size());
+    std::iota(sorted_indices.begin(), sorted_indices.end(), 0);
+
+    std::sort(sorted_indices.begin(), sorted_indices.end(),
+              [&input_boxes](size_t l, size_t r)
+              {return input_boxes.at(l).pose.position.y >
+                  input_boxes.at(r).pose.position.y;});
+
+    std::cerr << "sorted indices: " << std::endl;
+    for(size_t i=0; i<sorted_indices.size(); ++i) {
+      auto v = sorted_indices.at(i);
+      std::cerr << "{";
+      std::cerr << v << ", ";
+      std::cerr << input_boxes.at(v).pose.position.y << ", ";
+      std::cerr << "label: " << input_boxes.at(v).label << ", ";
+      std::cerr << "}";
+    }
+    std::cerr << std::endl;
+
+    return true;
+  }
+
+  bool DifferenceReasoner::run_prev()
+  {
+    cv::Mat image;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
+      (new pcl::PointCloud<pcl::PointXYZRGB>);
+    jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
+    std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
+
+    load_image(prev_image_, image);
+
+    create_sorted_indices(prev_instance_boxes_->boxes,
+                          sorted_indices_);
+
+    labels_.resize(prev_instance_boxes_->boxes.size());
+    for (size_t i = 0; i < prev_instance_boxes_->boxes.size(); ++i) {
+      labels_.at(i) = prev_instance_boxes_->boxes.at(i).label;
+    }
+
+    pcl::fromROSMsg(*prev_cloud_, *rgb_cloud);
+    save_pcd(prev_log_dir_ + "log_pcd.pcd", *rgb_cloud);
+
+
+    cv::Mat prev_mask_image = cv::Mat::zeros
+      (prev_image_->width, prev_image_->height, CV_8UC1);
+
+    cv::Mat debug_image = image.clone();
+    compute_histograms(rgb_cloud,
+                       prev_cluster_,
+                       color_histogram_array,
+                       geometry_histogram_array,
+                       prev_mask_image,
+                       debug_image);
+
+    save_image(prev_log_dir_, image, prev_mask_image, debug_image);
+    save_color_histogram(prev_save_data_dir_, color_histogram_array);
+    save_geometry_histogram(prev_save_data_dir_, geometry_histogram_array);
+
+    neatness_estimator_msgs::GetDisplayFeature client_msg;
+    client_msg.request.save_dir = prev_save_data_dir_;
+    client_msg.request.instance_boxes = *prev_instance_boxes_;
+    client_msg.request.cluster_boxes = *prev_cluster_boxes_;
+    display_feature_client_.call(client_msg);
+
+    return true;
+  }
+
+  bool DifferenceReasoner::run_current()
+  {
+    cv::Mat image;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
+      (new pcl::PointCloud<pcl::PointXYZRGB>);
+    jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
+    std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
+
+    load_image(current_image_, image);
+
+
+    create_sorted_indices(current_instance_boxes_->boxes,
+                          sorted_indices_);
+
+    labels_.resize(current_instance_boxes_->boxes.size());
+    for (size_t i = 0; i < current_instance_boxes_->boxes.size(); ++i) {
+      labels_.at(i) = current_instance_boxes_->boxes.at(i).label;
+    }
+
+    pcl::fromROSMsg(*current_cloud_, *rgb_cloud);
+    save_pcd(current_log_dir_ + "log_pcd.pcd", *rgb_cloud);
+
+    cv::Mat current_mask_image = cv::Mat::zeros
+      (current_image_->width, current_image_->height, CV_8UC1);
+
+    cv::Mat debug_image = image.clone();
+    compute_histograms(rgb_cloud,
+                       current_cluster_,
+                       color_histogram_array,
+                       geometry_histogram_array,
+                       current_mask_image,
+                       debug_image);
+
+    save_image(current_log_dir_, image, current_mask_image, debug_image);
+    save_color_histogram(current_save_data_dir_, color_histogram_array);
+    save_geometry_histogram(current_save_data_dir_, geometry_histogram_array);
+
+    neatness_estimator_msgs::GetDisplayFeature client_msg;
+    client_msg.request.save_dir = current_save_data_dir_;
+    client_msg.request.instance_boxes = *current_instance_boxes_;
+    client_msg.request.cluster_boxes = *current_cluster_boxes_;
+    display_feature_client_.call(client_msg);
+
+    return true;
+  }
 
   bool DifferenceReasoner::service_callback(std_srvs::SetBool::Request& req,
                                             std_srvs::SetBool::Response& res)
@@ -306,69 +545,8 @@ namespace neatness_estimator
       return false;
     }
 
-    cv::Mat image;
-    try {
-      cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy
-        (current_image_, current_image_->encoding);
-      image = cv_image->image;
-    } catch (cv_bridge::Exception& e) {
-      ROS_ERROR("Failed to convert sensor_msgs::Image to cv::Mat \n%s", e.what());
-      return false;
-    }
-    save_image(current_log_dir_ + "log_image.jpg", image);
-
-    labels_.resize(current_instance_boxes_->boxes.size());
-    for (size_t i = 0; i < current_instance_boxes_->boxes.size(); ++i) {
-      labels_.at(i) = current_instance_boxes_->boxes.at(i).label;
-    }
-
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::fromROSMsg(*current_cloud_, *rgb_cloud);
-    save_pcd(current_log_dir_ + "log_pcd.pcd", *rgb_cloud);
-
-    jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
-    std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
-    compute_histograms(rgb_cloud,
-                       current_cluster_,
-                       color_histogram_array,
-                       geometry_histogram_array);
-
-    std::ofstream f;
-    try {
-      f.open(save_data_dir_ + "color_histograms.csv");
-      for (size_t i=0; i<color_histogram_array.histograms.size(); ++i) {
-        f << std::to_string(labels_.at(i)) + ", ";
-        for (auto v : color_histogram_array.histograms.at(i).histogram) {
-          f << std::to_string(v) + ",";
-        }
-        f << "\n";
-      }
-      f.close();
-    } catch (...){
-      ROS_ERROR("failed save histogram");
-    }
-
-    try {
-      f.open(save_data_dir_ + "geometry_histograms.csv");
-      for (size_t i=0; i<geometry_histogram_array.size(); ++i) {
-        f << std::to_string(labels_.at(i)) + ", ";
-        for (auto v : geometry_histogram_array.at(i).histogram) {
-          f << std::to_string(v) + ",";
-        }
-        f << "\n";
-      }
-      f.close();
-    } catch (...){
-      ROS_ERROR("failed save histogram");
-    }
-
-    neatness_estimator_msgs::GetDisplayFeature client_msg;
-    client_msg.request.save_dir = save_data_dir_;
-    client_msg.request.instance_boxes = *current_instance_boxes_;
-    client_msg.request.cluster_boxes = *current_cluster_boxes_;
-    display_feature_client_.call(client_msg);
-    neatness_estimator_msgs::NeatnessArray nestness = client_msg.response.res_neatness;
+    run_current();
+    run_prev();
 
     res.success = true;
     return true;

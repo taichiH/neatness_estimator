@@ -92,7 +92,9 @@ namespace neatness_estimator
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
        jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
        jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
-       std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array);
+       std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
+       cv::Mat& mask_image,
+       cv::Mat& debug_image);
 
     virtual bool compute_color_histogram
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
@@ -107,9 +109,28 @@ namespace neatness_estimator
                           const pcl::PointCloud<pcl::PointXYZRGB>& cloud);
 
     virtual bool save_image(std::string save_path,
-                            const cv::Mat& image);
+                            const cv::Mat& image,
+                            const cv::Mat& mask_image,
+                            const cv::Mat& debug_image);
 
+    virtual bool load_image(const sensor_msgs::Image::ConstPtr& input_msg,
+                            cv::Mat& input_image);
 
+    virtual bool save_color_histogram
+      (std::string save_dir,
+       const jsk_recognition_msgs::ColorHistogramArray& color_histogram_array);
+
+    virtual bool save_geometry_histogram
+      (std::string save_dir,
+       const std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array);
+
+    virtual bool run_current();
+
+    virtual bool run_prev();
+
+    virtual bool create_sorted_indices
+      (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
+       std::vector<size_t>& sorted_indices);
 
     // variables
 
@@ -140,7 +161,8 @@ namespace neatness_estimator
     jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_instance_boxes_;
     jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_cluster_boxes_;
 
-    std::string save_data_dir_;
+    std::string current_save_data_dir_;
+    std::string prev_save_data_dir_;
     std::string current_log_dir_;
     std::string prev_log_dir_;
     std::string current_dir_;
@@ -153,6 +175,7 @@ namespace neatness_estimator
     double black_threshold_ = 0.2;
     double normal_search_radius_ = 0.01;
     std::vector<size_t> labels_;
+    std::vector<size_t> sorted_indices_;
 
     // 0: HUE, 1: HUE_AND_SATURATION
     jsk_recognition_utils::HistogramPolicy histogram_policy_ = jsk_recognition_utils::HUE;

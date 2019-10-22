@@ -50,6 +50,11 @@ catkin_package(
   INCLUDE_DIRS include
 )
 
+add_executable(normal_viewer src/normal_viewer.cpp)
+target_link_libraries(normal_viewer
+  ${catkin_LIBRARIES}
+  )
+
 add_library(${PROJECT_NAME} SHARED
   src/multi_euclidean_clustering.cpp
   src/data_saver.cpp
