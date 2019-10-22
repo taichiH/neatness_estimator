@@ -195,11 +195,13 @@ namespace neatness_estimator
 
   bool DifferenceReasoner::save_image(std::string save_path,
                                       const cv::Mat& image,
-                                      const cv::Mat& mask_image)
+                                      const cv::Mat& mask_image,
+                                      const cv::Mat& debug_image)
   {
     ROS_INFO("save image path: \n%s", save_path.c_str());
     cv::imwrite(save_path + "log_image.jpg", image);
     cv::imwrite(save_path + "log_mask_image.jpg", mask_image);
+    cv::imwrite(save_path + "log_debug_image.jpg", debug_image);
 
     return true;
   }
@@ -293,21 +295,43 @@ namespace neatness_estimator
    jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
    jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
    std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
-   cv::Mat& mask_image)
+   cv::Mat& mask_image,
+   cv::Mat& debug_image)
   {
 
     for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
       index_ = sorted_indices_.at(i);
+
+      cv::Mat tmp_mask = cv::Mat::zeros
+        (mask_image.cols, mask_image.rows, CV_8UC1);
 
       pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
       for (auto point_index : input_indices->cluster_indices.at(index_).indices) {
         size_t y = int(point_index / current_image_->width);
         size_t x = int(point_index % current_image_->width);
         mask_image.at<unsigned char>(y,x) = 255;
-
+        tmp_mask.at<unsigned char>(y,x) = 255;
         pcl::PointXYZRGB p = rgb_cloud->points.at(point_index);
         if (!std::isnan(p.x) && !std::isnan(p.y) && !std::isnan(p.z)) {
           nonnan_indices->indices.push_back(point_index);
+        }
+      }
+
+      std::vector<std::vector<cv::Point> > contours;
+      std::vector<cv::Vec4i> hierarchy;
+      cv::findContours(tmp_mask, contours, hierarchy,
+                       CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+
+      for (auto contour : contours) {
+        for (size_t i=0; i<contour.size(); ++i) {
+          cv::Point pt1;
+          auto pt2 = contour.at(i);
+          if (i == 0) {
+            pt1 = contour.at(contour.size() - 1);
+          } else {
+            pt1 = contour.at(i-1);
+          }
+          cv::line(debug_image, pt1, pt2, cv::Scalar(0,0,255), 3);
         }
       }
 
@@ -439,13 +463,15 @@ namespace neatness_estimator
     cv::Mat prev_mask_image = cv::Mat::zeros
       (prev_image_->width, prev_image_->height, CV_8UC1);
 
+    cv::Mat debug_image = image.clone();
     compute_histograms(rgb_cloud,
                        prev_cluster_,
                        color_histogram_array,
                        geometry_histogram_array,
-                       prev_mask_image);
+                       prev_mask_image,
+                       debug_image);
 
-    save_image(prev_log_dir_, image, prev_mask_image);
+    save_image(prev_log_dir_, image, prev_mask_image, debug_image);
     save_color_histogram(prev_save_data_dir_, color_histogram_array);
     save_geometry_histogram(prev_save_data_dir_, geometry_histogram_array);
 
@@ -483,13 +509,15 @@ namespace neatness_estimator
     cv::Mat current_mask_image = cv::Mat::zeros
       (current_image_->width, current_image_->height, CV_8UC1);
 
+    cv::Mat debug_image = image.clone();
     compute_histograms(rgb_cloud,
                        current_cluster_,
                        color_histogram_array,
                        geometry_histogram_array,
-                       current_mask_image);
+                       current_mask_image,
+                       debug_image);
 
-    save_image(current_log_dir_, image, current_mask_image);
+    save_image(current_log_dir_, image, current_mask_image, debug_image);
     save_color_histogram(current_save_data_dir_, color_histogram_array);
     save_geometry_histogram(current_save_data_dir_, geometry_histogram_array);
 
