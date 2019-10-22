@@ -98,28 +98,32 @@ class CompareData():
             plt.subplot(3,2,1)
             plt.title('current_color_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
+            plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(cur_color_hist))], cur_color_hist)
 
             plt.subplot(3,2,2)
             plt.title('prev_color_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
+            plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(prev_color_hist))], prev_color_hist)
 
             plt.subplot(3,2,3)
             plt.title('current_geometry_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
+            plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(cur_geo_hist))], cur_geo_hist)
 
             plt.subplot(3,2,4)
             plt.title('prev_geometry_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
+            plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(prev_geo_hist))], prev_geo_hist)
 
             similarities = [color_distance, geo_distance, group_distance]
             plt.subplot(3,2,5)
             plt.title('similarities-' + self.label_lst[index])
             plt.xlabel('semantics')
-
+            plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar(['color', 'geo', 'group'], similarities, width=0.1)
 
             savefig_name = os.path.join(
