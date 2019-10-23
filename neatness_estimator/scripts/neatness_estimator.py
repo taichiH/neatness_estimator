@@ -30,19 +30,8 @@ class NeatnessEstimator():
         self.instance_msg = BoundingBoxArray()
         self.cluster_msg = BoundingBoxArray()
 
-        self.group_dist_array = {}
-        self.pulling_dist_array = {}
-        for i in range(len(self.label_lst)):
-            self.group_dist_array[i] = []
-            self.pulling_dist_array[i] = []
 
-        self.filling_dist_array = {}
-        for i in range(1, len(self.label_lst)):
-            key = str(i) + '-' + str(i-1)
-            self.filling_dist_array[key] = []
 
-        self.output_data = {'neatness':[], 'group_neatness':[],
-                            'filling_neatness':[], 'pulling_neatness':[]}
         self.output_dir_name = os.path.join(rospkg.RosPack().get_path('neatness_estimator'), 'output')
         self.output_dir = self.output_dir_name
         self.neatness_log = 'neatness_output.csv'
@@ -171,14 +160,27 @@ class NeatnessEstimator():
 
 
         if self.save_log:
-            self.output_data['neatness'].append(neatness)
-            self.output_data['group_neatness'].append(group_dist_mean)
-            self.output_data['filling_neatness'].append(filling_dist_mean)
-            self.output_data['pulling_neatness'].append(pulling_dist_mean)
+            output_data = {'neatness':[], 'group_neatness':[],
+                           'filling_neatness':[], 'pulling_neatness':[]}
+            self.group_dist_array = {}
+            self.pulling_dist_array = {}
+            for i in range(len(self.label_lst)):
+                self.group_dist_array[i] = []
+                self.pulling_dist_array[i] = []
+
+            self.filling_dist_array = {}
+            for i in range(1, len(self.label_lst)):
+                key = str(i) + '-' + str(i-1)
+                self.filling_dist_array[key] = []
+
+            output_data['neatness'].append(neatness)
+            output_data['group_neatness'].append(group_dist_mean)
+            output_data['filling_neatness'].append(filling_dist_mean)
+            output_data['pulling_neatness'].append(pulling_dist_mean)
             # file_name = 'neatness_{0:%Y%m%d-%H%M%S}.csv'.format(datetime.datetime.now())
 
             output_file = os.path.join(self.output_dir, self.neatness_log)
-            pd.DataFrame(data=self.output_data).to_csv(output_file)
+            pd.DataFrame(data=output_data).to_csv(output_file)
 
             for key, val in zip(group_dist.keys(), group_dist.values()):
                 self.group_dist_array[key] += [val]

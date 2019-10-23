@@ -80,14 +80,16 @@ class CompareData():
             prev_color_hist = map(lambda x: float(x), prev_color_hist[1:])
             cur_geo_hist = map(lambda x : float(x), cur_geo_hist[1:])
             prev_geo_hist = map(lambda x: float(x), prev_geo_hist[1:])
+            cur_group_neatnesses = map(lambda x : float(x), current_group_neatnesses)
+            prev_group_neatnesses = map(lambda x : float(x), prev_group_neatnesses)
 
             color_distance = 1 - dist.cosine(
                 np.array(cur_color_hist), np.array(prev_color_hist))
             geo_distance = 1 - dist.cosine(
                 np.array(cur_geo_hist),np.array(prev_geo_hist))
 
-            group_distance = 1 - abs(float(current_group_neatnesses[index]) -\
-                                     float(prev_group_neatnesses[index]))
+            group_distance = 1 - abs(cur_group_neatnesses[index] -\
+                                     prev_group_neatnesses[index])
 
             print('color hist distance: ', color_distance)
             print('geometry hist distance: ', geo_distance)
@@ -95,32 +97,44 @@ class CompareData():
 
             plt.figure(figsize=(15,15))
 
-            plt.subplot(3,2,1)
+            plt.subplot(3,3,1)
             plt.title('current_color_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(cur_color_hist))], cur_color_hist)
 
-            plt.subplot(3,2,2)
+            plt.subplot(3,3,2)
             plt.title('prev_color_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(prev_color_hist))], prev_color_hist)
 
-            plt.subplot(3,2,3)
+            plt.subplot(3,3,3)
             plt.title('current_geometry_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(cur_geo_hist))], cur_geo_hist)
 
-            plt.subplot(3,2,4)
+            plt.subplot(3,3,4)
             plt.title('prev_geometry_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(prev_geo_hist))], prev_geo_hist)
 
+            plt.subplot(3,3,5)
+            plt.title('current_group_neatnesses-' + self.label_lst[index])
+            plt.xlabel('bin')
+            plt.ylim(ymin=0.0, ymax=1.0)
+            plt.bar([i for i in range(len(cur_group_neatnesses))], cur_group_neatnesses)
+
+            plt.subplot(3,3,6)
+            plt.title('prev_group_neatnesses-' + self.label_lst[index])
+            plt.xlabel('bin')
+            plt.ylim(ymin=0.0, ymax=1.0)
+            plt.bar([i for i in range(len(prev_group_neatnesses))], prev_group_neatnesses)
+
             similarities = [color_distance, geo_distance, group_distance]
-            plt.subplot(3,2,5)
+            plt.subplot(3,3,7)
             plt.title('similarities-' + self.label_lst[index])
             plt.xlabel('semantics')
             plt.ylim(ymin=0.0, ymax=1.0)

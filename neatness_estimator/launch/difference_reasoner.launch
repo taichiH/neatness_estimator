@@ -43,4 +43,6 @@
     </rosparam>
   </node>
 
+  <include file="$(find neatness_estimator)/launch/compare_data.launch" />
+
 </launch>
