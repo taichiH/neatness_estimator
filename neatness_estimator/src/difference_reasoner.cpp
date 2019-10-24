@@ -27,15 +27,15 @@ namespace neatness_estimator
     pnh_.getParam("instance_boxes_topic", instance_boxes_topic_);
     pnh_.getParam("cluster_boxes_topic", cluster_boxes_topic_);
 
-    log_dir_.resize(2);
-    dir_.resize(2);
-    save_data_dir_.resize(2);
+    log_dir_.resize(buffer_size_);
+    dir_.resize(buffer_size_);
+    save_data_dir_.resize(buffer_size_);
 
-    cluster_.resize(2);
-    cloud_.resize(2);
-    image_.resize(2);
-    instance_boxes_.resize(2);
-    cluster_boxes_.resize(2);
+    msgs.cluster.resize(buffer_size_);
+    msgs.cloud.resize(buffer_size_);
+    msgs.image.resize(buffer_size_);
+    msgs.instance_boxes.resize(buffer_size_);
+    msgs.cluster_boxes.resize(buffer_size_);
 
     server_ = pnh_.advertiseService("read", &DifferenceReasoner::service_callback, this);
     display_feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDisplayFeature>
@@ -55,7 +55,7 @@ namespace neatness_estimator
     std::sort(saved_dirs.begin(), saved_dirs.end(), std::greater<double>());
 
 
-    for (size_t i=0; i<2; ++i) {
+    for (size_t i=0; i<buffer_size_; ++i) {
       std::stringstream ss;
       ss << prefix_ << "/"
          << std::to_string(static_cast<int>(saved_dirs.at(i))) << "/"
@@ -89,26 +89,27 @@ namespace neatness_estimator
 
   bool DifferenceReasoner::read_data()
   {
-    for (size_t i=0; i<2; ++i) {
-      cluster_.at(i).reset(new jsk_recognition_msgs::ClusterPointIndices);
-      cloud_.at(i).reset(new sensor_msgs::PointCloud2);
-      image_.at(i).reset(new sensor_msgs::Image);
-      instance_boxes_.at(i).reset(new jsk_recognition_msgs::BoundingBoxArray);
-      cluster_boxes_.at(i).reset(new jsk_recognition_msgs::BoundingBoxArray);
+    for (size_t i=0; i<buffer_size_; ++i) {
+      msgs.cluster.at(i).reset(new jsk_recognition_msgs::ClusterPointIndices);
+      msgs.cloud.at(i).reset(new sensor_msgs::PointCloud2);
+      msgs.image.at(i).reset(new sensor_msgs::Image);
+      msgs.instance_boxes.at(i).reset(new jsk_recognition_msgs::BoundingBoxArray);
+      msgs.cluster_boxes.at(i).reset(new jsk_recognition_msgs::BoundingBoxArray);
+
       rosbag::Bag bag;
       try {
         bag.open(dir_.at(i));
         for (rosbag::MessageInstance const m : rosbag::View(bag)) {
           if (m.getTopic() == cluster_topic_)
-            cluster_.at(i) = m.instantiate<jsk_recognition_msgs::ClusterPointIndices>();
+            msgs.cluster.at(i) = m.instantiate<jsk_recognition_msgs::ClusterPointIndices>();
           if (m.getTopic() == cloud_topic_)
-            cloud_.at(i) = m.instantiate<sensor_msgs::PointCloud2>();
+            msgs.cloud.at(i) = m.instantiate<sensor_msgs::PointCloud2>();
           if (m.getTopic() == image_topic_)
-            image_.at(i) = m.instantiate<sensor_msgs::Image>();
+            msgs.image.at(i) = m.instantiate<sensor_msgs::Image>();
           if (m.getTopic() == instance_boxes_topic_)
-            instance_boxes_.at(i) = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
+            msgs.instance_boxes.at(i) = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
           if (m.getTopic() == cluster_boxes_topic_)
-            cluster_boxes_.at(i) = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
+            msgs.cluster_boxes.at(i) = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
         }
         bag.close();
 
@@ -117,7 +118,7 @@ namespace neatness_estimator
         return false;
       }
 
-      if (cloud_.at(i)->width * cloud_.at(i)->height == 0) {
+      if (msgs.cloud.at(i)->width * msgs.cloud.at(i)->height == 0) {
         ROS_WARN("cloud size: 0");
         return false;
       }
@@ -250,8 +251,8 @@ namespace neatness_estimator
 
       pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
       for (auto point_index : input_indices->cluster_indices.at(index_).indices) {
-        size_t y = int(point_index / image_.at(DIR::CURT)->width);
-        size_t x = int(point_index % image_.at(DIR::CURT)->width);
+        size_t y = int(point_index / msgs.image.at(DIR::CURT)->width);
+        size_t x = int(point_index % msgs.image.at(DIR::CURT)->width);
         mask_image.at<unsigned char>(y,x) = 255;
         tmp_mask.at<unsigned char>(y,x) = 255;
         pcl::PointXYZRGB p = rgb_cloud->points.at(point_index);
@@ -401,30 +402,30 @@ namespace neatness_estimator
 
   bool DifferenceReasoner::run()
   {
-    for (size_t i=0; i<2; ++i) {
+    for (size_t i=0; i<buffer_size_; ++i) {
       cv::Mat image;
       pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
         (new pcl::PointCloud<pcl::PointXYZRGB>);
       jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
       std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
 
-      load_image(image_.at(i), image);
-      pcl::fromROSMsg(*cloud_.at(i), *rgb_cloud);
+      load_image(msgs.image.at(i), image);
+      pcl::fromROSMsg(*msgs.cloud.at(i), *rgb_cloud);
 
-      create_sorted_indices(instance_boxes_.at(i)->boxes,
+      create_sorted_indices(msgs.instance_boxes.at(i)->boxes,
                             sorted_indices_);
 
       labels_.clear();
-      for (auto box : instance_boxes_.at(i)->boxes) {
+      for (auto box : msgs.instance_boxes.at(i)->boxes) {
         labels_.push_back(box.label);
       }
 
       cv::Mat mask_image = cv::Mat::zeros
-        (image_.at(i)->width, image_.at(i)->height, CV_8UC1);
+        (msgs.image.at(i)->width, msgs.image.at(i)->height, CV_8UC1);
 
       cv::Mat debug_image = image.clone();
       compute_histograms(rgb_cloud,
-                         cluster_.at(i),
+                         msgs.cluster.at(i),
                          color_histogram_array,
                          geometry_histogram_array,
                          mask_image,
@@ -437,8 +438,8 @@ namespace neatness_estimator
 
       neatness_estimator_msgs::GetDisplayFeature client_msg;
       client_msg.request.save_dir = save_data_dir_.at(i);
-      client_msg.request.instance_boxes = *instance_boxes_.at(i);
-      client_msg.request.cluster_boxes = *cluster_boxes_.at(i);
+      client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
+      client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
       display_feature_client_.call(client_msg);
     }
     return true;
@@ -458,7 +459,10 @@ namespace neatness_estimator
       return false;
     }
 
-    run();
+    if ( !run() ) {
+      res.success = false;
+      return false;
+    };
 
     res.success = true;
     return true;

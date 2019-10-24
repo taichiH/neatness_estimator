@@ -71,6 +71,16 @@ namespace neatness_estimator
       return (viewer);
     }
 
+  class Msgs
+  {
+  public:
+    std::vector<jsk_recognition_msgs::ClusterPointIndices::ConstPtr> cluster;
+    std::vector<sensor_msgs::PointCloud2::ConstPtr> cloud;
+    std::vector<sensor_msgs::Image::ConstPtr> image;
+    std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> instance_boxes;
+    std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> cluster_boxes;
+  };
+
   class DifferenceReasoner : public nodelet::Nodelet
   {
   public:
@@ -152,16 +162,13 @@ namespace neatness_estimator
     std::string instance_boxes_topic_ = "/labeled_bounding_box_publisher/output/labeled_instance_boxes";
     std::string cluster_boxes_topic_ = "/labeled_bounding_box_publisher/output/labeled_cluster_boxes";
 
-    std::vector<jsk_recognition_msgs::ClusterPointIndices::ConstPtr> cluster_;
-    std::vector<sensor_msgs::PointCloud2::ConstPtr> cloud_;
-    std::vector<sensor_msgs::Image::ConstPtr> image_;
-    std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> instance_boxes_;
-    std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> cluster_boxes_;
-
     std::vector<std::string> save_data_dir_;
     std::vector<std::string> log_dir_;
     std::vector<std::string> dir_;
 
+    Msgs msgs;
+
+    int buffer_size_ = 2;
     int index_ = 0;
     bool debug_view_ = false;
     int bin_size_ = 10;
