@@ -109,7 +109,9 @@ namespace neatness_estimator
        jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
        std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
        cv::Mat& mask_image,
-       cv::Mat& debug_image);
+       cv::Mat& debug_image,
+       std::vector<size_t>& labels,
+       std::vector<size_t>& sorted_indices);
 
     virtual bool compute_color_histogram
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
@@ -133,17 +135,20 @@ namespace neatness_estimator
 
     virtual bool save_color_histogram
       (std::string save_dir,
+       std::vector<size_t> labels,
        const jsk_recognition_msgs::ColorHistogramArray& color_histogram_array);
 
     virtual bool save_geometry_histogram
       (std::string save_dir,
+       std::vector<size_t> labels,
        const std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array);
 
     virtual bool run();
 
     virtual bool create_sorted_indices
       (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
-       std::vector<size_t>& sorted_indices);
+       std::vector<size_t>& sorted_indices,
+       std::vector<size_t>& labels);
 
     // variables
 

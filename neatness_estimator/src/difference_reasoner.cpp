@@ -240,17 +240,19 @@ namespace neatness_estimator
    jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
    std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
    cv::Mat& mask_image,
-   cv::Mat& debug_image)
+   cv::Mat& debug_image,
+   std::vector<size_t>& labels,
+   std::vector<size_t>& sorted_indices)
   {
 
     for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
-      index_ = sorted_indices_.at(i);
+      size_t index = sorted_indices.at(i);
 
       cv::Mat tmp_mask = cv::Mat::zeros
         (mask_image.cols, mask_image.rows, CV_8UC1);
 
       pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
-      for (auto point_index : input_indices->cluster_indices.at(index_).indices) {
+      for (auto point_index : input_indices->cluster_indices.at(index).indices) {
         size_t y = int(point_index / msgs.image.at(DIR::CURT)->width);
         size_t x = int(point_index % msgs.image.at(DIR::CURT)->width);
         mask_image.at<unsigned char>(y,x) = 255;
@@ -266,29 +268,33 @@ namespace neatness_estimator
       cv::findContours(tmp_mask, contours, hierarchy,
                        CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
 
-      cv::Point base_point;
+      cv::Point min_pt(mask_image.cols * mask_image.cols,
+                       mask_image.rows * mask_image.rows);
       for (auto contour : contours) {
         for (size_t i=0; i<contour.size(); ++i) {
           cv::Point pt1;
           auto pt2 = contour.at(i);
           if (i == 0) {
             pt1 = contour.at(contour.size() - 1);
-            base_point = contour.at(i);
           } else {
             pt1 = contour.at(i-1);
+          }
+          if (pt1.y < min_pt.y) {
+            min_pt.x = pt1.x;
+            min_pt.y = pt1.y;
           }
           cv::line(debug_image, pt1, pt2, cv::Scalar(0,0,255), 3);
         }
       }
 
-      std::string txt1 = "label: " + std::to_string(labels_.at(index_));
+      std::string txt1 = "label: " + std::to_string(labels.at(index));
       std::string txt2 = "index: " + std::to_string(i);
       cv::putText(debug_image, txt1,
-                  cv::Point(base_point.x, base_point.y - 15),
+                  cv::Point(min_pt.x, min_pt.y - 15),
                   cv::FONT_HERSHEY_SIMPLEX,
                   0.3, cv::Scalar(0,0,0), 1);
       cv::putText(debug_image, txt2,
-                  cv::Point(base_point.x, base_point.y - 5),
+                  cv::Point(min_pt.x, min_pt.y - 5),
                   cv::FONT_HERSHEY_SIMPLEX,
                   0.3, cv::Scalar(0,0,0), 1);
 
@@ -328,15 +334,15 @@ namespace neatness_estimator
 
   bool DifferenceReasoner::save_color_histogram
   (std::string save_dir,
+   std::vector<size_t> labels,
    const jsk_recognition_msgs::ColorHistogramArray& color_histogram_array)
   {
     std::ofstream f;
     try {
       f.open(save_dir + "color_histograms.csv");
       for (size_t i=0; i<color_histogram_array.histograms.size(); ++i) {
-        size_t index = sorted_indices_.at(i);
-        f << std::to_string(labels_.at(index)) + ", ";
-        for (auto v : color_histogram_array.histograms.at(index).histogram) {
+        f << std::to_string(labels.at(i)) + ", ";
+        for (auto v : color_histogram_array.histograms.at(i).histogram) {
           f << std::to_string(v) + ",";
         }
         f << "\n";
@@ -351,15 +357,15 @@ namespace neatness_estimator
 
   bool DifferenceReasoner::save_geometry_histogram
   (std::string save_dir,
+   std::vector<size_t> labels,
    const std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array)
   {
     try {
       std::ofstream f;
       f.open(save_dir + "geometry_histograms.csv");
       for (size_t i=0; i<geometry_histogram_array.size(); ++i) {
-        size_t index = sorted_indices_.at(i);
-        f << std::to_string(labels_.at(index)) + ", ";
-        for (auto v : geometry_histogram_array.at(index).histogram) {
+        f << std::to_string(labels.at(i)) + ", ";
+        for (auto v : geometry_histogram_array.at(i).histogram) {
           f << std::to_string(v) + ",";
         }
         f << "\n";
@@ -375,7 +381,8 @@ namespace neatness_estimator
 
   bool DifferenceReasoner::create_sorted_indices
   (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
-   std::vector<size_t>& sorted_indices)
+   std::vector<size_t>& sorted_indices,
+   std::vector<size_t>& labels)
   {
     sorted_indices.clear();
     sorted_indices.resize(input_boxes.size());
@@ -386,9 +393,11 @@ namespace neatness_estimator
               {return input_boxes.at(l).pose.position.y >
                   input_boxes.at(r).pose.position.y;});
 
+    labels.resize(sorted_indices.size());
     std::cerr << "sorted indices: " << std::endl;
     for(size_t i=0; i<sorted_indices.size(); ++i) {
       auto v = sorted_indices.at(i);
+      labels.at(i) = input_boxes.at(v).label;
       std::cerr << "{";
       std::cerr << v << ", ";
       std::cerr << input_boxes.at(v).pose.position.y << ", ";
@@ -412,29 +421,30 @@ namespace neatness_estimator
       load_image(msgs.image.at(i), image);
       pcl::fromROSMsg(*msgs.cloud.at(i), *rgb_cloud);
 
+      std::vector<size_t> sorted_indices;
+      std::vector<size_t> labels;
       create_sorted_indices(msgs.instance_boxes.at(i)->boxes,
-                            sorted_indices_);
-
-      labels_.clear();
-      for (auto box : msgs.instance_boxes.at(i)->boxes) {
-        labels_.push_back(box.label);
-      }
+                            sorted_indices,
+                            labels);
 
       cv::Mat mask_image = cv::Mat::zeros
         (msgs.image.at(i)->width, msgs.image.at(i)->height, CV_8UC1);
 
       cv::Mat debug_image = image.clone();
+
       compute_histograms(rgb_cloud,
                          msgs.cluster.at(i),
                          color_histogram_array,
                          geometry_histogram_array,
                          mask_image,
-                         debug_image);
+                         debug_image,
+                         labels,
+                         sorted_indices);
 
       save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
       save_image(log_dir_.at(i), image, mask_image, debug_image);
-      save_color_histogram(save_data_dir_.at(i), color_histogram_array);
-      save_geometry_histogram(save_data_dir_.at(i), geometry_histogram_array);
+      save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
+      save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
 
       neatness_estimator_msgs::GetDisplayFeature client_msg;
       client_msg.request.save_dir = save_data_dir_.at(i);
