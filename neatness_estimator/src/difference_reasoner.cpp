@@ -27,6 +27,16 @@ namespace neatness_estimator
     pnh_.getParam("instance_boxes_topic", instance_boxes_topic_);
     pnh_.getParam("cluster_boxes_topic", cluster_boxes_topic_);
 
+    log_dir_.resize(2);
+    dir_.resize(2);
+    save_data_dir_.resize(2);
+
+    cluster_.resize(2);
+    cloud_.resize(2);
+    image_.resize(2);
+    instance_boxes_.resize(2);
+    cluster_boxes_.resize(2);
+
     server_ = pnh_.advertiseService("read", &DifferenceReasoner::service_callback, this);
     display_feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDisplayFeature>
       ("service_topic");
@@ -45,56 +55,32 @@ namespace neatness_estimator
     std::sort(saved_dirs.begin(), saved_dirs.end(), std::greater<double>());
 
 
-    std::stringstream current_ss;
-    current_ss << prefix_ << "/"
-               << std::to_string(static_cast<int>(saved_dirs.at(0))) << "/"
-               << std::to_string(static_cast<int>(saved_dirs.at(0))) << ".bag";
-    current_dir_ = current_ss.str();
+    for (size_t i=0; i<2; ++i) {
+      std::stringstream ss;
+      ss << prefix_ << "/"
+         << std::to_string(static_cast<int>(saved_dirs.at(i))) << "/"
+         << std::to_string(static_cast<int>(saved_dirs.at(i))) << ".bag";
+      dir_.at(i) = ss.str();
 
-    std::stringstream prev_ss;
-    prev_ss << prefix_ << "/"
-            << std::to_string(static_cast<int>(saved_dirs.at(1))) << "/"
-            << std::to_string(static_cast<int>(saved_dirs.at(1))) << ".bag";
-    prev_dir_ = prev_ss.str();
-
-
-    boost::system::error_code error;
-    current_log_dir_ =
-      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(0))) + "/logs/";
-    const boost::filesystem::path log_dir_path(current_log_dir_.c_str());
-    if (!boost::filesystem::exists(log_dir_path)) {
-      if (!boost::filesystem::create_directory(current_log_dir_, error) || error) {
-        ROS_ERROR("failed create current logs dir : \n%s", current_log_dir_.c_str());
-        return false;
+      boost::system::error_code error;
+      log_dir_.at(i) =
+        prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(i))) + "/logs/";
+      if (!boost::filesystem::exists(boost::filesystem::path(log_dir_.at(i).c_str()))) {
+        if (!boost::filesystem::create_directory(log_dir_.at(i), error) || error) {
+          ROS_ERROR("failed create logs dir : \n%s", log_dir_.at(i).c_str());
+          return false;
+        }
       }
-    }
 
-    prev_log_dir_ =
-      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(1))) + "/logs/";
-    if (!boost::filesystem::exists(boost::filesystem::path(prev_log_dir_.c_str()))) {
-      if (!boost::filesystem::create_directory(prev_log_dir_, error) || error) {
-        ROS_ERROR("failed create prev logs dir : \n%s", prev_log_dir_.c_str());
-        return false;
+      save_data_dir_.at(i) =
+        prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(i))) + "/data/";
+      if (!boost::filesystem::exists(boost::filesystem::path(save_data_dir_.at(i).c_str()))) {
+        if (!boost::filesystem::create_directory(save_data_dir_.at(i), error) || error) {
+          ROS_ERROR("failed create data dir : \n%s", save_data_dir_.at(i).c_str());
+          return false;
+        }
       }
-    }
 
-    current_save_data_dir_ =
-      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(0))) + "/data/";
-    const boost::filesystem::path data_dir_path(current_save_data_dir_.c_str());
-    if (!boost::filesystem::exists(data_dir_path)) {
-      if (!boost::filesystem::create_directory(current_save_data_dir_, error) || error) {
-        ROS_ERROR("failed create data dir : \n%s", current_save_data_dir_.c_str());
-        return false;
-      }
-    }
-
-    prev_save_data_dir_ =
-      prefix_ + "/" + std::to_string(static_cast<int>(saved_dirs.at(1))) + "/data/";
-    if (!boost::filesystem::exists(boost::filesystem::path(prev_save_data_dir_.c_str()))) {
-      if (!boost::filesystem::create_directory(prev_save_data_dir_, error) || error) {
-        ROS_ERROR("failed create data dir : \n%s", current_save_data_dir_.c_str());
-        return false;
-      }
     }
 
     return true;
@@ -103,64 +89,38 @@ namespace neatness_estimator
 
   bool DifferenceReasoner::read_data()
   {
-    current_cluster_.reset(new jsk_recognition_msgs::ClusterPointIndices);
-    current_cloud_.reset(new sensor_msgs::PointCloud2);
-    current_image_.reset(new sensor_msgs::Image);
-    current_instance_boxes_.reset(new jsk_recognition_msgs::BoundingBoxArray);
-    current_cluster_boxes_.reset(new jsk_recognition_msgs::BoundingBoxArray);
+    for (size_t i=0; i<2; ++i) {
+      cluster_.at(i).reset(new jsk_recognition_msgs::ClusterPointIndices);
+      cloud_.at(i).reset(new sensor_msgs::PointCloud2);
+      image_.at(i).reset(new sensor_msgs::Image);
+      instance_boxes_.at(i).reset(new jsk_recognition_msgs::BoundingBoxArray);
+      cluster_boxes_.at(i).reset(new jsk_recognition_msgs::BoundingBoxArray);
+      rosbag::Bag bag;
+      try {
+        bag.open(dir_.at(i));
+        for (rosbag::MessageInstance const m : rosbag::View(bag)) {
+          if (m.getTopic() == cluster_topic_)
+            cluster_.at(i) = m.instantiate<jsk_recognition_msgs::ClusterPointIndices>();
+          if (m.getTopic() == cloud_topic_)
+            cloud_.at(i) = m.instantiate<sensor_msgs::PointCloud2>();
+          if (m.getTopic() == image_topic_)
+            image_.at(i) = m.instantiate<sensor_msgs::Image>();
+          if (m.getTopic() == instance_boxes_topic_)
+            instance_boxes_.at(i) = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
+          if (m.getTopic() == cluster_boxes_topic_)
+            cluster_boxes_.at(i) = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
+        }
+        bag.close();
 
-    prev_cluster_.reset(new jsk_recognition_msgs::ClusterPointIndices);
-    prev_cloud_.reset(new sensor_msgs::PointCloud2);
-    prev_image_.reset(new sensor_msgs::Image);
-    prev_instance_boxes_.reset(new jsk_recognition_msgs::BoundingBoxArray);
-    prev_cluster_boxes_.reset(new jsk_recognition_msgs::BoundingBoxArray);
-
-
-    rosbag::Bag bag;
-    try {
-      bag.open(current_dir_);
-      for (rosbag::MessageInstance const m : rosbag::View(bag)) {
-        if (m.getTopic() == cluster_topic_)
-          current_cluster_ = m.instantiate<jsk_recognition_msgs::ClusterPointIndices>();
-        if (m.getTopic() == cloud_topic_)
-          current_cloud_ = m.instantiate<sensor_msgs::PointCloud2>();
-        if (m.getTopic() == image_topic_)
-          current_image_ = m.instantiate<sensor_msgs::Image>();
-        if (m.getTopic() == instance_boxes_topic_)
-          current_instance_boxes_ = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
-        if (m.getTopic() == cluster_boxes_topic_)
-          current_cluster_boxes_ = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
+      } catch (rosbag::BagException& e) {
+        ROS_ERROR("failed get rosbag data \n %s", e.what());
+        return false;
       }
-      bag.close();
 
-      bag.open(prev_dir_);
-      for (rosbag::MessageInstance const m : rosbag::View(bag)) {
-        if (m.getTopic() == cluster_topic_)
-          prev_cluster_ = m.instantiate<jsk_recognition_msgs::ClusterPointIndices>();
-        if (m.getTopic() == cloud_topic_)
-          prev_cloud_ = m.instantiate<sensor_msgs::PointCloud2>();
-        if (m.getTopic() == image_topic_)
-          prev_image_ = m.instantiate<sensor_msgs::Image>();
-        if (m.getTopic() == instance_boxes_topic_)
-          prev_instance_boxes_ = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
-        if (m.getTopic() == cluster_boxes_topic_)
-          prev_cluster_boxes_ = m.instantiate<jsk_recognition_msgs::BoundingBoxArray>();
+      if (cloud_.at(i)->width * cloud_.at(i)->height == 0) {
+        ROS_WARN("cloud size: 0");
+        return false;
       }
-      bag.close();
-
-    } catch (rosbag::BagException& e) {
-      ROS_ERROR("failed get rosbag data \n %s", e.what());
-      return false;
-    }
-
-    if (current_cloud_->width * current_cloud_->height == 0) {
-      ROS_WARN("current_cloud size: 0");
-      return false;
-    }
-
-    if (prev_cloud_->width * prev_cloud_->height == 0) {
-      ROS_WARN("prev_cloud size: 0");
-      return false;
     }
 
     return true;
@@ -290,8 +250,8 @@ namespace neatness_estimator
 
       pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
       for (auto point_index : input_indices->cluster_indices.at(index_).indices) {
-        size_t y = int(point_index / current_image_->width);
-        size_t x = int(point_index % current_image_->width);
+        size_t y = int(point_index / image_.at(DIR::CURT)->width);
+        size_t x = int(point_index % image_.at(DIR::CURT)->width);
         mask_image.at<unsigned char>(y,x) = 255;
         tmp_mask.at<unsigned char>(y,x) = 255;
         pcl::PointXYZRGB p = rgb_cloud->points.at(point_index);
@@ -439,95 +399,48 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::run_prev()
+  bool DifferenceReasoner::run()
   {
-    cv::Mat image;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
-      (new pcl::PointCloud<pcl::PointXYZRGB>);
-    jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
-    std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
+    for (size_t i=0; i<2; ++i) {
+      cv::Mat image;
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
+        (new pcl::PointCloud<pcl::PointXYZRGB>);
+      jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
+      std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
 
-    load_image(prev_image_, image);
+      load_image(image_.at(i), image);
+      pcl::fromROSMsg(*cloud_.at(i), *rgb_cloud);
 
-    create_sorted_indices(prev_instance_boxes_->boxes,
-                          sorted_indices_);
+      create_sorted_indices(instance_boxes_.at(i)->boxes,
+                            sorted_indices_);
 
-    labels_.resize(prev_instance_boxes_->boxes.size());
-    for (size_t i = 0; i < prev_instance_boxes_->boxes.size(); ++i) {
-      labels_.at(i) = prev_instance_boxes_->boxes.at(i).label;
+      labels_.clear();
+      for (auto box : instance_boxes_.at(i)->boxes) {
+        labels_.push_back(box.label);
+      }
+
+      cv::Mat mask_image = cv::Mat::zeros
+        (image_.at(i)->width, image_.at(i)->height, CV_8UC1);
+
+      cv::Mat debug_image = image.clone();
+      compute_histograms(rgb_cloud,
+                         cluster_.at(i),
+                         color_histogram_array,
+                         geometry_histogram_array,
+                         mask_image,
+                         debug_image);
+
+      save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
+      save_image(log_dir_.at(i), image, mask_image, debug_image);
+      save_color_histogram(save_data_dir_.at(i), color_histogram_array);
+      save_geometry_histogram(save_data_dir_.at(i), geometry_histogram_array);
+
+      neatness_estimator_msgs::GetDisplayFeature client_msg;
+      client_msg.request.save_dir = save_data_dir_.at(i);
+      client_msg.request.instance_boxes = *instance_boxes_.at(i);
+      client_msg.request.cluster_boxes = *cluster_boxes_.at(i);
+      display_feature_client_.call(client_msg);
     }
-
-    pcl::fromROSMsg(*prev_cloud_, *rgb_cloud);
-    save_pcd(prev_log_dir_ + "log_pcd.pcd", *rgb_cloud);
-
-
-    cv::Mat prev_mask_image = cv::Mat::zeros
-      (prev_image_->width, prev_image_->height, CV_8UC1);
-
-    cv::Mat debug_image = image.clone();
-    compute_histograms(rgb_cloud,
-                       prev_cluster_,
-                       color_histogram_array,
-                       geometry_histogram_array,
-                       prev_mask_image,
-                       debug_image);
-
-    save_image(prev_log_dir_, image, prev_mask_image, debug_image);
-    save_color_histogram(prev_save_data_dir_, color_histogram_array);
-    save_geometry_histogram(prev_save_data_dir_, geometry_histogram_array);
-
-    neatness_estimator_msgs::GetDisplayFeature client_msg;
-    client_msg.request.save_dir = prev_save_data_dir_;
-    client_msg.request.instance_boxes = *prev_instance_boxes_;
-    client_msg.request.cluster_boxes = *prev_cluster_boxes_;
-    display_feature_client_.call(client_msg);
-
-    return true;
-  }
-
-  bool DifferenceReasoner::run_current()
-  {
-    cv::Mat image;
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
-      (new pcl::PointCloud<pcl::PointXYZRGB>);
-    jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
-    std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
-
-    load_image(current_image_, image);
-
-
-    create_sorted_indices(current_instance_boxes_->boxes,
-                          sorted_indices_);
-
-    labels_.resize(current_instance_boxes_->boxes.size());
-    for (size_t i = 0; i < current_instance_boxes_->boxes.size(); ++i) {
-      labels_.at(i) = current_instance_boxes_->boxes.at(i).label;
-    }
-
-    pcl::fromROSMsg(*current_cloud_, *rgb_cloud);
-    save_pcd(current_log_dir_ + "log_pcd.pcd", *rgb_cloud);
-
-    cv::Mat current_mask_image = cv::Mat::zeros
-      (current_image_->width, current_image_->height, CV_8UC1);
-
-    cv::Mat debug_image = image.clone();
-    compute_histograms(rgb_cloud,
-                       current_cluster_,
-                       color_histogram_array,
-                       geometry_histogram_array,
-                       current_mask_image,
-                       debug_image);
-
-    save_image(current_log_dir_, image, current_mask_image, debug_image);
-    save_color_histogram(current_save_data_dir_, color_histogram_array);
-    save_geometry_histogram(current_save_data_dir_, geometry_histogram_array);
-
-    neatness_estimator_msgs::GetDisplayFeature client_msg;
-    client_msg.request.save_dir = current_save_data_dir_;
-    client_msg.request.instance_boxes = *current_instance_boxes_;
-    client_msg.request.cluster_boxes = *current_cluster_boxes_;
-    display_feature_client_.call(client_msg);
-
     return true;
   }
 
@@ -545,8 +458,7 @@ namespace neatness_estimator
       return false;
     }
 
-    run_current();
-    run_prev();
+    run();
 
     res.success = true;
     return true;

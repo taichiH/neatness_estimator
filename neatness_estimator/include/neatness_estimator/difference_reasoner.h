@@ -77,6 +77,11 @@ namespace neatness_estimator
 
   protected:
 
+    enum DIR {
+      CURT = 0,
+      PREV = 1,
+    };
+
     // functions
 
     virtual void onInit();
@@ -124,9 +129,7 @@ namespace neatness_estimator
       (std::string save_dir,
        const std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array);
 
-    virtual bool run_current();
-
-    virtual bool run_prev();
+    virtual bool run();
 
     virtual bool create_sorted_indices
       (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
@@ -149,24 +152,15 @@ namespace neatness_estimator
     std::string instance_boxes_topic_ = "/labeled_bounding_box_publisher/output/labeled_instance_boxes";
     std::string cluster_boxes_topic_ = "/labeled_bounding_box_publisher/output/labeled_cluster_boxes";
 
-    jsk_recognition_msgs::ClusterPointIndices::ConstPtr current_cluster_;
-    sensor_msgs::PointCloud2::ConstPtr current_cloud_;
-    sensor_msgs::Image::ConstPtr current_image_;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr current_instance_boxes_;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr current_cluster_boxes_;
+    std::vector<jsk_recognition_msgs::ClusterPointIndices::ConstPtr> cluster_;
+    std::vector<sensor_msgs::PointCloud2::ConstPtr> cloud_;
+    std::vector<sensor_msgs::Image::ConstPtr> image_;
+    std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> instance_boxes_;
+    std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> cluster_boxes_;
 
-    jsk_recognition_msgs::ClusterPointIndices::ConstPtr prev_cluster_;
-    sensor_msgs::PointCloud2::ConstPtr prev_cloud_;
-    sensor_msgs::Image::ConstPtr prev_image_;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_instance_boxes_;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_cluster_boxes_;
-
-    std::string current_save_data_dir_;
-    std::string prev_save_data_dir_;
-    std::string current_log_dir_;
-    std::string prev_log_dir_;
-    std::string current_dir_;
-    std::string prev_dir_;
+    std::vector<std::string> save_data_dir_;
+    std::vector<std::string> log_dir_;
+    std::vector<std::string> dir_;
 
     int index_ = 0;
     bool debug_view_ = false;
