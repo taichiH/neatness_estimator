@@ -3,7 +3,7 @@
         pkg="neatness_estimator" type="compare_data.py"
         output="screen">
     <rosparam command="load"
-              file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+              file="$(find neatness_estimator)/models/mask_rcnn_labels_191023.yaml" />
   </node>
 
 </launch>
