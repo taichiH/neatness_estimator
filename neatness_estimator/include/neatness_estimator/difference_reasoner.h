@@ -10,6 +10,7 @@
 #include <sensor_msgs/image_encodings.h>
 
 #include <neatness_estimator_msgs/GetDisplayFeature.h>
+#include <neatness_estimator_msgs/GetColorHistogram.h>
 #include <neatness_estimator_msgs/Neatness.h>
 #include <neatness_estimator_msgs/NeatnessArray.h>
 #include <jsk_recognition_msgs/Histogram.h>
@@ -117,10 +118,16 @@ namespace neatness_estimator
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
        jsk_recognition_msgs::ColorHistogram& color_histogram);
 
+
+    virtual bool compute_color_histogram
+      (const cv::Mat& image,
+       const cv::Mat& mask_image,
+       jsk_recognition_msgs::ColorHistogram& color_histogram);
+
+
     virtual bool compute_geometry_histogram
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
        jsk_recognition_msgs::Histogram& geometry_histogram);
-
 
     virtual bool save_pcd(std::string save_path,
                           const pcl::PointCloud<pcl::PointXYZRGB>& cloud);
@@ -157,6 +164,7 @@ namespace neatness_estimator
 
     ros::ServiceServer server_;
     ros::ServiceClient display_feature_client_;
+    ros::ServiceClient color_hist_client_;
 
     boost::mutex mutex_;
     std::string prefix_ = "./";

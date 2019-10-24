@@ -19,7 +19,7 @@
     <remap from="~service_topic" to="$(arg service_node_name)/get_display_feature"/>
     <rosparam subst_value="true">
       prefix: $(arg prefix)
-      bin_size: 100
+      bin_size: 360
       histogram_policy: 0
       white_threshold: 0.3
       black_threshold: 0.2
@@ -44,5 +44,9 @@
   </node>
 
   <include file="$(find neatness_estimator)/launch/compare_data.launch" />
+
+  <node name="color_histogram_server"
+        pkg="neatness_estimator" type="color_histogram_server.py"
+        output="screen"/>
 
 </launch>

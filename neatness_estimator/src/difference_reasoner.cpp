@@ -41,6 +41,9 @@ namespace neatness_estimator
     display_feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDisplayFeature>
       ("service_topic");
 
+    color_hist_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetColorHistogram>
+      ("/color_histogram_server/get_color_histogram");
+
   }
 
   bool DifferenceReasoner::get_read_dirs()
@@ -188,6 +191,48 @@ namespace neatness_estimator
     return true;
   }
 
+  bool DifferenceReasoner::compute_color_histogram
+  (const cv::Mat& image,
+   const cv::Mat& mask,
+   jsk_recognition_msgs::ColorHistogram& color_histogram)
+  {
+    neatness_estimator_msgs::GetColorHistogram client_msg;
+    sensor_msgs::Image image_msg = *(cv_bridge::CvImage
+                                     (msgs.image.at(DIR::CURT)->header,
+                                      sensor_msgs::image_encodings::BGR8,
+                                      image).toImageMsg());
+    sensor_msgs::Image mask_msg = *(cv_bridge::CvImage
+                                    (msgs.image.at(DIR::CURT)->header,
+                                     sensor_msgs::image_encodings::MONO8,
+                                     mask).toImageMsg());
+    client_msg.request.image = image_msg;
+    client_msg.request.mask = mask_msg;
+    color_hist_client_.call(client_msg);
+
+    color_histogram = client_msg.response.histogram;
+
+    // cv::cvtColor(image, image, CV_BGR2GRAY);
+
+    // const int ch_width = 260;
+    // const int sch = image.channels();
+
+    // std::vector<cv::MatND> hist(3);
+    // const int hist_size = 256;
+    // const int hdims[] = {hist_size};
+    // const float hranges[] = {0,256};
+    // const float* ranges[] = {hranges};
+
+    // for(int i=0; i<sch; ++i) {
+    //   cv::calcHist(&image, 1, &i, mask, hist[i], 1, hdims, ranges, true, false);
+    // }
+
+    // for (int i=0; i<hist_size; ++i) {
+    //   float val = hist[0].at<float>(i);
+    //   color_histogram.histogram.push_back(val);
+    // }
+
+    return true;
+  }
 
   bool DifferenceReasoner::compute_geometry_histogram
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
@@ -244,12 +289,12 @@ namespace neatness_estimator
    std::vector<size_t>& labels,
    std::vector<size_t>& sorted_indices)
   {
-
+    cv::Mat image = debug_image.clone();
     for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
       size_t index = sorted_indices.at(i);
 
       cv::Mat tmp_mask = cv::Mat::zeros
-        (mask_image.cols, mask_image.rows, CV_8UC1);
+        (mask_image.rows, mask_image.cols, CV_8UC1);
 
       pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
       for (auto point_index : input_indices->cluster_indices.at(index).indices) {
@@ -306,7 +351,7 @@ namespace neatness_estimator
       extract.filter(*clustered_cloud);
 
       jsk_recognition_msgs::ColorHistogram color_histogram;
-      compute_color_histogram(clustered_cloud, color_histogram);
+      compute_color_histogram(image, tmp_mask, color_histogram);
       color_histogram_array.histograms.push_back(color_histogram);
 
       jsk_recognition_msgs::Histogram geometry_histogram;
@@ -428,7 +473,7 @@ namespace neatness_estimator
                             labels);
 
       cv::Mat mask_image = cv::Mat::zeros
-        (msgs.image.at(i)->width, msgs.image.at(i)->height, CV_8UC1);
+        (msgs.image.at(i)->height, msgs.image.at(i)->width, CV_8UC1);
 
       cv::Mat debug_image = image.clone();
 
