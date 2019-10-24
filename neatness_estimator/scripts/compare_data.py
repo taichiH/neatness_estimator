@@ -83,8 +83,13 @@ class CompareData():
             cur_group_neatnesses = map(lambda x : float(x), current_group_neatnesses)
             prev_group_neatnesses = map(lambda x : float(x), prev_group_neatnesses)
 
+            cur_color_hist = np.array(cur_color_hist)
+            prev_color_hist = np.array(prev_color_hist)
+            cur_color_hist = (cur_color_hist - cur_color_hist.min()) / (cur_color_hist.max() - cur_color_hist.min())
+            prev_color_hist = (prev_color_hist - prev_color_hist.min()) / (prev_color_hist.max() - prev_color_hist.min())
+
             color_distance = 1 - dist.cosine(
-                np.array(cur_color_hist), np.array(prev_color_hist))
+                cur_color_hist, prev_color_hist)
             geo_distance = 1 - dist.cosine(
                 np.array(cur_geo_hist),np.array(prev_geo_hist))
 
@@ -101,7 +106,7 @@ class CompareData():
             plt.title('current_color_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
-            plt.bar([i for i in range(len(cur_color_hist))], cur_color_hist)
+            plt.bar([i for i in range(cur_color_hist.shape[0])], cur_color_hist)
 
             plt.subplot(3,3,2)
             plt.title('prev_color_histogram-' + self.label_lst[index])
