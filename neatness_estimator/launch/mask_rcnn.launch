@@ -47,7 +47,7 @@
     <rosparam command="load"
               file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
     <rosparam subst_value="true">
-      pretrained_model: $(find neatness_estimator)/trained_data/fcsc_instance_segmentation_181229.npz
+      pretrained_model: $(find neatness_estimator)/trained_data/fcsc_instance_segmentation_191023.npz
       gpu: $(arg gpu)
     </rosparam>
   </node>
