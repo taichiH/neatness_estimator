@@ -43,7 +43,9 @@
     </rosparam>
   </node>
 
-  <include file="$(find neatness_estimator)/launch/compare_data.launch" />
+  <include file="$(find neatness_estimator)/launch/compare_data.launch" >
+    <arg name="prefix" value="$(arg prefix)" />
+  </include>
 
   <node name="color_histogram_server"
         pkg="neatness_estimator" type="color_histogram_server.py"

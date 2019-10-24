@@ -16,7 +16,7 @@ class CompareData():
 
 
         self.prefix = rospy.get_param(
-            'prefix', os.path.join(os.environ['HOME'], '.ros/neatness_estimator'))
+            '~prefix', os.path.join(os.environ['HOME'], '.ros/neatness_estimator'))
 
         self.label_lst = rospy.get_param('~fg_class_names')
         rospy.Service(
@@ -102,44 +102,44 @@ class CompareData():
 
             plt.figure(figsize=(15,15))
 
-            plt.subplot(3,3,1)
+            plt.subplot(4,2,1)
             plt.title('current_color_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(cur_color_hist.shape[0])], cur_color_hist)
 
-            plt.subplot(3,3,2)
+            plt.subplot(4,2,2)
             plt.title('prev_color_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(prev_color_hist))], prev_color_hist)
 
-            plt.subplot(3,3,3)
+            plt.subplot(4,2,3)
             plt.title('current_geometry_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(cur_geo_hist))], cur_geo_hist)
 
-            plt.subplot(3,3,4)
+            plt.subplot(4,2,4)
             plt.title('prev_geometry_histogram-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(prev_geo_hist))], prev_geo_hist)
 
-            plt.subplot(3,3,5)
+            plt.subplot(4,2,5)
             plt.title('current_group_neatnesses-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(cur_group_neatnesses))], cur_group_neatnesses)
 
-            plt.subplot(3,3,6)
+            plt.subplot(4,2,6)
             plt.title('prev_group_neatnesses-' + self.label_lst[index])
             plt.xlabel('bin')
             plt.ylim(ymin=0.0, ymax=1.0)
             plt.bar([i for i in range(len(prev_group_neatnesses))], prev_group_neatnesses)
 
             similarities = [color_distance, geo_distance, group_distance]
-            plt.subplot(3,3,7)
+            plt.subplot(4,2,7)
             plt.title('similarities-' + self.label_lst[index])
             plt.xlabel('semantics')
             plt.ylim(ymin=0.0, ymax=1.0)
