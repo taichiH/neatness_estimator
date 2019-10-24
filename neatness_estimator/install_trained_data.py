@@ -42,5 +42,13 @@ def main():
         md5 ='b2e783c69fa5bf7a4d5a4885196c7c7b',
     )
 
+    download_data(
+        pkg_name=PKG,
+        path='trained_data/fcsc_instance_segmentation_191023.npz',
+        url ='https://drive.google.com/uc?id=1H_jfZTuYh5sANk35UKqczh6kMKbS-ZjE',
+        md5 ='fe79056c84e452915b18fc23a290b2b3',
+    )
+
+
 if __name__ == '__main__':
     main()
