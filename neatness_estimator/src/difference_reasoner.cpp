@@ -332,7 +332,7 @@ namespace neatness_estimator
         }
       }
 
-      std::string txt1 = "label: " + std::to_string(labels.at(index));
+      std::string txt1 = "label: " + std::to_string(labels.at(i));
       std::string txt2 = "index: " + std::to_string(i);
       cv::putText(debug_image, txt1,
                   cv::Point(min_pt.x, min_pt.y - 15),
