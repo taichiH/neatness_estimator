@@ -10,6 +10,7 @@
 #include <sensor_msgs/image_encodings.h>
 
 #include <neatness_estimator_msgs/GetDisplayFeature.h>
+#include <neatness_estimator_msgs/GetColorHistogram.h>
 #include <neatness_estimator_msgs/Neatness.h>
 #include <neatness_estimator_msgs/NeatnessArray.h>
 #include <jsk_recognition_msgs/Histogram.h>
@@ -71,11 +72,26 @@ namespace neatness_estimator
       return (viewer);
     }
 
+  class Msgs
+  {
+  public:
+    std::vector<jsk_recognition_msgs::ClusterPointIndices::ConstPtr> cluster;
+    std::vector<sensor_msgs::PointCloud2::ConstPtr> cloud;
+    std::vector<sensor_msgs::Image::ConstPtr> image;
+    std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> instance_boxes;
+    std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> cluster_boxes;
+  };
+
   class DifferenceReasoner : public nodelet::Nodelet
   {
   public:
 
   protected:
+
+    enum DIR {
+      CURT = 0,
+      PREV = 1,
+    };
 
     // functions
 
@@ -94,16 +110,24 @@ namespace neatness_estimator
        jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
        std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
        cv::Mat& mask_image,
-       cv::Mat& debug_image);
+       cv::Mat& debug_image,
+       std::vector<size_t>& labels,
+       std::vector<size_t>& sorted_indices);
 
     virtual bool compute_color_histogram
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
        jsk_recognition_msgs::ColorHistogram& color_histogram);
 
+
+    virtual bool compute_color_histogram
+      (const cv::Mat& image,
+       const cv::Mat& mask_image,
+       jsk_recognition_msgs::ColorHistogram& color_histogram);
+
+
     virtual bool compute_geometry_histogram
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
        jsk_recognition_msgs::Histogram& geometry_histogram);
-
 
     virtual bool save_pcd(std::string save_path,
                           const pcl::PointCloud<pcl::PointXYZRGB>& cloud);
@@ -118,19 +142,20 @@ namespace neatness_estimator
 
     virtual bool save_color_histogram
       (std::string save_dir,
+       std::vector<size_t> labels,
        const jsk_recognition_msgs::ColorHistogramArray& color_histogram_array);
 
     virtual bool save_geometry_histogram
       (std::string save_dir,
+       std::vector<size_t> labels,
        const std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array);
 
-    virtual bool run_current();
-
-    virtual bool run_prev();
+    virtual bool run();
 
     virtual bool create_sorted_indices
       (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
-       std::vector<size_t>& sorted_indices);
+       std::vector<size_t>& sorted_indices,
+       std::vector<size_t>& labels);
 
     // variables
 
@@ -139,6 +164,7 @@ namespace neatness_estimator
 
     ros::ServiceServer server_;
     ros::ServiceClient display_feature_client_;
+    ros::ServiceClient color_hist_client_;
 
     boost::mutex mutex_;
     std::string prefix_ = "./";
@@ -149,25 +175,13 @@ namespace neatness_estimator
     std::string instance_boxes_topic_ = "/labeled_bounding_box_publisher/output/labeled_instance_boxes";
     std::string cluster_boxes_topic_ = "/labeled_bounding_box_publisher/output/labeled_cluster_boxes";
 
-    jsk_recognition_msgs::ClusterPointIndices::ConstPtr current_cluster_;
-    sensor_msgs::PointCloud2::ConstPtr current_cloud_;
-    sensor_msgs::Image::ConstPtr current_image_;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr current_instance_boxes_;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr current_cluster_boxes_;
+    std::vector<std::string> save_data_dir_;
+    std::vector<std::string> log_dir_;
+    std::vector<std::string> dir_;
 
-    jsk_recognition_msgs::ClusterPointIndices::ConstPtr prev_cluster_;
-    sensor_msgs::PointCloud2::ConstPtr prev_cloud_;
-    sensor_msgs::Image::ConstPtr prev_image_;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_instance_boxes_;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr prev_cluster_boxes_;
+    Msgs msgs;
 
-    std::string current_save_data_dir_;
-    std::string prev_save_data_dir_;
-    std::string current_log_dir_;
-    std::string prev_log_dir_;
-    std::string current_dir_;
-    std::string prev_dir_;
-
+    int buffer_size_ = 2;
     int index_ = 0;
     bool debug_view_ = false;
     int bin_size_ = 10;

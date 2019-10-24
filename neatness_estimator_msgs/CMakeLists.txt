@@ -25,6 +25,7 @@ add_service_files(
   FILES
   VisionServer.srv
   GetDisplayFeature.srv
+  GetColorHistogram.srv
   DisplayState.srv
   )
 
