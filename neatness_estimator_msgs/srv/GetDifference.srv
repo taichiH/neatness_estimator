@@ -1,0 +1,10 @@
+jsk_recognition_msgs/ClusterPointIndices cluster
+sensor_msgs/PointCloud2 cloud
+sensor_msgs/Image image
+jsk_recognition_msgs/BoundingBoxArray instance_boxes
+jsk_recognition_msgs/BoundingBoxArray cluster_boxes
+---
+bool success
+neatness_estimator_msgs/HistogramArray color_histogram
+neatness_estimator_msgs/HistogramArray geometry_histogram
+neatness_estimator_msgs/NeatnessArray neatness
