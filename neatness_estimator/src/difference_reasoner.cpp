@@ -23,11 +23,7 @@ namespace neatness_estimator
     dir_.resize(buffer_size_);
     save_data_dir_.resize(buffer_size_);
 
-    msgs.cluster.resize(buffer_size_);
-    msgs.cloud.resize(buffer_size_);
-    msgs.image.resize(buffer_size_);
-    msgs.instance_boxes.resize(buffer_size_);
-    msgs.cluster_boxes.resize(buffer_size_);
+    msgs.resize(buffer_size_);
 
     server_ = pnh_.advertiseService("read", &DifferenceReasoner::service_callback, this);
 
@@ -124,8 +120,7 @@ namespace neatness_estimator
   }
 
   bool DifferenceReasoner::read_data
-  (neatness_estimator_msgs::GetDifference::Request& req,
-   int idx)
+  (neatness_estimator_msgs::GetDifference::Request& req)
   {
     // msgs.cluster.at(idx).reset(new jsk_recognition_msgs::ClusterPointIndices);
     // msgs.cloud.at(idx).reset(new sensor_msgs::PointCloud2);
@@ -133,11 +128,11 @@ namespace neatness_estimator
     // msgs.instance_boxes.at(idx).reset(new jsk_recognition_msgs::BoundingBoxArray);
     // msgs.cluster_boxes.at(idx).reset(new jsk_recognition_msgs::BoundingBoxArray);
 
-    msgs.cluster.at(idx) = boost::make_shared<jsk_recognition_msgs::ClusterPointIndices>(req.cluster);
-    msgs.cloud.at(idx) = boost::make_shared<sensor_msgs::PointCloud2>(req.cloud);
-    msgs.image.at(idx) = boost::make_shared<sensor_msgs::Image>(req.image);
-    msgs.instance_boxes.at(idx) = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(req.instance_boxes);
-    msgs.cluster_boxes.at(idx) = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(req.cluster_boxes);
+    msgs.cluster.at(0) = boost::make_shared<jsk_recognition_msgs::ClusterPointIndices>(req.cluster);
+    msgs.cloud.at(0) = boost::make_shared<sensor_msgs::PointCloud2>(req.cloud);
+    msgs.image.at(0) = boost::make_shared<sensor_msgs::Image>(req.image);
+    msgs.instance_boxes.at(0) = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(req.instance_boxes);
+    msgs.cluster_boxes.at(0) = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(req.cluster_boxes);
 
     return true;
   }
@@ -479,6 +474,57 @@ namespace neatness_estimator
     return true;
   }
 
+  bool DifferenceReasoner::run(neatness_estimator_msgs::GetDifference::Response& res)
+  {
+    for (size_t i=0; i<buffer_size_; ++i) {
+      cv::Mat image;
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
+        (new pcl::PointCloud<pcl::PointXYZRGB>);
+      neatness_estimator_msgs::HistogramArray color_histogram_array;
+      neatness_estimator_msgs::HistogramArray geometry_histogram_array;
+
+      load_image(msgs.image.at(i), image);
+      pcl::fromROSMsg(*msgs.cloud.at(i), *rgb_cloud);
+
+      std::vector<size_t> sorted_indices;
+      std::vector<size_t> labels;
+      create_sorted_indices(msgs.instance_boxes.at(i)->boxes,
+                            sorted_indices,
+                            labels);
+
+      cv::Mat mask_image = cv::Mat::zeros
+        (msgs.image.at(i)->height, msgs.image.at(i)->width, CV_8UC1);
+
+      cv::Mat debug_image = image.clone();
+
+      compute_histograms(rgb_cloud,
+                         msgs.cluster.at(i),
+                         color_histogram_array,
+                         geometry_histogram_array,
+                         mask_image,
+                         debug_image,
+                         labels,
+                         sorted_indices);
+
+      save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
+      save_image(log_dir_.at(i), image, mask_image, debug_image);
+      save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
+      save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
+
+      neatness_estimator_msgs::GetDisplayFeature client_msg;
+      client_msg.request.save_dir = save_data_dir_.at(i);
+      client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
+      client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
+      display_feature_client_.call(client_msg);
+
+      res.color_histogram = color_histogram_array;
+      res.geometry_histogram = geometry_histogram_array;
+      res.neatness = client_msg.response.res_neatness;
+
+    }
+    return true;
+  }
+
   bool DifferenceReasoner::service_callback
   (neatness_estimator_msgs::GetDifference::Request& req,
    neatness_estimator_msgs::GetDifference::Response& res)
@@ -500,26 +546,29 @@ namespace neatness_estimator
         res.success = false;
         return false;
       }
+
+      if ( !run() ) {
+        res.success = false;
+        return false;
+      };
+
     } else {
       ROS_INFO("read data from service reqeusted data.");
-      if ( !read_data(req, call_cnt_) ) {
-        call_cnt_++;
+      buffer_size_ = 1;
+      msgs.resize(buffer_size_);
+
+      if ( !read_data(req) ) {
         res.success = false;
         return false;
       }
-      call_cnt_++;
+
+      if ( !run(res) ) {
+        res.success = false;
+        return false;
+      };
+
     }
 
-    if (call_cnt_ < 2 && !from_file) {
-      ROS_INFO("wait next data by service call");
-      res.success = true;
-      return true;
-    }
-
-    if ( !run() ) {
-      res.success = false;
-      return false;
-    };
 
     res.success = true;
     return true;

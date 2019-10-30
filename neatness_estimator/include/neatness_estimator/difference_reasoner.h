@@ -79,6 +79,15 @@ namespace neatness_estimator
     std::vector<sensor_msgs::Image::ConstPtr> image;
     std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> instance_boxes;
     std::vector<jsk_recognition_msgs::BoundingBoxArray::ConstPtr> cluster_boxes;
+
+    void resize(int size) {
+      cluster.resize(size);
+      cloud.resize(size);
+      image.resize(size);
+      instance_boxes.resize(size);
+      cluster_boxes.resize(size);
+    }
+
   };
 
   class DifferenceReasoner : public nodelet::Nodelet
@@ -103,8 +112,7 @@ namespace neatness_estimator
     virtual bool read_data();
 
     virtual bool read_data
-      (neatness_estimator_msgs::GetDifference::Request& req,
-       int idx);
+      (neatness_estimator_msgs::GetDifference::Request& req);
 
     virtual bool get_read_dirs();
 
@@ -149,6 +157,8 @@ namespace neatness_estimator
        const neatness_estimator_msgs::HistogramArray& geometry_histogram_array);
 
     virtual bool run();
+
+    virtual bool run(neatness_estimator_msgs::GetDifference::Response& res);
 
     virtual bool create_sorted_indices
       (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
