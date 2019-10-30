@@ -326,10 +326,12 @@ namespace neatness_estimator
 
       neatness_estimator_msgs::Histogram color_histogram;
       compute_color_histogram(image, tmp_mask, color_histogram);
+      color_histogram.label = labels.at(i);
       color_histogram_array.histograms.push_back(color_histogram);
 
       neatness_estimator_msgs::Histogram geometry_histogram;
       compute_geometry_histogram(clustered_cloud, geometry_histogram);
+      geometry_histogram.label = labels.at(i);
       geometry_histogram_array.histograms.push_back(geometry_histogram);
     }
 
