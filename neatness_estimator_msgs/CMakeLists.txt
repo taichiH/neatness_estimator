@@ -29,7 +29,7 @@ add_service_files(
   GetDisplayFeature.srv
   GetColorHistogram.srv
   DisplayState.srv
-  GetDifference.srv
+  GetFeatures.srv
   )
 
 generate_messages(

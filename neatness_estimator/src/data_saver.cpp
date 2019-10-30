@@ -13,7 +13,7 @@ namespace neatness_estimator
 
     call_server_ = pnh_.advertiseService("call", &DataSaver::call_service_callback, this);
 
-    difference_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDifference>
+    difference_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetFeatures>
       ("/difference_reasoner/read");
 
     sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
@@ -172,7 +172,7 @@ namespace neatness_estimator
     bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
     bag.close();
 
-    neatness_estimator_msgs::GetDifference client_msg;
+    neatness_estimator_msgs::GetFeatures client_msg;
     client_msg.request.cloud = *cloud_msg_;
     client_msg.request.image = *image_msg_;
     client_msg.request.cluster = *cluster_msg_;

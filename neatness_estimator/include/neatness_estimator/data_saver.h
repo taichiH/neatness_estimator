@@ -10,7 +10,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
-#include <neatness_estimator_msgs/GetDifference.h>
+#include <neatness_estimator_msgs/GetFeatures.h>
 
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
 #include <jsk_recognition_msgs/LabelArray.h>

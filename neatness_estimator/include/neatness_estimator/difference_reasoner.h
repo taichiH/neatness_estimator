@@ -11,7 +11,7 @@
 
 #include <neatness_estimator_msgs/GetDisplayFeature.h>
 #include <neatness_estimator_msgs/GetColorHistogram.h>
-#include <neatness_estimator_msgs/GetDifference.h>
+#include <neatness_estimator_msgs/GetFeatures.h>
 #include <neatness_estimator_msgs/Neatness.h>
 #include <neatness_estimator_msgs/NeatnessArray.h>
 #include <neatness_estimator_msgs/Histogram.h>
@@ -106,13 +106,13 @@ namespace neatness_estimator
     virtual void onInit();
 
     virtual bool service_callback
-      (neatness_estimator_msgs::GetDifference::Request& req,
-       neatness_estimator_msgs::GetDifference::Response& res);
+      (neatness_estimator_msgs::GetFeatures::Request& req,
+       neatness_estimator_msgs::GetFeatures::Response& res);
 
     virtual bool read_data();
 
     virtual bool read_data
-      (neatness_estimator_msgs::GetDifference::Request& req);
+      (neatness_estimator_msgs::GetFeatures::Request& req);
 
     virtual bool get_read_dirs();
 
@@ -158,7 +158,7 @@ namespace neatness_estimator
 
     virtual bool run();
 
-    virtual bool run(neatness_estimator_msgs::GetDifference::Response& res);
+    virtual bool run(neatness_estimator_msgs::GetFeatures::Response& res);
 
     virtual bool create_sorted_indices
       (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,

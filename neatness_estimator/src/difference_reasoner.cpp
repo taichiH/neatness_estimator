@@ -120,7 +120,7 @@ namespace neatness_estimator
   }
 
   bool DifferenceReasoner::read_data
-  (neatness_estimator_msgs::GetDifference::Request& req)
+  (neatness_estimator_msgs::GetFeatures::Request& req)
   {
     // msgs.cluster.at(idx).reset(new jsk_recognition_msgs::ClusterPointIndices);
     // msgs.cloud.at(idx).reset(new sensor_msgs::PointCloud2);
@@ -474,7 +474,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::run(neatness_estimator_msgs::GetDifference::Response& res)
+  bool DifferenceReasoner::run(neatness_estimator_msgs::GetFeatures::Response& res)
   {
     for (size_t i=0; i<buffer_size_; ++i) {
       cv::Mat image;
@@ -526,8 +526,8 @@ namespace neatness_estimator
   }
 
   bool DifferenceReasoner::service_callback
-  (neatness_estimator_msgs::GetDifference::Request& req,
-   neatness_estimator_msgs::GetDifference::Response& res)
+  (neatness_estimator_msgs::GetFeatures::Request& req,
+   neatness_estimator_msgs::GetFeatures::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
 
