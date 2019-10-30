@@ -21,6 +21,7 @@ add_message_files(
   EdgeHistogramArray.msg
   Histogram.msg
   HistogramArray.msg
+  Features.msg
   )
 
 add_service_files(
@@ -30,6 +31,7 @@ add_service_files(
   GetColorHistogram.srv
   DisplayState.srv
   GetFeatures.srv
+  GetDifference.srv
   )
 
 generate_messages(

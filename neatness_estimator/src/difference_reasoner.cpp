@@ -517,9 +517,9 @@ namespace neatness_estimator
       client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
       display_feature_client_.call(client_msg);
 
-      res.color_histogram = color_histogram_array;
-      res.geometry_histogram = geometry_histogram_array;
-      res.neatness = client_msg.response.res_neatness;
+      res.features.color_histogram = color_histogram_array;
+      res.features.geometry_histogram = geometry_histogram_array;
+      res.features.neatness = client_msg.response.res_neatness;
 
     }
     return true;

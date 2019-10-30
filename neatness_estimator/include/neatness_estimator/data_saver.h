@@ -11,6 +11,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <neatness_estimator_msgs/GetFeatures.h>
+#include <neatness_estimator_msgs/GetDifference.h>
 
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
 #include <jsk_recognition_msgs/LabelArray.h>
@@ -78,6 +79,7 @@ namespace neatness_estimator
     virtual bool create_save_dir(std::stringstream& ss,
                                  std::string dir_name);
 
+    virtual bool create_features_vec(const neatness_estimator_msgs::Features& fetures);
 
     // variables
 
@@ -87,8 +89,8 @@ namespace neatness_estimator
     ros::ServiceServer save_server_;
     ros::ServiceServer call_server_;
 
+    ros::ServiceClient feature_client_;
     ros::ServiceClient difference_client_;
-
 
     boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
     boost::shared_ptr<message_filters::Synchronizer<ApproximateSyncPolicy> > async_;
@@ -106,6 +108,8 @@ namespace neatness_estimator
     jsk_recognition_msgs::LabelArray::ConstPtr labels_msg_;
     jsk_recognition_msgs::BoundingBoxArray::ConstPtr instance_boxes_msg_;
     jsk_recognition_msgs::BoundingBoxArray::ConstPtr cluster_boxes_msg_;
+
+    std::vector<neatness_estimator_msgs::Features> features_vec_;
 
     boost::mutex mutex_;
     std::string prefix_ = "./";

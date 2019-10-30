@@ -13,8 +13,11 @@ namespace neatness_estimator
 
     call_server_ = pnh_.advertiseService("call", &DataSaver::call_service_callback, this);
 
-    difference_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetFeatures>
+    feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetFeatures>
       ("/difference_reasoner/read");
+
+    difference_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDifference>
+      ("/compare_hist/compare");
 
     sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
     sub_image_.subscribe(pnh_, "input_image", 1);
@@ -171,17 +174,36 @@ namespace neatness_estimator
     bag.write(topics_.at(4), instance_boxes_msg_->header.stamp, *instance_boxes_msg_);
     bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
     bag.close();
+    
+    neatness_estimator_msgs::GetFeatures feature_client_msg;
+    feature_client_msg.request.cloud = *cloud_msg_;
+    feature_client_msg.request.image = *image_msg_;
+    feature_client_msg.request.cluster = *cluster_msg_;
+    feature_client_msg.request.instance_boxes = *instance_boxes_msg_;
+    feature_client_msg.request.cluster_boxes = *cluster_boxes_msg_;
+    feature_client_.call(feature_client_msg);
 
-    neatness_estimator_msgs::GetFeatures client_msg;
-    client_msg.request.cloud = *cloud_msg_;
-    client_msg.request.image = *image_msg_;
-    client_msg.request.cluster = *cluster_msg_;
-    client_msg.request.instance_boxes = *instance_boxes_msg_;
-    client_msg.request.cluster_boxes = *cluster_boxes_msg_;
-    difference_client_.call(client_msg);
+    bool buffered = create_features_vec(feature_client_msg.response.features);
+    if (buffered) {
+      neatness_estimator_msgs::GetDifference difference_msg;
+      difference_msg.request.features = features_vec_;
+      difference_client_.call(difference_msg);
+    }
 
     res.success = true;
     return true;
+  }
+
+  bool DataSaver::create_features_vec(const neatness_estimator_msgs::Features& features)
+  {
+    bool buffered;
+    if (features_vec_.size() >= 1) {
+      buffered = true;
+      features_vec_.erase(features_vec_.begin());
+    }
+    features_vec_.push_back(features);
+
+    return buffered;
   }
 
 } // namespace neatness_estimator

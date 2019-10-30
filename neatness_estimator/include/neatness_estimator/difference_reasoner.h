@@ -12,6 +12,7 @@
 #include <neatness_estimator_msgs/GetDisplayFeature.h>
 #include <neatness_estimator_msgs/GetColorHistogram.h>
 #include <neatness_estimator_msgs/GetFeatures.h>
+#include <neatness_estimator_msgs/GetDifference.h>
 #include <neatness_estimator_msgs/Neatness.h>
 #include <neatness_estimator_msgs/NeatnessArray.h>
 #include <neatness_estimator_msgs/Histogram.h>
