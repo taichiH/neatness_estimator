@@ -103,7 +103,8 @@ namespace neatness_estimator
     virtual bool read_data();
 
     virtual bool read_data
-      (neatness_estimator_msgs::GetDifference::Request& req);
+      (neatness_estimator_msgs::GetDifference::Request& req,
+       int idx);
 
     virtual bool get_read_dirs();
 
@@ -178,6 +179,7 @@ namespace neatness_estimator
 
     Msgs msgs;
 
+    int call_cnt_ = 0;
     int buffer_size_ = 2;
     int index_ = 0;
     bool debug_view_ = false;

@@ -124,8 +124,21 @@ namespace neatness_estimator
   }
 
   bool DifferenceReasoner::read_data
-  (neatness_estimator_msgs::GetDifference::Request& req)
+  (neatness_estimator_msgs::GetDifference::Request& req,
+   int idx)
   {
+    // msgs.cluster.at(idx).reset(new jsk_recognition_msgs::ClusterPointIndices);
+    // msgs.cloud.at(idx).reset(new sensor_msgs::PointCloud2);
+    // msgs.image.at(idx).reset(new sensor_msgs::Image);
+    // msgs.instance_boxes.at(idx).reset(new jsk_recognition_msgs::BoundingBoxArray);
+    // msgs.cluster_boxes.at(idx).reset(new jsk_recognition_msgs::BoundingBoxArray);
+
+    msgs.cluster.at(idx) = boost::make_shared<jsk_recognition_msgs::ClusterPointIndices>(req.cluster);
+    msgs.cloud.at(idx) = boost::make_shared<sensor_msgs::PointCloud2>(req.cloud);
+    msgs.image.at(idx) = boost::make_shared<sensor_msgs::Image>(req.image);
+    msgs.instance_boxes.at(idx) = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(req.instance_boxes);
+    msgs.cluster_boxes.at(idx) = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(req.cluster_boxes);
+
     return true;
   }
 
@@ -488,11 +501,19 @@ namespace neatness_estimator
         return false;
       }
     } else {
-      buffer_size_ = 1;
-      if ( !read_data(req) ) {
+      ROS_INFO("read data from service reqeusted data.");
+      if ( !read_data(req, call_cnt_) ) {
+        call_cnt_++;
         res.success = false;
         return false;
       }
+      call_cnt_++;
+    }
+
+    if (call_cnt_ < 2 && !from_file) {
+      ROS_INFO("wait next data by service call");
+      res.success = true;
+      return true;
     }
 
     if ( !run() ) {
