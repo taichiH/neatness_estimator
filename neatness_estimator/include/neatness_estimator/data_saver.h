@@ -10,6 +10,8 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
+#include <neatness_estimator_msgs/GetDifference.h>
+
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
 #include <jsk_recognition_msgs/LabelArray.h>
 #include <jsk_recognition_msgs/BoundingBoxArray.h>
@@ -67,8 +69,11 @@ namespace neatness_estimator
                           const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& instance_boxes_msg,
                           const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& cluster_boxes_msg);
 
-    virtual bool service_callback(std_srvs::SetBool::Request& req,
-                                  std_srvs::SetBool::Response& res);
+    virtual bool save_service_callback(std_srvs::SetBool::Request& req,
+                                       std_srvs::SetBool::Response& res);
+
+    virtual bool call_service_callback(std_srvs::SetBool::Request& req,
+                                       std_srvs::SetBool::Response& res);
 
     virtual bool create_save_dir(std::stringstream& ss,
                                  std::string dir_name);
@@ -79,7 +84,11 @@ namespace neatness_estimator
     ros::NodeHandle nh_;
     ros::NodeHandle pnh_;
 
-    ros::ServiceServer server_;
+    ros::ServiceServer save_server_;
+    ros::ServiceServer call_server_;
+
+    ros::ServiceClient difference_client_;
+
 
     boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
     boost::shared_ptr<message_filters::Synchronizer<ApproximateSyncPolicy> > async_;

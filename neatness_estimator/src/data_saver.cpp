@@ -9,7 +9,12 @@ namespace neatness_estimator
     pnh_ = getPrivateNodeHandle();
     pnh_.getParam("prefix", prefix_);
 
-    server_ = pnh_.advertiseService("save", &DataSaver::service_callback, this);
+    save_server_ = pnh_.advertiseService("save", &DataSaver::save_service_callback, this);
+
+    call_server_ = pnh_.advertiseService("call", &DataSaver::call_service_callback, this);
+
+    difference_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDifference>
+      ("/difference_reasoner/read");
 
     sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
     sub_image_.subscribe(pnh_, "input_image", 1);
@@ -99,12 +104,12 @@ namespace neatness_estimator
   }
 
 
-  bool DataSaver::service_callback(std_srvs::SetBool::Request& req,
-                                   std_srvs::SetBool::Response& res)
+  bool DataSaver::save_service_callback(std_srvs::SetBool::Request& req,
+                                        std_srvs::SetBool::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
 
-    std::cerr << "service_callback!!!" << std::endl;
+    std::cerr << "save_service_callback!!!" << std::endl;
 
     if ( cloud_msg_->height * cloud_msg_->width == 0 ) {
       res.success = false;
@@ -129,6 +134,51 @@ namespace neatness_estimator
     bag.write(topics_.at(4), instance_boxes_msg_->header.stamp, *instance_boxes_msg_);
     bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
     bag.close();
+
+
+
+    res.success = true;
+    return true;
+  }
+
+  bool DataSaver::call_service_callback(std_srvs::SetBool::Request& req,
+                                        std_srvs::SetBool::Response& res)
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+
+    std::cerr << "call_service_callback!!!" << std::endl;
+
+    if ( cloud_msg_->height * cloud_msg_->width == 0 ) {
+      res.success = false;
+      return false;
+    }
+
+    std::stringstream ss;
+    std::string dir_name = std::to_string(cloud_msg_->header.stamp.sec);
+    if ( !create_save_dir(ss, dir_name) ) {
+      res.success = false;
+    }
+
+    std::stringstream bag_save_path;
+    bag_save_path << ss.str() << "/" << cloud_msg_->header.stamp.sec << ".bag";
+    rosbag::Bag bag;
+    bag.open(bag_save_path.str(), rosbag::bagmode::Write);
+    // topics : [cloud, rgb, cluster, labels]
+    bag.write(topics_.at(0), cloud_msg_->header.stamp, *cloud_msg_);
+    bag.write(topics_.at(1), image_msg_->header.stamp, *image_msg_);
+    bag.write(topics_.at(2), cluster_msg_->header.stamp, *cluster_msg_);
+    bag.write(topics_.at(3), labels_msg_->header.stamp, *labels_msg_);
+    bag.write(topics_.at(4), instance_boxes_msg_->header.stamp, *instance_boxes_msg_);
+    bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
+    bag.close();
+
+    neatness_estimator_msgs::GetDifference client_msg;
+    client_msg.request.cloud = *cloud_msg_;
+    client_msg.request.image = *image_msg_;
+    client_msg.request.cluster = *cluster_msg_;
+    client_msg.request.instance_boxes = *instance_boxes_msg_;
+    client_msg.request.cluster_boxes = *cluster_boxes_msg_;
+    difference_client_.call(client_msg);
 
     res.success = true;
     return true;
