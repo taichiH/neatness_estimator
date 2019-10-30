@@ -13,14 +13,6 @@ namespace neatness_estimator
     pnh_.getParam("black_threshold", black_threshold_);
     pnh_.getParam("normal_search_radius", normal_search_radius_);
 
-    int policy;
-    pnh_.getParam("histogram_policy", policy);
-    if (policy == 1) {
-      histogram_policy_ = jsk_recognition_utils::HUE_AND_SATURATION;
-    } else {
-      histogram_policy_ = jsk_recognition_utils::HUE;
-    }
-
     pnh_.getParam("cloud_topic", cloud_topic_);
     pnh_.getParam("image_topic", image_topic_);
     pnh_.getParam("cluster_topic", cluster_topic_);
@@ -38,6 +30,7 @@ namespace neatness_estimator
     msgs.cluster_boxes.resize(buffer_size_);
 
     server_ = pnh_.advertiseService("read", &DifferenceReasoner::service_callback, this);
+
     display_feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDisplayFeature>
       ("service_topic");
 
@@ -130,6 +123,12 @@ namespace neatness_estimator
     return true;
   }
 
+  bool DifferenceReasoner::read_data
+  (neatness_estimator_msgs::GetDifference::Request& req)
+  {
+    return true;
+  }
+
   bool DifferenceReasoner::save_pcd(std::string save_path,
                                     const pcl::PointCloud<pcl::PointXYZRGB>& cloud)
   {
@@ -157,44 +156,11 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::compute_color_histogram
-  (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
-   jsk_recognition_msgs::ColorHistogram& color_histogram)
-  {
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr hsv_cloud(new pcl::PointCloud<pcl::PointXYZHSV>);
-    pcl::PointCloudXYZRGBtoXYZHSV(*rgb_cloud, *hsv_cloud);
-
-    for (size_t i = 0; i < rgb_cloud->points.size(); i++) {
-      hsv_cloud->points.at(i).x = rgb_cloud->points.at(i).x;
-      hsv_cloud->points.at(i).y = rgb_cloud->points.at(i).y;
-      hsv_cloud->points.at(i).z = rgb_cloud->points.at(i).z;
-    }
-
-    if (histogram_policy_ == jsk_recognition_utils::HUE) {
-      jsk_recognition_utils::computeColorHistogram1d(*hsv_cloud,
-                                                     color_histogram.histogram,
-                                                     bin_size_,
-                                                     white_threshold_,
-                                                     black_threshold_);
-    } else if (histogram_policy_ == jsk_recognition_utils::HUE_AND_SATURATION) {
-      jsk_recognition_utils::computeColorHistogram2d(*hsv_cloud,
-                                                     color_histogram.histogram,
-                                                     bin_size_,
-                                                     white_threshold_,
-                                                     black_threshold_);
-    } else {
-      ROS_WARN("Invalid histogram policy");
-      return false;
-    }
-
-
-    return true;
-  }
 
   bool DifferenceReasoner::compute_color_histogram
   (const cv::Mat& image,
    const cv::Mat& mask,
-   jsk_recognition_msgs::ColorHistogram& color_histogram)
+   neatness_estimator_msgs::Histogram& color_histogram)
   {
     neatness_estimator_msgs::GetColorHistogram client_msg;
     sensor_msgs::Image image_msg = *(cv_bridge::CvImage
@@ -236,7 +202,7 @@ namespace neatness_estimator
 
   bool DifferenceReasoner::compute_geometry_histogram
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
-   jsk_recognition_msgs::Histogram& geometry_histogram)
+   neatness_estimator_msgs::Histogram& geometry_histogram)
   {
 
     pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> normal_estimation;
@@ -282,8 +248,8 @@ namespace neatness_estimator
   bool DifferenceReasoner::compute_histograms
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
    jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
-   jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
-   std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
+   neatness_estimator_msgs::HistogramArray& color_histogram_array,
+   neatness_estimator_msgs::HistogramArray& geometry_histogram_array,
    cv::Mat& mask_image,
    cv::Mat& debug_image,
    std::vector<size_t>& labels,
@@ -350,13 +316,13 @@ namespace neatness_estimator
         (new pcl::PointCloud<pcl::PointXYZRGB>());
       extract.filter(*clustered_cloud);
 
-      jsk_recognition_msgs::ColorHistogram color_histogram;
+      neatness_estimator_msgs::Histogram color_histogram;
       compute_color_histogram(image, tmp_mask, color_histogram);
       color_histogram_array.histograms.push_back(color_histogram);
 
-      jsk_recognition_msgs::Histogram geometry_histogram;
+      neatness_estimator_msgs::Histogram geometry_histogram;
       compute_geometry_histogram(clustered_cloud, geometry_histogram);
-      geometry_histogram_array.push_back(geometry_histogram);
+      geometry_histogram_array.histograms.push_back(geometry_histogram);
     }
 
     return true;
@@ -378,9 +344,9 @@ namespace neatness_estimator
   }
 
   bool DifferenceReasoner::save_color_histogram
-  (std::string save_dir,
+  (std::string save_dir, 
    std::vector<size_t> labels,
-   const jsk_recognition_msgs::ColorHistogramArray& color_histogram_array)
+   const neatness_estimator_msgs::HistogramArray& color_histogram_array)
   {
     std::ofstream f;
     try {
@@ -403,14 +369,14 @@ namespace neatness_estimator
   bool DifferenceReasoner::save_geometry_histogram
   (std::string save_dir,
    std::vector<size_t> labels,
-   const std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array)
+   const neatness_estimator_msgs::HistogramArray& geometry_histogram_array)
   {
     try {
       std::ofstream f;
       f.open(save_dir + "geometry_histograms.csv");
-      for (size_t i=0; i<geometry_histogram_array.size(); ++i) {
+      for (size_t i=0; i<geometry_histogram_array.histograms.size(); ++i) {
         f << std::to_string(labels.at(i)) + ", ";
-        for (auto v : geometry_histogram_array.at(i).histogram) {
+        for (auto v : geometry_histogram_array.histograms.at(i).histogram) {
           f << std::to_string(v) + ",";
         }
         f << "\n";
@@ -460,8 +426,8 @@ namespace neatness_estimator
       cv::Mat image;
       pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
         (new pcl::PointCloud<pcl::PointXYZRGB>);
-      jsk_recognition_msgs::ColorHistogramArray color_histogram_array;
-      std::vector<jsk_recognition_msgs::Histogram> geometry_histogram_array;
+      neatness_estimator_msgs::HistogramArray color_histogram_array;
+      neatness_estimator_msgs::HistogramArray geometry_histogram_array;
 
       load_image(msgs.image.at(i), image);
       pcl::fromROSMsg(*msgs.cloud.at(i), *rgb_cloud);
@@ -500,18 +466,33 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::service_callback(std_srvs::SetBool::Request& req,
-                                            std_srvs::SetBool::Response& res)
+  bool DifferenceReasoner::service_callback
+  (neatness_estimator_msgs::GetDifference::Request& req,
+   neatness_estimator_msgs::GetDifference::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
-    if ( !get_read_dirs() ) {
-      res.success = false;
-      return false;
+
+    bool from_file = false;
+    if (req.cloud.height * req.cloud.width == 0) {
+      from_file = true;
     }
 
-    if ( !read_data() ) {
-      res.success = false;
-      return false;
+    if (from_file) {
+      if ( !get_read_dirs() ) {
+        res.success = false;
+        return false;
+      }
+
+      if ( !read_data() ) {
+        res.success = false;
+        return false;
+      }
+    } else {
+      buffer_size_ = 1;
+      if ( !read_data(req) ) {
+        res.success = false;
+        return false;
+      }
     }
 
     if ( !run() ) {

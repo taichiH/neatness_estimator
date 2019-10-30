@@ -11,13 +11,13 @@
 
 #include <neatness_estimator_msgs/GetDisplayFeature.h>
 #include <neatness_estimator_msgs/GetColorHistogram.h>
+#include <neatness_estimator_msgs/GetDifference.h>
 #include <neatness_estimator_msgs/Neatness.h>
 #include <neatness_estimator_msgs/NeatnessArray.h>
-#include <jsk_recognition_msgs/Histogram.h>
-#include <jsk_recognition_msgs/ColorHistogram.h>
-#include <jsk_recognition_msgs/ColorHistogramArray.h>
-#include <jsk_recognition_msgs/ClusterPointIndices.h>
+#include <neatness_estimator_msgs/Histogram.h>
+#include <neatness_estimator_msgs/HistogramArray.h>
 #include <jsk_recognition_msgs/BoundingBoxArray.h>
+#include <jsk_recognition_msgs/ClusterPointIndices.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
 #include <std_srvs/SetBool.h>
@@ -46,7 +46,6 @@
 #include <mutex>
 #include <boost/filesystem.hpp>
 
-#include <jsk_recognition_utils/pcl/color_histogram.h>
 #include <jsk_pcl_ros/region_adjacency_graph.h>
 
 #include <pcl/visualization/pcl_visualizer.h>
@@ -97,37 +96,35 @@ namespace neatness_estimator
 
     virtual void onInit();
 
-    virtual bool service_callback(std_srvs::SetBool::Request& req,
-                                  std_srvs::SetBool::Response& res);
+    virtual bool service_callback
+      (neatness_estimator_msgs::GetDifference::Request& req,
+       neatness_estimator_msgs::GetDifference::Response& res);
 
     virtual bool read_data();
+
+    virtual bool read_data
+      (neatness_estimator_msgs::GetDifference::Request& req);
 
     virtual bool get_read_dirs();
 
     virtual bool compute_histograms
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
        jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
-       jsk_recognition_msgs::ColorHistogramArray& color_histogram_array,
-       std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array,
+       neatness_estimator_msgs::HistogramArray& color_histogram_array,
+       neatness_estimator_msgs::HistogramArray& geometry_histogram_array,
        cv::Mat& mask_image,
        cv::Mat& debug_image,
        std::vector<size_t>& labels,
        std::vector<size_t>& sorted_indices);
 
     virtual bool compute_color_histogram
-      (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
-       jsk_recognition_msgs::ColorHistogram& color_histogram);
-
-
-    virtual bool compute_color_histogram
       (const cv::Mat& image,
-       const cv::Mat& mask_image,
-       jsk_recognition_msgs::ColorHistogram& color_histogram);
-
+       const cv::Mat& mask,
+       neatness_estimator_msgs::Histogram& color_histogram);
 
     virtual bool compute_geometry_histogram
       (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
-       jsk_recognition_msgs::Histogram& geometry_histogram);
+       neatness_estimator_msgs::Histogram& geometry_histogram);
 
     virtual bool save_pcd(std::string save_path,
                           const pcl::PointCloud<pcl::PointXYZRGB>& cloud);
@@ -141,14 +138,14 @@ namespace neatness_estimator
                             cv::Mat& input_image);
 
     virtual bool save_color_histogram
-      (std::string save_dir,
+      (std::string save_dir, 
        std::vector<size_t> labels,
-       const jsk_recognition_msgs::ColorHistogramArray& color_histogram_array);
+       const neatness_estimator_msgs::HistogramArray& color_histogram_array);
 
     virtual bool save_geometry_histogram
       (std::string save_dir,
        std::vector<size_t> labels,
-       const std::vector<jsk_recognition_msgs::Histogram>& geometry_histogram_array);
+       const neatness_estimator_msgs::HistogramArray& geometry_histogram_array);
 
     virtual bool run();
 
@@ -190,9 +187,6 @@ namespace neatness_estimator
     double normal_search_radius_ = 0.01;
     std::vector<size_t> labels_;
     std::vector<size_t> sorted_indices_;
-
-    // 0: HUE, 1: HUE_AND_SATURATION
-    jsk_recognition_utils::HistogramPolicy histogram_policy_ = jsk_recognition_utils::HUE;
 
   private:
 

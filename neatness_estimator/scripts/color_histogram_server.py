@@ -5,7 +5,6 @@ import numpy as np
 import cv2
 
 import rospy
-from jsk_recognition_msgs.msg import ColorHistogram
 from neatness_estimator_msgs.srv import GetColorHistogram, GetColorHistogramResponse
 from cv_bridge import CvBridge, CvBridgeError
 
