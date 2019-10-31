@@ -3,8 +3,6 @@
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
-#include <thread>
-#include <mutex>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
@@ -12,11 +10,9 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
-#include <jsk_recognition_msgs/LabelArray.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_msgs/PointIndices.h>
-#include <std_msgs/Header.h>
 
 #include <pcl/point_types.h>
 #include <pcl/filters/extract_indices.h>
@@ -50,22 +46,12 @@ namespace neatness_estimator
     virtual void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_indices,
                           const sensor_msgs::PointCloud2::ConstPtr& point_cloud);
 
-    virtual bool extract(const pcl_msgs::PointIndices& point_indices,
-                         pcl_msgs::PointIndices& point_indices_msg,
-                         const std_msgs::Header& header);
-
-    virtual void thread_func(int i,
-                             const pcl_msgs::PointIndices& point_indices,
-                             const std_msgs::Header& header);
-
-
     ros::NodeHandle nh_;
     ros::NodeHandle pnh_;
     ros::Publisher output_cluster_indices_pub_;
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr clustered_cloud_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud_;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr preprocessed_cloud_;
 
     boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
     boost::shared_ptr<message_filters::Synchronizer<ApproximateSyncPolicy> > async_;
@@ -77,10 +63,12 @@ namespace neatness_estimator
     float minsize_ = 10;
     float maxsize_ = 5000;
     bool approximate_sync_ = true;
+    double leaf_size_ = 0.01;
+    bool downsample_ = true;
+    std::vector<std::vector<int> > downsample_to_original_indices_;
+    std::vector<int> original_to_downsample_indices_;
 
-    std::mutex mtx_;
-
-    std::map<int, pcl_msgs::PointIndices> point_indices_map_;
+    boost::mutex mutex_;
 
   private:
   };

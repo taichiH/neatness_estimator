@@ -1,4 +1,5 @@
 <launch>
+  <arg name="downsample" default="true"/>
   <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
 
   <node name="multi_euclidean_clustering"
@@ -8,9 +9,12 @@
     <remap from="~input_cluster_indices" to="/instance_cluster_point_indices_decomposer/cluster_indices" />
     <remap from="~input_point_cloud" to="$(arg input_cloud)" />
     <rosparam subst_value="true">
-      cluster_tolerance: 0.008
+      downsample: $(arg downsample)
+      cluster_tolerance: 0.01
       min_size: 100
       max_size: 25000
+      cluster_telerance: 0.01
+      leaf_size: 0.01
       approximate_sync_: false
     </rosparam>
   </node>
