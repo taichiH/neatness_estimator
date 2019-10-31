@@ -51,6 +51,7 @@ namespace neatness_estimator
     ros::Publisher output_cluster_indices_pub_;
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr preprocessed_cloud_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr clustered_cloud_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud_;
 
@@ -64,6 +65,12 @@ namespace neatness_estimator
     float minsize_ = 10;
     float maxsize_ = 5000;
     bool approximate_sync_ = true;
+    double leaf_size_;
+    bool downsample_ = true;
+    std::vector<std::vector<int> > downsample_to_original_indices_;
+    std::vector<int> original_to_downsample_indices_;
+
+    boost::mutex mutex_;
 
   private:
   };
