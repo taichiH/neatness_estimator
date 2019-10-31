@@ -1,17 +1,33 @@
 <launch>
-  <arg name="input_cloud" default="/higashide/point_cloud/cloud_registered/remote" />
+  <arg name="gpu" default="0"/>
+  <arg name="downsample" default="true"/>
+  <arg name="input_cloud" default="/camera/depth_registered/points" />
+  <arg name="input_image" default="/camera/rgb/image_rect_color" />
+
+  <node name="mask_rcnn_instance_segmentation"
+        pkg="jsk_perception" type="mask_rcnn_instance_segmentation.py"
+        clear_params="true">
+    <remap from="~input" to="$(arg input_image)" />
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+    <rosparam subst_value="true">
+      pretrained_model: $(find neatness_estimator)/trained_data/fcsc_instance_segmentation_181229.npz
+      gpu: $(arg gpu)
+    </rosparam>
+  </node>
 
   <node name="multi_euclidean_clustering"
         pkg="nodelet" type="nodelet"
         args="standalone neatness_estimator/MultiEuclideanClustering"
         output="screen">
-    <remap from="~input_cluster_indices" to="/instance_cluster_point_indices_decomposer/cluster_indices" />
+    <remap from="~input_cluster_indices" to="/mask_rcnn_instance_segmentation/output/cluster_indices" />
     <remap from="~input_point_cloud" to="$(arg input_cloud)" />
     <rosparam subst_value="true">
-      cluster_tolerance: 0.008
-      min_size: 100
-      max_size: 25000
-      approximate_sync_: false
+      cluster_tolerance: 0.02
+      min_size: 0
+      max_size: 2500000
+      approximate_sync_: true
+      downsample: $(arg downsample)
     </rosparam>
   </node>
 
@@ -21,25 +37,10 @@
     <remap from="~input" to="$(arg input_cloud)" />
     <remap from="~target" to="/multi_euclidean_clustering/output_indices" />
     <rosparam>
-      align_boxes: true
-      align_boxes_with_plane: false
+      align_boxes: false
+      use_pca: true
       approximate_sync: false
       queue_size: 100
-      target_frame_id: base_link
-      sort_by: input_indices
-    </rosparam>
-  </node>
-
-  <node name="labeled_bounding_box_publisher"
-        pkg="neatness_estimator" type="labeled_bounding_box_publisher.py"
-        output="screen">
-    <rosparam command="load"
-              file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
-    <remap from="~input/instance_boxes" to="/multi_euclidean_cluster_point_indices_decomposer/boxes"/>
-    <remap from="~input/instance_labels" to="/mask_rcnn_instance_segmentation/output/labels"/>
-    <rosparam subst_value="true">
-      approximate_sync: true
-      with_cluster_box: false
     </rosparam>
   </node>
 
