@@ -102,48 +102,51 @@ namespace neatness_estimator
         std::sort(nonnan_indices->indices.begin(), nonnan_indices->indices.end());
         nonnan_indices->indices.erase(std::unique(nonnan_indices->indices.begin(), nonnan_indices->indices.end()), nonnan_indices->indices.end());
 
-        // Create the filtering object
-        pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_points(new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::ExtractIndices<pcl::PointXYZ> extract;
-        extract.setInputCloud (voxel_cloud);
-        extract.setIndices (nonnan_indices);
-        extract.setNegative(false);
-        extract.filter (*filtered_points);
-
-        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
-        tree->setInputCloud(filtered_points);
-
-        std::vector<pcl::PointIndices> output_indices;
-        pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        ec.setClusterTolerance(cluster_tolerance_);
-        ec.setMinClusterSize(minsize_);
-        ec.setMaxClusterSize(maxsize_);
-        ec.setSearchMethod(tree);
-        ec.setInputCloud(filtered_points);
-        ec.extract(output_indices);
-
         pcl_msgs::PointIndices point_indices_msg;
-        if (output_indices.size() > 0) {
-          int size = 0;
-          int index = 0;
-          for(int i=0; i < output_indices.size(); i++){
-            if(output_indices[i].indices.size() > size){
-              size = output_indices[i].indices.size();
-              index = i;
-            }
-          }
+        if (nonnan_indices->indices.size() > 0) {
 
-          if (downsample_) {
-            for (size_t i_index = 0; i_index < output_indices.at(index).indices.size(); ++i_index) {
-              point_indices_msg.indices.insert(
-                                               point_indices_msg.indices.end(),
-                                               downsample_to_original_indices_[
-                                                                               nonnan_indices->indices[output_indices.at(index).indices[i_index]]].begin(),
-                                               downsample_to_original_indices_[nonnan_indices->indices[output_indices.at(index).indices[i_index]]].end()
-                                               );
+          // Create the filtering object
+          pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_points(new pcl::PointCloud<pcl::PointXYZ>);
+          pcl::ExtractIndices<pcl::PointXYZ> extract;
+          extract.setInputCloud (voxel_cloud);
+          extract.setIndices (nonnan_indices);
+          extract.setNegative(false);
+          extract.filter (*filtered_points);
+
+          pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+          tree->setInputCloud(filtered_points);
+
+          std::vector<pcl::PointIndices> output_indices;
+          pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+          ec.setClusterTolerance(cluster_tolerance_);
+          ec.setMinClusterSize(minsize_);
+          ec.setMaxClusterSize(maxsize_);
+          ec.setSearchMethod(tree);
+          ec.setInputCloud(filtered_points);
+          ec.extract(output_indices);
+
+          if (output_indices.size() > 0) {
+            int size = 0;
+            int index = 0;
+            for(int i=0; i < output_indices.size(); i++){
+              if(output_indices[i].indices.size() > size){
+                size = output_indices[i].indices.size();
+                index = i;
+              }
             }
-          } else {
-            point_indices_msg.indices = output_indices.at(index).indices;
+
+            if (downsample_) {
+              for (size_t i_index = 0; i_index < output_indices.at(index).indices.size(); ++i_index) {
+                point_indices_msg.indices.insert(
+                                                 point_indices_msg.indices.end(),
+                                                 downsample_to_original_indices_[
+                                                                                 nonnan_indices->indices[output_indices.at(index).indices[i_index]]].begin(),
+                                                 downsample_to_original_indices_[nonnan_indices->indices[output_indices.at(index).indices[i_index]]].end()
+                                                 );
+              }
+            } else {
+              point_indices_msg.indices = output_indices.at(index).indices;
+            }
           }
         }
         // set extracted indices to ros msg
