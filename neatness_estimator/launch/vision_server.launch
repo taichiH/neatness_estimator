@@ -1,16 +1,25 @@
 <launch>
   <arg name="input_instance_boxes"
-       default="/dummy_bounding_box_publisher/output" />
+       default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
   <arg name="input_cluster_boxes"
        default="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
+  <arg name="input_red_boxes"
+       default="/color_filter_cluster_decomposer/boxes" />
+  <arg name="input_qatm_pos"
+       default="/rect_projector/output" />
 
   <node name="display_task_vision_server"
         pkg="neatness_estimator" type="vision_server.py"
-        screen="output">
+        output="screen">
     <rosparam command="load"
               file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/qatm_labels.yaml" />
     <remap from="~input_instance_boxes" to="$(arg input_instance_boxes)" />
     <remap from="~input_cluster_boxes" to="$(arg input_cluster_boxes)" />
+    <remap from="~input_red_boxes" to="$(arg input_red_boxes)" />
+    <remap from="~input_qatm_pos" to="$(arg input_qatm_pos)" />
+
   </node>
 
 </launch>

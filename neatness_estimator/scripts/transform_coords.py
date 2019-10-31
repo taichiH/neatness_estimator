@@ -3,9 +3,9 @@
 import rospy
 import tf
 try:
-    from what_i_see_msgs.msg import LabeledPose, LabeledPoseArray
+    from rect_projector_msgs.msg import LabeledPose, LabeledPoseArray
 except:
-    rospy.logerr("please install negomo")
+    rospy.logerr("please install aero-ros-pkg-private")
     exit()
 
 class TransformCoords():

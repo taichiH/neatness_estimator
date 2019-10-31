@@ -1,0 +1,37 @@
+<launch>
+  <arg name="pr2" default="true"/>
+  <arg name="aero" default="false"/>
+
+  <arg name="INPUT_CLOUD" value="/head_mount_kinect/hd/republished_points"
+       if="$(arg pr2)"/>
+  <arg name="INPUT_CLOUD" value="/remote/point_cloud/cloud_registered/remote"
+       if="$(arg aero)"/>
+
+  <arg name="max_line_gap" default="30.0" if="$(arg pr2)"/>
+  <arg name="max_line_gap" default="5.0" if="$(arg aero)"/>
+
+  <node pkg="nodelet" type="nodelet" name="filter"
+        args="standalone pcl/PassThrough">
+    <remap from="~input" to="$(arg INPUT_CLOUD)" />
+    <rosparam>
+      keep_organized: true
+      filter_field_name: x
+      filter_limit_min: -0.6
+      filter_limit_max: 0.6
+    </rosparam>
+  </node>
+
+  <node pkg="nodelet" type="nodelet" name="edge_detector"
+        args="standalone jsk_pcl/OrganizedEdgeDetector">
+    <remap from="~input" to="filter/output" />
+
+    <rosparam subst_value="true">
+      rho: 1.0
+      straightline_threshold: 25
+      min_line_length: 25
+      max_line_gap: $(arg max_line_gap)
+    </rosparam>
+  </node>
+
+
+</launch>

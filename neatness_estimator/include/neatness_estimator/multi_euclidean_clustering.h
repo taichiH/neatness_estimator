@@ -43,6 +43,7 @@ namespace neatness_estimator
 
   protected:
     virtual void onInit();
+
     virtual void callback(const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_indices,
                           const sensor_msgs::PointCloud2::ConstPtr& point_cloud);
 
@@ -65,7 +66,7 @@ namespace neatness_estimator
     float minsize_ = 10;
     float maxsize_ = 5000;
     bool approximate_sync_ = true;
-    double leaf_size_;
+    double leaf_size_ = 0.01;
     bool downsample_ = true;
     std::vector<std::vector<int> > downsample_to_original_indices_;
     std::vector<int> original_to_downsample_indices_;

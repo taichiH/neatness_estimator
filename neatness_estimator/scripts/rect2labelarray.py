@@ -8,9 +8,9 @@ from jsk_recognition_msgs.msg import Rect, RectArray
 from jsk_recognition_msgs.msg import ClassificationResult
 
 try:
-    from what_i_see_msgs.msg import Scored2DBox, Scored2DBoxArray
+    from rect_projector_msgs.msg import Scored2DBox, Scored2DBoxArray
 except:
-    rospy.logerr("please install negomo")
+    rospy.logerr("please install aero-ros-pkg-private")
     exit()
 
 class Rect2LabeledArray():

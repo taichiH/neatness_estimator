@@ -12,16 +12,26 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   Neatness.msg
+  NeatnessArray.msg
   TargetAndGoal.msg
   TargetAndGoalArray.msg
   DisplayPlan.msg
   DisplayPlanArray.msg
+  EdgeHistogram.msg
+  EdgeHistogramArray.msg
+  Histogram.msg
+  HistogramArray.msg
+  Features.msg
   )
 
 add_service_files(
   FILES
   VisionServer.srv
+  GetDisplayFeature.srv
+  GetColorHistogram.srv
   DisplayState.srv
+  GetFeatures.srv
+  GetDifference.srv
   )
 
 generate_messages(

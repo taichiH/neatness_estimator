@@ -1,0 +1,56 @@
+<launch>
+  <arg name="pr2" default="true"/>
+  <arg name="aero" default="false"/>
+
+  <arg name="input_cloud"
+       default="/head_mount_kinect/hd/republished_points" if="$(arg pr2)"/>
+  <arg name="input_image"
+       default="/head_mount_kinect/hd/image_color_rect" if="$(arg pr2)"/>
+  <arg name="input_camera_info"
+       default="/head_mount_kinect/hd/camera_info" if="$(arg pr2)"/>
+  <arg name="resize_scale"
+       default="0.25" if="$(arg pr2)"/>
+
+  <!-- edge detector -->
+  <include file="$(find neatness_estimator)/launch/organized_edge_detector.launch" />
+
+  <!-- template matching -->
+  <node name="image_resizer_half"
+        pkg="resized_image_transport" type="image_resizer">
+    <remap from="~input/image" to="$(arg input_image)" />
+    <remap from="~input/camera_info" to="$(arg input_camera_info)" />
+    <rosparam subst_value="true">
+      resize_scale_x: $(arg resize_scale)
+      resize_scale_y: $(arg resize_scale)
+      use_camera_info: true
+      use_camera_subscriber: false
+      use_messages: false
+      interpolation: LINEAR
+    </rosparam>
+  </node>
+
+  <include file="$(find qatm_ros)/launch/qatm.launch">
+    <arg name="templates_dir" default="$(find neatness_estimator)/models/room610_templates" />
+    <arg name="input_image" default="image_resizer_half/output/image" />
+    <arg name="resize_scale" value="0.25" />
+  </include>
+
+  <!-- 3d projector -->
+  <include file="$(find neatness_estimator)/launch/rect_projector.launch" />
+
+  <!-- wrinkle detector -->
+  <node name="edge_histogram_array"
+        pkg="neatness_estimator" type="edge_histogram_array.py"
+        output="screen">
+    <remap from="~input_rgb" to="$(arg input_image)" />
+
+    <remap from="~input_rects" to="/qatm/output/rects" />
+    <remap from="~input_labels" to="/qatm/output/labels" />
+    <remap from="~input_edge" to="/edge_detector/output_hough_msg" />
+    <rosparam subst_value="true">
+      approximate_sync: true
+      debug: True
+    </rosparam>
+  </node>
+
+</launch>

@@ -1,0 +1,54 @@
+<launch>
+  <arg name="debug_view" default="false" />
+
+  <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
+  <arg name="radius" default="0.01" />
+
+  <arg name="cloud_topic" default="/openni_camera/depth_registered/points" />
+  <arg name="image_topic" default="/openni_camera/rgb/image_rect_color" />
+  <arg name="cluster_topic" default="/multi_euclidean_clustering/output_indices" />
+  <arg name="instance_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
+  <arg name="cluster_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
+
+  <arg name="service_node_name" default="neatness_estimator_server" />
+
+  <node name="difference_reasoner"
+        pkg="nodelet" type="nodelet"
+        args="standalone neatness_estimator/DifferenceReasoner"
+        output="screen">
+    <remap from="~service_topic" to="$(arg service_node_name)/get_display_feature"/>
+    <rosparam subst_value="true">
+      prefix: $(arg prefix)
+      bin_size: 360
+      histogram_policy: 0
+      white_threshold: 0.3
+      black_threshold: 0.2
+      normal_search_radius: $(arg radius)
+      cloud_topic: $(arg cloud_topic)
+      image_topic: $(arg image_topic)
+      cluster_topic: $(arg cluster_topic)
+      instance_boxes_topic: $(arg instance_boxes_topic)
+      cluster_boxes_topic: $(arg cluster_boxes_topic)
+      debug_view: $(arg debug_view)
+    </rosparam>
+  </node>
+
+  <node name="$(arg service_node_name)"
+        pkg="neatness_estimator" type="neatness_estimator.py"
+        output="log">
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/mask_rcnn_labels_191023.yaml" />
+    <rosparam subst_value="true">
+      thresh: 0.8
+    </rosparam>
+  </node>
+
+  <include file="$(find neatness_estimator)/launch/compare_data.launch" >
+    <arg name="prefix" value="$(arg prefix)" />
+  </include>
+
+  <node name="color_histogram_server"
+        pkg="neatness_estimator" type="color_histogram_server.py"
+        output="screen"/>
+
+</launch>

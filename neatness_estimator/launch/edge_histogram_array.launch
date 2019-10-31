@@ -1,0 +1,21 @@
+<launch>
+
+  <arg name="input_rgb" default="/head_mount_kinect/hd/image_color_rect" />
+  <arg name="input_rects" default="/qatm/output/rects" />
+  <arg name="input_labels" default="/qatm/output/labels" />
+  <arg name="input_edge" default="/edge_detector/output_hough_msg" />
+
+  <node name="edge_histogram_array"
+        pkg="neatness_estimator" type="edge_histogram_array.py"
+        output="screen">
+    <remap from="~input_rgb" to="$(arg input_rgb)" />
+    <remap from="~input_rects" to="$(arg input_rects)" />
+    <remap from="~input_labels" to="$(arg input_labels)" />
+    <remap from="~input_edge" to="$(arg input_edge)" />
+    <rosparam subst_value="true">
+      approximate_sync: true
+      debug: True
+    </rosparam>
+  </node>
+
+</launch>

@@ -4,49 +4,51 @@ import os
 import datetime
 import pandas as pd
 import cv2
-import cv_bridge
+from threading import Lock
+
 import numpy as np
 import rospy
 import rospkg
+from cv_bridge import CvBridge, CvBridgeError
+
 import message_filters
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
-from jsk_recognition_msgs.msg import ClassificationResult
-from opencv_apps.msg import LineArrayStamped, Point2D
-from cv_bridge import CvBridge, CvBridgeError
-from neatness_estimator_msgs.msg import Neatness
+from neatness_estimator_msgs.msg import Neatness, NeatnessArray
+from neatness_estimator_msgs.srv import GetDisplayFeature, GetDisplayFeatureResponse
 
 class NeatnessEstimator():
 
     def __init__(self):
+        self.lock = Lock()
+        self.save_log = False
+
         self.label_lst = rospy.get_param('~fg_class_names')
-        self.neatness_pub = rospy.Publisher('~output',
-                                           Neatness,
-                                           queue_size=1)
-        self.group_dist_array = {}
-        self.pulling_dist_array = {}
-        for i in range(len(self.label_lst)):
-            self.group_dist_array[i] = []
-            self.pulling_dist_array[i] = []
+        self.neatness_pub = rospy.Publisher(
+            '~neatness_mean', Neatness, queue_size=1)
 
-        self.filling_dist_array = {}
-        for i in range(1, len(self.label_lst)):
-            key = str(i) + '-' + str(i-1)
-            self.filling_dist_array[key] = []
+        self.has_requested_boxes = False
+        self.instance_msg = BoundingBoxArray()
+        self.cluster_msg = BoundingBoxArray()
 
-        self.output_data = {'neatness':[], 'group_neatness':[],
-                            'filling_neatness':[], 'pulling_neatness':[]}
-        self.output_dir = os.path.join(rospkg.RosPack().get_path('neatness_estimator'), 'output')
 
-        self.save_log = rospy.get_param('~save_log', False)
+
+        self.output_dir_name = os.path.join(rospkg.RosPack().get_path('neatness_estimator'), 'output')
+        self.output_dir = self.output_dir_name
+        self.neatness_log = 'neatness_output.csv'
+        self.items_group_neatness = 'items_group_neatness.csv'
+        self.items_filling_neatness = 'items_filling_neatness.csv'
+        self.items_pulling_neatness = 'items_pulling_neatness.csv'
+
         self.thresh = rospy.get_param('~thresh', 0.8)
         self.boxes = []
         self.bridge = CvBridge()
+
+        rospy.Service(
+            '~get_display_feature', GetDisplayFeature, self.service_callback)
         self.subscribe()
-        pass
 
     def subscribe(self):
         queue_size = rospy.get_param('~queue_size', 10)
-
         sub_cluster_box = message_filters.Subscriber(
             '~input/cluster_boxes',
             BoundingBoxArray,queue_size=1, buff_size=2**24)
@@ -65,11 +67,42 @@ class NeatnessEstimator():
                 fs=self.subs, queue_size=queue_size)
         sync.registerCallback(self.callback)
 
-    def unsubscribe(self):
-        for sub in self.subs:
-            sub.unregister()
-
     def callback(self, instance_msg, cluster_msg):
+        with self.lock:
+            self.save_log = False
+            self.output_dir = self.output_dir_name
+            self.instance_msg = instance_msg
+            self.cluster_msg = cluster_msg
+            self.run(instance_msg, cluster_msg, False)
+
+    def service_callback(self, req):
+        with self.lock:
+            print('service_callback')
+            self.save_log = True
+            self.output_dir = req.save_dir
+            self.neatness_log = 'neatness_output.csv'
+            self.items_group_neatness = 'group_neatness.csv'
+            self.items_filling_neatness = 'filling_neatness.csv'
+            self.items_pulling_neatness = 'pulling_neatness.csv'
+
+            instance_msg = self.instance_msg
+            cluster_msg = self.cluster_msg
+            if len(req.instance_boxes.boxes) > 0 or \
+               len(req.cluster_boxes.boxes) > 0:
+                self.has_requested_boxes = True
+                instance_msg = req.instance_boxes
+                cluster_msg = req.cluster_boxes
+                rospy.loginfo('instance and cluster boxes is requested, use requested boxes to calc neatness')
+
+            res_group_neatness = self.run(instance_msg, cluster_msg, True)
+
+            self.has_requested_boxes = True
+            res = GetDisplayFeatureResponse()
+            res.success = True
+            res.res_neatness = res_group_neatness
+            return res
+
+    def run(self, instance_msg, cluster_msg, debug):
         bridge = self.bridge
         labeled_boxes = {}
         category_boxes = {}
@@ -91,23 +124,21 @@ class NeatnessEstimator():
             rospy.logwarn('cluster labels does not match instance labels')
             return
 
+        filling_dist = {}
+        pulling_dist = {}
+        group_dist = {}
+
         group_dist = self.calc_group_dist(category_boxes, labeled_boxes, label_buf)
+        if self.label_lst.index('shelf_flont') in label_buf:
+            filling_dist = self.calc_filling_dist(category_boxes, label_buf)
+            pulling_dist = self.calc_pulling_dist(category_boxes, label_buf)
+
         group_dist_mean = np.array(group_dist.values()).mean()
-
-        filling_dist = self.calc_filling_dist(category_boxes, label_buf)
-        if len(filling_dist) == 0:
-            rospy.logwarn('not found shelf')
-            return
-
         filling_dist_mean = np.array(filling_dist.values()).mean()
-
-        pulling_dist = self.calc_pulling_dist(category_boxes, label_buf)
         pulling_dist_mean = np.array(pulling_dist.values()).mean()
+        neatness = np.array(
+            [group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
 
-        neatest_key, neatest_items = self.neat_planner(labeled_boxes, group_dist, filling_dist, pulling_dist, self.thresh)
-        print('key, items', self.label_lst[neatest_key], neatest_items)
-
-        neatness = np.array([group_dist_mean, filling_dist_mean, pulling_dist_mean]).mean()
         neatness_msg = Neatness()
         neatness_msg.header = instance_msg.header
         neatness_msg.group_neatness = group_dist_mean
@@ -116,19 +147,43 @@ class NeatnessEstimator():
         neatness_msg.neatness = neatness
         self.neatness_pub.publish(neatness_msg)
 
+        res_group_neatness = NeatnessArray()
+        if self.has_requested_boxes:
+            res_group_neatness = NeatnessArray()
+            res_group_neatness.header = instance_msg.header
+            for key, val in zip(group_dist.keys(), group_dist.values()):
+                tmp_neatness = Neatness()
+                tmp_neatness.header = instance_msg.header
+                tmp_neatness.group_neatness = val
+                tmp_neatness.label = key
+                res_group_neatness.neatness.append(tmp_neatness)
+
+
         if self.save_log:
-            self.output_data['neatness'].append(neatness)
-            self.output_data['group_neatness'].append(group_dist_mean)
-            self.output_data['filling_neatness'].append(filling_dist_mean)
-            self.output_data['pulling_neatness'].append(pulling_dist_mean)
+            output_data = {'neatness':[], 'group_neatness':[],
+                           'filling_neatness':[], 'pulling_neatness':[]}
+            self.group_dist_array = {}
+            self.pulling_dist_array = {}
+            for i in range(len(self.label_lst)):
+                self.group_dist_array[i] = []
+                self.pulling_dist_array[i] = []
+
+            self.filling_dist_array = {}
+            for i in range(1, len(self.label_lst)):
+                key = str(i) + '-' + str(i-1)
+                self.filling_dist_array[key] = []
+
+            output_data['neatness'].append(neatness)
+            output_data['group_neatness'].append(group_dist_mean)
+            output_data['filling_neatness'].append(filling_dist_mean)
+            output_data['pulling_neatness'].append(pulling_dist_mean)
             # file_name = 'neatness_{0:%Y%m%d-%H%M%S}.csv'.format(datetime.datetime.now())
-            neatness_log = 'neatness_output.csv'
-            output_file = os.path.join(self.output_dir, neatness_log)
-            pd.DataFrame(data=self.output_data).to_csv(output_file)
+
+            output_file = os.path.join(self.output_dir, self.neatness_log)
+            pd.DataFrame(data=output_data).to_csv(output_file)
 
             for key, val in zip(group_dist.keys(), group_dist.values()):
                 self.group_dist_array[key] += [val]
-
             no_recognized_labels = list(set(group_dist.keys()) ^ set(self.group_dist_array.keys()))
             for no_recognized_label in no_recognized_labels:
                 self.group_dist_array[no_recognized_label] += [0]
@@ -145,25 +200,31 @@ class NeatnessEstimator():
             for no_recognized_label in no_recognized_labels:
                 self.pulling_dist_array[no_recognized_label] += [0]
 
-            items_group_neatness = 'items_group_neatness.csv'
-            items_group_neatness_output = os.path.join(self.output_dir, items_group_neatness)
+            items_group_neatness_output = os.path.join(self.output_dir, self.items_group_neatness)
             pd.DataFrame(data=self.group_dist_array).to_csv(items_group_neatness_output)
-
-            items_filling_neatness = 'items_filling_neatness.csv'
-            items_filling_neatness_output = os.path.join(self.output_dir, items_filling_neatness)
+            items_filling_neatness_output = os.path.join(self.output_dir, self.items_filling_neatness)
             pd.DataFrame(data=self.filling_dist_array).to_csv(items_filling_neatness_output)
-
-            items_pulling_neatness = 'items_pulling_neatness.csv'
-            items_pulling_neatness_output = os.path.join(self.output_dir, items_pulling_neatness)
+            items_pulling_neatness_output = os.path.join(self.output_dir, self.items_pulling_neatness)
             pd.DataFrame(data=self.pulling_dist_array).to_csv(items_pulling_neatness_output)
 
-        recognized_items = []
-        for label in cluster_buf:
-            recognized_items.append(self.label_lst[label])
 
-        print('recognized items: ', recognized_items)
-        print('neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean')
-        print(neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean)
+        if debug:
+            print('save_dir: ', self.output_dir)
+
+            neatest_key, neatest_items = self.neat_planner(
+                labeled_boxes, group_dist, filling_dist, pulling_dist, self.thresh)
+            print('key, items', self.label_lst[neatest_key], neatest_items)
+
+            recognized_items = []
+            for label in cluster_buf:
+                recognized_items.append(self.label_lst[label])
+            print('recognized items: ', recognized_items)
+
+            print('neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean')
+            print(neatness, group_dist_mean, filling_dist_mean, pulling_dist_mean)
+
+
+        return res_group_neatness
 
     def get_array(self, box):
         array = np.array([box.pose.position.x,
@@ -223,9 +284,6 @@ class NeatnessEstimator():
     def calc_filling_dist(self, category_boxes, labels):
         filling_dist = {}
         shelf_i = self.label_lst.index('shelf_flont')
-        if not shelf_i in labels:
-            return filling_dist
-
         shelf_lt = np.array(np.array([category_boxes[shelf_i][0][0] + category_boxes[shelf_i][1][0]* 0.5,
                                       category_boxes[shelf_i][0][1] + category_boxes[shelf_i][1][1]* 0.5,
                                       category_boxes[shelf_i][0][2] + category_boxes[shelf_i][1][2]* 0.5]))

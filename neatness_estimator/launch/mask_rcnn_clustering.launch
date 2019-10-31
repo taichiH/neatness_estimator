@@ -1,44 +1,25 @@
 <launch>
   <arg name="gpu" default="0"/>
 
-  <!-- <arg name="info" default="/zed/rgb/camera_info" /> -->
-  <!-- <arg name="input_image" default="/zed/rgb/image_rect_color" /> -->
-  <!-- <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" /> -->
-  <!-- <arg name="input_cloud" default="/zed/point_cloud/cloud_registered" /> -->
-
-  <arg name="info" default="/camera_remote/rgb/camera_info" />
-  <arg name="input_image" default="/camera_remote/rgb/image_rect_color" />
+  <arg name="info" default="/openni_camera/rgb/camera_info" />
+  <arg name="input_image" default="/openni_camera/rgb/image_rect_color" />
+  <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
   <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
-  <arg name="input_cloud" default="/camera_remote/depth_registered/points" />
-
-  <arg name="transform_zed_pointcloud" default="false" />
+  <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
 
   <arg name="score_thresh" default="0.75"/>
   <arg name="eco_mode" default="false"/>
   <arg name="visualize" default="false" />
   <arg name="thresh" default="0.2" />
 
-  <node name="pc_transformer"
-        pkg="nodelet" type="nodelet"
-        args="standalone jsk_pcl/TfTransformCloud"
-        output="screen" if="$(arg transform_zed_pointcloud)">
-    <remap from="~input" to="/zed/point_cloud/cloud_registered" />
-    <rosparam>
-      target_frame_id: /zed_depth_camera
-    </rosparam>
-  </node>
-
-  <arg name="point_cloud" value="/pc_transformer/output" if="$(arg transform_zed_pointcloud)" />
-  <arg name="point_cloud" value="$(input_cloud)" unless="$(arg transform_zed_pointcloud)" />
-
   <node name="mask_rcnn_instance_segmentation"
         pkg="jsk_perception" type="mask_rcnn_instance_segmentation.py"
         clear_params="true">
     <remap from="~input" to="$(arg input_image)" />
     <rosparam command="load"
-              file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+              file="$(find neatness_estimator)/models/mask_rcnn_labels_191023.yaml" />
     <rosparam subst_value="true">
-      pretrained_model: $(find neatness_estimator)/trained_data/fcsc_instance_segmentation_181229.npz
+      pretrained_model: $(find neatness_estimator)/trained_data/fcsc_instance_segmentation_191023.npz
       gpu: $(arg gpu)
     </rosparam>
   </node>
@@ -46,39 +27,15 @@
   <node name="instance_cluster_point_indices_decomposer"
         pkg="nodelet" type="nodelet"
         args="standalone jsk_pcl/ClusterPointIndicesDecomposer">
-    <remap from="~input" to="$(arg point_cloud)" />
+    <remap from="~input" to="$(arg input_cloud)" />
     <remap from="~target" to="/mask_rcnn_instance_segmentation/output/cluster_indices" />
     <rosparam>
       align_boxes: true
       align_boxes_with_plane: false
       approximate_sync: true
       queue_size: 100
-      target_frame_id: map
+      target_frame_id: base_link
       sort_by: input_indices
-    </rosparam>
-  </node>
-
-  <node name="labeled_bounding_box_publisher"
-        pkg="neatness_estimator" type="labeled_bounding_box_publisher.py"
-        output="screen">
-    <remap from="~input/instance_boxes" to="instance_cluster_point_indices_decomposer/boxes"/>
-    <remap from="~input/instance_labels" to="/mask_rcnn_instance_segmentation/output/labels"/>
-    <rosparam subst_value="true">
-      approximate_sync: true
-      with_cluster_box: false
-    </rosparam>
-  </node>
-
-  <node name="cluster_box_publisher"
-        pkg="neatness_estimator" type="cluster_box_publisher.py"
-        output="screen">
-    <remap from="~input"
-           to="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
-    <remap from="~output"
-           to="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
-    <rosparam command="load" file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
-    <rosparam subst_value="true">
-      thresh: $(arg thresh)
     </rosparam>
   </node>
 

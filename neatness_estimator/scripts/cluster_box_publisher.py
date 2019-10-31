@@ -48,7 +48,7 @@ class ClusterBoxPublisher():
                 center = candidates.min(axis=0) + (dimension * 0.5)
 
                 distances = self.get_distances(
-                    [boxes[i][0] for i in cluster.indices],
+                    np.array([boxes[i][0] for i in cluster.indices]),
                     [np.linalg.norm(boxes[i][1])*0.5 for i in cluster.indices])
                 tmp_box = BoundingBox()
                 tmp_box.header = box_msg.header
@@ -64,7 +64,7 @@ class ClusterBoxPublisher():
                 bounding_box_msg.boxes.append(tmp_box)
 
             bounding_box_msg.header = box_msg.header
-            self.box_pub.publish(bounding_box_msg)
+        self.box_pub.publish(bounding_box_msg)
 
     def get_distances(self, centers, diagonals):
         distances = []

@@ -1,0 +1,5 @@
+sensor_msgs/Image image
+sensor_msgs/Image mask
+---
+bool success
+neatness_estimator_msgs/Histogram histogram

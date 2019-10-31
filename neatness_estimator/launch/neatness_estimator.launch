@@ -1,5 +1,4 @@
 <launch>
-  <arg name="save_log" default="false" />
   <arg name="thresh" default="0.8" />
 
   <node name="neatness_estimator"
@@ -12,8 +11,7 @@
     <rosparam command="load"
               file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
     <rosparam subst_value="true">
-      approximate_sync: true
-      save_log: $(arg save_log)
+      approximate_sync: false
       thresh: $(arg thresh)
     </rosparam>
   </node>

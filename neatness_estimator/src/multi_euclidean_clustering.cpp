@@ -46,8 +46,8 @@ namespace neatness_estimator
     pcl::fromROSMsg(*point_cloud, *cloud_);
 
     pcl::VoxelGrid<pcl::PointXYZ> voxel;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr voxel_cloud(
-        new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr voxel_cloud
+      (new pcl::PointCloud<pcl::PointXYZ>);
     if (downsample_) {
       voxel.setLeafSize(leaf_size_, leaf_size_, leaf_size_);
       voxel.setSaveLeafLayout(true);
@@ -74,7 +74,7 @@ namespace neatness_estimator
         original_to_downsample_indices_[i_point] = index;
         downsample_to_original_indices_[index].push_back(i_point);
       }
-          } else {
+    } else {
       preprocessed_cloud_ = cloud_;
     }
 
@@ -155,7 +155,6 @@ namespace neatness_estimator
       }
       output_cluster_indices.header = point_cloud->header;
       output_cluster_indices_pub_.publish(output_cluster_indices);
-
     }
   }
 } // namespace neatness_estimator
