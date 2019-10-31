@@ -10,7 +10,6 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
-#include <jsk_recognition_msgs/LabelArray.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_msgs/PointIndices.h>
@@ -53,8 +52,6 @@ namespace neatness_estimator
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr preprocessed_cloud_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr clustered_cloud_;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud_;
 
     boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
     boost::shared_ptr<message_filters::Synchronizer<ApproximateSyncPolicy> > async_;

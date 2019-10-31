@@ -16,9 +16,6 @@ namespace neatness_estimator
     pnh_.param("leaf_size", leaf_size_, 0.01);
 
     cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    clustered_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
-    filtered_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
-
 
     output_cluster_indices_pub_ =
       pnh_.advertise<jsk_recognition_msgs::ClusterPointIndices>("output_indices", 1);
@@ -54,6 +51,7 @@ namespace neatness_estimator
       voxel.setInputCloud(cloud_);
       voxel.filter(*voxel_cloud);
       preprocessed_cloud_ = voxel_cloud;
+
       downsample_to_original_indices_.resize(cloud_->points.size());
       original_to_downsample_indices_.resize(cloud_->points.size());
       std::fill(original_to_downsample_indices_.begin(),
@@ -62,6 +60,7 @@ namespace neatness_estimator
       std::fill(downsample_to_original_indices_.begin(),
                 downsample_to_original_indices_.end(),
                 std::vector<int>());
+
       for (int i_point = 0; i_point < cloud_->points.size(); ++i_point) {
         pcl::PointXYZ p = cloud_->points[i_point];
         if (std::isnan(p.x) || std::isnan(p.y) || std::isnan(p.z)) {
@@ -100,7 +99,9 @@ namespace neatness_estimator
           }
         }
         std::sort(nonnan_indices->indices.begin(), nonnan_indices->indices.end());
-        nonnan_indices->indices.erase(std::unique(nonnan_indices->indices.begin(), nonnan_indices->indices.end()), nonnan_indices->indices.end());
+        nonnan_indices->indices.erase(std::unique(nonnan_indices->indices.begin(),
+                                                  nonnan_indices->indices.end()),
+                                      nonnan_indices->indices.end());
 
         pcl_msgs::PointIndices point_indices_msg;
         if (nonnan_indices->indices.size() > 0) {
@@ -137,12 +138,12 @@ namespace neatness_estimator
 
             if (downsample_) {
               for (size_t i_index = 0; i_index < output_indices.at(index).indices.size(); ++i_index) {
-                point_indices_msg.indices.insert(
-                                                 point_indices_msg.indices.end(),
-                                                 downsample_to_original_indices_[
-                                                                                 nonnan_indices->indices[output_indices.at(index).indices[i_index]]].begin(),
-                                                 downsample_to_original_indices_[nonnan_indices->indices[output_indices.at(index).indices[i_index]]].end()
-                                                 );
+                point_indices_msg.indices.insert
+                  (point_indices_msg.indices.end(),
+                   downsample_to_original_indices_
+                   [nonnan_indices->indices[output_indices.at(index).indices[i_index]]].begin(),
+                   downsample_to_original_indices_
+                   [nonnan_indices->indices[output_indices.at(index).indices[i_index]]].end());
               }
             } else {
               point_indices_msg.indices = output_indices.at(index).indices;
