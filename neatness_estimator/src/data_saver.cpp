@@ -8,16 +8,19 @@ namespace neatness_estimator
     nh_ = getNodeHandle();
     pnh_ = getPrivateNodeHandle();
     pnh_.getParam("prefix", prefix_);
+    pnh_.getParam("difference_reasoner_service_topic",
+                  difference_reasoner_service_topic_);
+    pnh_.getParam("compare_data_service_topic",
+                  compare_data_service_topic_);
 
     save_server_ = pnh_.advertiseService("save", &DataSaver::save_service_callback, this);
 
     call_server_ = pnh_.advertiseService("call", &DataSaver::call_service_callback, this);
 
     feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetFeatures>
-      ("/difference_reasoner/read");
-
+      (difference_reasoner_service_topic_);
     difference_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDifference>
-      ("/compare_hist/compare");
+      (compare_data_service_topic_);
 
     sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
     sub_image_.subscribe(pnh_, "input_image", 1);
@@ -144,8 +147,8 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DataSaver::call_service_callback(std_srvs::SetBool::Request& req,
-                                        std_srvs::SetBool::Response& res)
+  bool DataSaver::call_service_callback(neatness_estimator_msgs::GetDifference::Request& req,
+                                        neatness_estimator_msgs::GetDifference::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
 
@@ -174,7 +177,10 @@ namespace neatness_estimator
     bag.write(topics_.at(4), instance_boxes_msg_->header.stamp, *instance_boxes_msg_);
     bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
     bag.close();
-    
+
+    ROS_INFO("rosbag file saved \n %s", bag_save_path.str().c_str());
+
+    // get feature service call
     neatness_estimator_msgs::GetFeatures feature_client_msg;
     feature_client_msg.request.cloud = *cloud_msg_;
     feature_client_msg.request.image = *image_msg_;
@@ -183,11 +189,33 @@ namespace neatness_estimator
     feature_client_msg.request.cluster_boxes = *cluster_boxes_msg_;
     feature_client_.call(feature_client_msg);
 
+    if (!feature_client_msg.response.success) {
+      ROS_WARN("failed to call %s", difference_reasoner_service_topic_.c_str());
+      res.success = false;
+      return false;
+    }
+
     bool buffered = create_features_vec(feature_client_msg.response.features);
     if (buffered) {
+      // compare histogram service call
       neatness_estimator_msgs::GetDifference difference_msg;
       difference_msg.request.features = features_vec_;
       difference_client_.call(difference_msg);
+
+      if (!difference_msg.response.success) {
+        ROS_WARN("failed to call %s", compare_data_service_topic_.c_str());
+        res.success = false;
+        return false;
+      } else {
+        res.message = "success compare data";
+        res.labels = difference_msg.response.labels;
+        res.color_distance = difference_msg.response.color_distance;
+        res.geometry_distance = difference_msg.response.geometry_distance;
+        res.group_distance = difference_msg.response.group_distance;
+      }
+
+    } else {
+      res.message = "need wait for features service call to compare datas";
     }
 
     res.success = true;
@@ -196,14 +224,12 @@ namespace neatness_estimator
 
   bool DataSaver::create_features_vec(const neatness_estimator_msgs::Features& features)
   {
-    bool buffered;
-    if (features_vec_.size() >= 1) {
-      buffered = true;
+    if (features_vec_.size() > 1) {
       features_vec_.erase(features_vec_.begin());
     }
     features_vec_.push_back(features);
 
-    return buffered;
+    return features_vec_.size() == 2;
   }
 
 } // namespace neatness_estimator

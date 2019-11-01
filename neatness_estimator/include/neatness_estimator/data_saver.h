@@ -73,8 +73,8 @@ namespace neatness_estimator
     virtual bool save_service_callback(std_srvs::SetBool::Request& req,
                                        std_srvs::SetBool::Response& res);
 
-    virtual bool call_service_callback(std_srvs::SetBool::Request& req,
-                                       std_srvs::SetBool::Response& res);
+    virtual bool call_service_callback(neatness_estimator_msgs::GetDifference::Request& req,
+                                       neatness_estimator_msgs::GetDifference::Response& res);
 
     virtual bool create_save_dir(std::stringstream& ss,
                                  std::string dir_name);
@@ -113,6 +113,8 @@ namespace neatness_estimator
 
     boost::mutex mutex_;
     std::string prefix_ = "./";
+    std::string difference_reasoner_service_topic_ = "/difference_reasoner/read";
+    std::string compare_data_service_topic_ = "/compare_data/compare";
     std::vector<std::string> topics_;
 
   private:

@@ -2,9 +2,9 @@
   <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
   <arg name="input_image" default="/openni_camera/rgb/image_rect_color" />
   <arg name="input_cluster" default="/multi_euclidean_clustering/output_indices" />
-  <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
   <arg name="input_instance_boxes" default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
   <arg name="input_cluster_boxes" default="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
+  <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
 
   <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
 

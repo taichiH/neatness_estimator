@@ -77,8 +77,8 @@ class NeatnessEstimator():
 
     def service_callback(self, req):
         with self.lock:
-            print('service_callback')
-            self.save_log = True
+            rospy.loginfo('get display feature service_callback')
+            self.save_log = req.save_log
             self.output_dir = req.save_dir
             self.neatness_log = 'neatness_output.csv'
             self.items_group_neatness = 'group_neatness.csv'

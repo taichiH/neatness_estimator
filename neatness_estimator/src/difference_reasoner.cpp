@@ -7,6 +7,7 @@ namespace neatness_estimator
     nh_ = getNodeHandle();
     pnh_ = getPrivateNodeHandle();
     pnh_.getParam("debug_view", debug_view_);
+    pnh_.getParam("save_data", save_data_);
     pnh_.getParam("prefix", prefix_);
     pnh_.getParam("bin_size", bin_size_);
     pnh_.getParam("white_threshold", white_threshold_);
@@ -462,12 +463,14 @@ namespace neatness_estimator
                          labels,
                          sorted_indices);
 
+
       save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
       save_image(log_dir_.at(i), image, mask_image, debug_image);
       save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
       save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
 
       neatness_estimator_msgs::GetDisplayFeature client_msg;
+      client_msg.request.save_log = save_data_;
       client_msg.request.save_dir = save_data_dir_.at(i);
       client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
       client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
@@ -508,10 +511,12 @@ namespace neatness_estimator
                          labels,
                          sorted_indices);
 
-      save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
-      save_image(log_dir_.at(i), image, mask_image, debug_image);
-      save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
-      save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
+      if (save_data_) {
+        save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
+        save_image(log_dir_.at(i), image, mask_image, debug_image);
+        save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
+        save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
+      }
 
       neatness_estimator_msgs::GetDisplayFeature client_msg;
       client_msg.request.save_dir = save_data_dir_.at(i);
@@ -555,7 +560,7 @@ namespace neatness_estimator
       };
 
     } else {
-      ROS_INFO("read data from service reqeusted data.");
+      ROS_INFO("read data from reqeusted data.");
       buffer_size_ = 1;
       msgs.resize(buffer_size_);
 

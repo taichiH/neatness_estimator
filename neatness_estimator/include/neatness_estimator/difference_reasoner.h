@@ -194,6 +194,7 @@ namespace neatness_estimator
     int buffer_size_ = 2;
     int index_ = 0;
     bool debug_view_ = false;
+    bool save_data_ = false;
     int bin_size_ = 10;
     double white_threshold_ = 0.3;
     double black_threshold_ = 0.2;

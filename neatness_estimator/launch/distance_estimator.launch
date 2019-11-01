@@ -1,0 +1,82 @@
+<launch>
+  <arg name="debug_view" default="false" />
+
+  <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
+  <arg name="save_reasoning_result" default="false" />
+  <arg name="service_node_name" default="neatness_estimator_server" />
+  <arg name="radius" default="0.01" />
+
+  <arg name="cloud_topic" default="/openni_camera/depth_registered/points" />
+  <arg name="image_topic" default="/openni_camera/rgb/image_rect_color" />
+  <arg name="cluster_topic" default="/multi_euclidean_clustering/output_indices" />
+  <arg name="instance_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
+  <arg name="cluster_boxes_topic" default="/labeled_bounding_box_publisher_aligned/output/labeled_cluster_boxes" />
+  <arg name="labels_topic" default="/mask_rcnn_instance_segmentation/output/labels" />
+
+  <arg name="difference_reasoner_service_topic" default="/difference_reasoner/read" />
+  <arg name="compare_data_service_topic" default="/compare_data/compare" />
+
+  <node name="data_saver"
+        pkg="nodelet" type="nodelet"
+        args="standalone neatness_estimator/DataSaver"
+        output="screen">
+    <remap from="~input_cloud" to="$(arg cloud_topic)" />
+    <remap from="~input_image" to="$(arg image_topic)" />
+    <remap from="~input_cluster" to="$(arg cluster_topic)" />
+    <remap from="~input_instance_boxes" to="$(arg instance_boxes_topic)" />
+    <remap from="~input_cluster_boxes" to="$(arg cluster_boxes_topic)" />
+    <remap from="~input_labels" to="$(arg labels_topic)" />
+    <rosparam subst_value="true">
+      approximate_sync: true
+      prefix: $(arg prefix)
+      difference_reasoner_service_topic: $(arg difference_reasoner_service_topic)
+      compare_data_service_topic: $(arg compare_data_service_topic)
+    </rosparam>
+  </node>
+
+
+  <node name="difference_reasoner"
+        pkg="nodelet" type="nodelet"
+        args="standalone neatness_estimator/DifferenceReasoner"
+        output="screen">
+    <remap from="~service_topic" to="$(arg service_node_name)/get_display_feature"/>
+    <rosparam subst_value="true">
+      prefix: $(arg prefix)
+      save_data: $(arg save_reasoning_result)
+      bin_size: 360
+      histogram_policy: 0
+      white_threshold: 0.3
+      black_threshold: 0.2
+      normal_search_radius: $(arg radius)
+      cloud_topic: $(arg cloud_topic)
+      image_topic: $(arg image_topic)
+      cluster_topic: $(arg cluster_topic)
+      instance_boxes_topic: $(arg instance_boxes_topic)
+      cluster_boxes_topic: $(arg cluster_boxes_topic)
+      debug_view: $(arg debug_view)
+    </rosparam>
+  </node>
+
+
+  <node name="$(arg service_node_name)"
+        pkg="neatness_estimator" type="neatness_estimator.py"
+        output="log">
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/mask_rcnn_labels_191023.yaml" />
+    <rosparam subst_value="true">
+      thresh: 0.8
+    </rosparam>
+  </node>
+
+
+  <include file="$(find neatness_estimator)/launch/compare_data.launch" >
+    <arg name="prefix" value="$(arg prefix)" />
+  </include>
+
+
+  <node name="color_histogram_server"
+        pkg="neatness_estimator" type="color_histogram_server.py"
+        output="screen">
+  </node>
+
+</launch>
