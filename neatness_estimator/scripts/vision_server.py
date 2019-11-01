@@ -10,7 +10,6 @@ import tf
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from neatness_estimator_msgs.srv import VisionServer, VisionServerResponse
-from rect_projector_msgs.msg import LabeledPose, LabeledPoseArray
 
 class NeatnessEstimatorVisionServer():
 
@@ -37,7 +36,7 @@ class NeatnessEstimatorVisionServer():
         rospy.Subscriber(
             "~input_cluster_boxes", BoundingBoxArray, self.cluster_box_callback)
         rospy.Subscriber(
-            "~input_qatm_pos", LabeledPoseArray, self.labeled_pose_callback)
+            "~input_qatm_pos", BoundingBoxArray, self.qatm_pose_callback)
         rospy.Subscriber(
             "~input_red_boxes", BoundingBoxArray, self.red_box_callback)
 
@@ -59,18 +58,7 @@ class NeatnessEstimatorVisionServer():
 
     def labeled_pose_callback(self, pose_msg):
         self.header = pose_msg.header
-        self.qatm_boxes = BoundingBoxArray()
-        self.qatm_boxes.header = pose_msg.header
-        for pose in pose_msg.poses:
-            tmp_box = BoundingBox()
-            tmp_box.header = pose_msg.header
-            tmp_box.pose = pose.pose
-            tmp_box.dimensions.x = 0.03
-            tmp_box.dimensions.y = 0.03
-            tmp_box.dimensions.z = 0.03
-            tmp_box.label = self.label_lst.index(pose.label)
-            self.qatm_boxes.boxes.append(tmp_box)
-        # print('qatm_boxes size: %s' %(len(self.qatm_boxes.boxes)))
+        self.qatm_boxes = pose_msg
 
 
     def merge_boxes(self, mask_rcnn_boxes, qatm_boxes, red_boxes):

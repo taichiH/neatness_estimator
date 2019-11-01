@@ -34,8 +34,6 @@
   <run_depend>pcl_ros</run_depend>
   <run_depend>tf</run_depend>
   <run_depend>nodelet</run_depend>
-  <run_depend>rect_projector</run_depend>
-  <run_depend>rect_projector_msgs</run_depend>
 
   <export>
     <nodelet plugin="${prefix}/neatness_estimator.xml"/>
