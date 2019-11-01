@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   tf
   nodelet
+  jsk_pcl_ros
   )
 
 find_package(OpenCV REQUIRED)
