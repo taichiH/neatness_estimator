@@ -56,7 +56,7 @@ class NeatnessEstimatorVisionServer():
     def cluster_box_callback(self, msg):
         self.labeled_boxes = msg
 
-    def labeled_pose_callback(self, pose_msg):
+    def qatm_pose_callback(self, pose_msg):
         self.header = pose_msg.header
         self.qatm_boxes = pose_msg
 

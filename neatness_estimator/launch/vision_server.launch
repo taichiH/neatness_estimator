@@ -7,12 +7,13 @@
        default="/color_filter_cluster_decomposer/boxes" />
   <arg name="input_qatm_pos"
        default="/rect_projector/output" />
+  <arg name="labels" default="mask_rcnn_labels.yaml" />
 
   <node name="display_task_vision_server"
         pkg="neatness_estimator" type="vision_server.py"
         output="screen">
     <rosparam command="load"
-              file="$(find neatness_estimator)/models/mask_rcnn_labels.yaml" />
+              file="$(find neatness_estimator)/models/$(arg labels)" />
     <rosparam command="load"
               file="$(find neatness_estimator)/models/qatm_labels.yaml" />
     <remap from="~input_instance_boxes" to="$(arg input_instance_boxes)" />
