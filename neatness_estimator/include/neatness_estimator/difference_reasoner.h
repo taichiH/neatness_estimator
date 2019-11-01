@@ -102,6 +102,13 @@ namespace neatness_estimator
       PREV = 1,
     };
 
+    enum AXIS {
+      X = 0,
+      Y = 1,
+      Z = 2,
+    };
+
+
     // functions
 
     virtual void onInit();
@@ -201,6 +208,8 @@ namespace neatness_estimator
     double normal_search_radius_ = 0.01;
     std::vector<size_t> labels_;
     std::vector<size_t> sorted_indices_;
+
+    AXIS sort_axis_ = AXIS::Y;
 
   private:
 

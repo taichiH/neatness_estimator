@@ -20,6 +20,10 @@ namespace neatness_estimator
     pnh_.getParam("instance_boxes_topic", instance_boxes_topic_);
     pnh_.getParam("cluster_boxes_topic", cluster_boxes_topic_);
 
+    int sort_idx;
+    pnh_.getParam("sort_axis", sort_idx);
+    sort_axis_ = static_cast<DifferenceReasoner::AXIS>(sort_idx);
+
     log_dir_.resize(buffer_size_);
     dir_.resize(buffer_size_);
     save_data_dir_.resize(buffer_size_);
@@ -123,12 +127,6 @@ namespace neatness_estimator
   bool DifferenceReasoner::read_data
   (neatness_estimator_msgs::GetFeatures::Request& req)
   {
-    // msgs.cluster.at(idx).reset(new jsk_recognition_msgs::ClusterPointIndices);
-    // msgs.cloud.at(idx).reset(new sensor_msgs::PointCloud2);
-    // msgs.image.at(idx).reset(new sensor_msgs::Image);
-    // msgs.instance_boxes.at(idx).reset(new jsk_recognition_msgs::BoundingBoxArray);
-    // msgs.cluster_boxes.at(idx).reset(new jsk_recognition_msgs::BoundingBoxArray);
-
     msgs.cluster.at(0) = boost::make_shared<jsk_recognition_msgs::ClusterPointIndices>(req.cluster);
     msgs.cloud.at(0) = boost::make_shared<sensor_msgs::PointCloud2>(req.cloud);
     msgs.image.at(0) = boost::make_shared<sensor_msgs::Image>(req.image);
@@ -410,21 +408,37 @@ namespace neatness_estimator
     sorted_indices.resize(input_boxes.size());
     std::iota(sorted_indices.begin(), sorted_indices.end(), 0);
 
-    std::sort(sorted_indices.begin(), sorted_indices.end(),
-              [&input_boxes](size_t l, size_t r)
-              {return input_boxes.at(l).pose.position.y >
-                  input_boxes.at(r).pose.position.y;});
+    std::string target_frame = input_boxes.at(0).header.frame_id;
+    ROS_INFO("sort axis: %d, target_frame: %s", static_cast<int>(sort_axis_), target_frame.c_str());
+
+    if (sort_axis_ == DifferenceReasoner::AXIS::X) {
+      std::sort(sorted_indices.begin(), sorted_indices.end(),
+                [&input_boxes](size_t l, size_t r)
+                {return input_boxes.at(l).pose.position.x >
+                    input_boxes.at(r).pose.position.x;});
+    } else if (sort_axis_ == DifferenceReasoner::AXIS::Y) {
+      std::sort(sorted_indices.begin(), sorted_indices.end(),
+                [&input_boxes](size_t l, size_t r)
+                {return input_boxes.at(l).pose.position.y >
+                    input_boxes.at(r).pose.position.y;});
+    } else if (sort_axis_ == DifferenceReasoner::AXIS::Z) {
+      std::sort(sorted_indices.begin(), sorted_indices.end(),
+                [&input_boxes](size_t l, size_t r)
+                {return input_boxes.at(l).pose.position.z >
+                    input_boxes.at(r).pose.position.z;});
+    }
+
+    // std::cerr << "sorted indices: " << std::endl;
 
     labels.resize(sorted_indices.size());
-    std::cerr << "sorted indices: " << std::endl;
     for(size_t i=0; i<sorted_indices.size(); ++i) {
       auto v = sorted_indices.at(i);
       labels.at(i) = input_boxes.at(v).label;
-      std::cerr << "{";
-      std::cerr << v << ", ";
-      std::cerr << input_boxes.at(v).pose.position.y << ", ";
-      std::cerr << "label: " << input_boxes.at(v).label << ", ";
-      std::cerr << "}";
+      // std::cerr << "{";
+      // std::cerr << v << ", ";
+      // std::cerr << input_boxes.at(v).pose.position.y << ", ";
+      // std::cerr << "label: " << input_boxes.at(v).label << ", ";
+      // std::cerr << "}";
     }
     std::cerr << std::endl;
 
