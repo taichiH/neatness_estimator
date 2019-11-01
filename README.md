@@ -14,7 +14,8 @@ catkin build neatness_estimator
  2. `~input_cloud` (sensor_msgs/PointCloud2)
 
  - output
- There are only outputs often used on below lists
+
+ There are topics only often used
  1. `/labeled_bounding_box_publisher/labeled_instance_boxes` (jsk_recognition_msgs/BoundingBoxArray)
  2. `/labeled_bounding_box_publisher_aligned/labeled_instance_boxes` (jsk_recognition_msgs/BoundingBoxArray)
  3. `/labeled_bounding_box_publisher_aligned/labeled_cluster_boxes` (jsk_recognition_msgs/BoundingBoxArray)
@@ -39,12 +40,26 @@ roslaunch neatness_estimator multi_euclidean_clustering.launch
 
 ![image not foud](./neatness_estimator/images/clustering_processing1.png)
 
-Each boxes results are published as `/labeled_bounding_box_publisher/labeled_instance_boxes` .
+Each bounding boxes results are published as `/labeled_bounding_box_publisher/labeled_instance_boxes` topic.\
+Boxes pose are aligned by pca coordinates.
 
 ## Output bounding boxes
-1. same class surrounding bounding boxes
+1. Same class surrounding cluster bounding boxes aligned by target frame
    - `/labeled_bounding_box_publisher_aligned/labeled_cluster_boxes`
-2. each class bounding boxes aligned by frame
-   - `/labeled_bounding_box_publisher/labeled_cluster_boxes`
+2. Each class instance bounding boxes aligned by target frame
+   - `/labeled_bounding_box_publisher_aligned/labeled_instance_boxes`
 
 ![image not foud](./neatness_estimator/images/clustering_processing2.png)
+
+
+## neatness estimation
+stil developing
+
+
+## difference reasoning
+stil developing
+
+
+## motion selection
+feature work
+
