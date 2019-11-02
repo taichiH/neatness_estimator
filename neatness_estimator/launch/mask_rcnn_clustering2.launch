@@ -9,7 +9,7 @@
     <arg name="labels" value="$(arg labels)" />
   </include>
 
-  <include file="$(find neatness_estimator)/launch/multi_euclidean_clustering.launch">
+  <include file="$(find neatness_estimator)/launch/multi_euclidean_clustering_module.launch">
     <arg name="input_cloud" value="$(arg input_cloud)"/>
     <arg name="labels" value="$(arg labels)" />
   </include>
