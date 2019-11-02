@@ -7,6 +7,8 @@
   <include file="$(find neatness_estimator)/launch/multi_euclidean_clustering.launch">
     <arg name="input_cloud" value="$(arg input_cloud)" />
     <arg name="input_cluster_indices" value="$(arg input_cluster_indices)" />
+    <arg name="downsample" value="true"/>
+    <arg name="multi_threading" value="true" />
   </include>
 
   <node name="multi_euclidean_cluster_point_indices_decomposer"

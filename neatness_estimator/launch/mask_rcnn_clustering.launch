@@ -3,7 +3,7 @@
 
   <arg name="input_image" default="/openni_camera/rgb/image_rect_color" />
   <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
-  <arg name="labels" default="mask_rcnn_labels.yaml" />
+  <arg name="labels" default="mask_rcnn_labels_191023.yaml" />
 
   <arg name="input_label" default="mask_rcnn_instance_segmentation/output/label_cls" />
   <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />

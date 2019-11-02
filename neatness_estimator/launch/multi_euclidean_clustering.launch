@@ -1,7 +1,10 @@
 <launch>
   <arg name="downsample" default="true"/>
-  <arg name="input_cloud" default="/camera/depth_registered/points" />
-  <arg name="input_cluster_indices" default="/cluster_point_indices_decomposer/cluster_indices" />
+  <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
+  <arg name="input_cluster_indices" default="/instance_cluster_point_indices_decomposer/cluster_indices" />
+  <arg name="multi_threading" default="false" />
+  <arg name="get_centroid_multi" default="true" />
+  <arg name="debug_time" default="true" />
 
   <node name="multi_euclidean_clustering"
         pkg="nodelet" type="nodelet"
@@ -16,7 +19,10 @@
       max_size: 25000
       cluster_telerance: 0.01
       leaf_size: 0.01
+      multi_threading: $(arg multi_threading)
+      get_centroid_multi: $(arg get_centroid_multi)
       approximate_sync_: false
+      debug_time: $(arg debug_time)
     </rosparam>
   </node>
 
