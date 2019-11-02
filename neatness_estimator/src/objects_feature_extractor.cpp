@@ -1,8 +1,8 @@
-#include "neatness_estimator/difference_reasoner.h"
+#include "neatness_estimator/objects_feature_extractor.h"
 
 namespace neatness_estimator
 {
-  void DifferenceReasoner::onInit()
+  void ObjectsFeatureExtractor::onInit()
   {
     nh_ = getNodeHandle();
     pnh_ = getPrivateNodeHandle();
@@ -22,7 +22,7 @@ namespace neatness_estimator
 
     int sort_idx;
     pnh_.getParam("sort_axis", sort_idx);
-    sort_axis_ = static_cast<DifferenceReasoner::AXIS>(sort_idx);
+    sort_axis_ = static_cast<ObjectsFeatureExtractor::AXIS>(sort_idx);
 
     log_dir_.resize(buffer_size_);
     dir_.resize(buffer_size_);
@@ -30,7 +30,7 @@ namespace neatness_estimator
 
     msgs.resize(buffer_size_);
 
-    server_ = pnh_.advertiseService("read", &DifferenceReasoner::service_callback, this);
+    server_ = pnh_.advertiseService("extract", &ObjectsFeatureExtractor::service_callback, this);
 
     display_feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDisplayFeature>
       ("service_topic");
@@ -40,7 +40,7 @@ namespace neatness_estimator
 
   }
 
-  bool DifferenceReasoner::get_read_dirs()
+  bool ObjectsFeatureExtractor::get_read_dirs()
   {
 
     const boost::filesystem::path path(prefix_.c_str());
@@ -84,7 +84,7 @@ namespace neatness_estimator
   }
 
 
-  bool DifferenceReasoner::read_data()
+  bool ObjectsFeatureExtractor::read_data()
   {
     for (size_t i=0; i<buffer_size_; ++i) {
       msgs.cluster.at(i).reset(new jsk_recognition_msgs::ClusterPointIndices);
@@ -124,7 +124,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::read_data
+  bool ObjectsFeatureExtractor::read_data
   (neatness_estimator_msgs::GetFeatures::Request& req)
   {
     msgs.cluster.at(0) = boost::make_shared<jsk_recognition_msgs::ClusterPointIndices>(req.cluster);
@@ -136,7 +136,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::save_pcd(std::string save_path,
+  bool ObjectsFeatureExtractor::save_pcd(std::string save_path,
                                     const pcl::PointCloud<pcl::PointXYZRGB>& cloud)
   {
     ROS_INFO("save pcd path: \n%s", save_path.c_str());
@@ -150,7 +150,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::save_image(std::string save_path,
+  bool ObjectsFeatureExtractor::save_image(std::string save_path,
                                       const cv::Mat& image,
                                       const cv::Mat& mask_image,
                                       const cv::Mat& debug_image)
@@ -164,7 +164,7 @@ namespace neatness_estimator
   }
 
 
-  bool DifferenceReasoner::compute_color_histogram
+  bool ObjectsFeatureExtractor::compute_color_histogram
   (const cv::Mat& image,
    const cv::Mat& mask,
    neatness_estimator_msgs::Histogram& color_histogram)
@@ -207,7 +207,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::compute_geometry_histogram
+  bool ObjectsFeatureExtractor::compute_geometry_histogram
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
    neatness_estimator_msgs::Histogram& geometry_histogram)
   {
@@ -252,7 +252,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::compute_histograms
+  bool ObjectsFeatureExtractor::compute_histograms
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
    jsk_recognition_msgs::ClusterPointIndices::ConstPtr& input_indices,
    neatness_estimator_msgs::HistogramArray& color_histogram_array,
@@ -337,7 +337,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::load_image(const sensor_msgs::Image::ConstPtr& input_msg,
+  bool ObjectsFeatureExtractor::load_image(const sensor_msgs::Image::ConstPtr& input_msg,
                                       cv::Mat& input_image)
   {
     try {
@@ -352,7 +352,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::save_color_histogram
+  bool ObjectsFeatureExtractor::save_color_histogram
   (std::string save_dir, 
    std::vector<size_t> labels,
    const neatness_estimator_msgs::HistogramArray& color_histogram_array)
@@ -375,7 +375,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::save_geometry_histogram
+  bool ObjectsFeatureExtractor::save_geometry_histogram
   (std::string save_dir,
    std::vector<size_t> labels,
    const neatness_estimator_msgs::HistogramArray& geometry_histogram_array)
@@ -399,7 +399,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::create_sorted_indices
+  bool ObjectsFeatureExtractor::create_sorted_indices
   (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,
    std::vector<size_t>& sorted_indices,
    std::vector<size_t>& labels)
@@ -411,17 +411,17 @@ namespace neatness_estimator
     std::string target_frame = input_boxes.at(0).header.frame_id;
     ROS_INFO("sort axis: %d, target_frame: %s", static_cast<int>(sort_axis_), target_frame.c_str());
 
-    if (sort_axis_ == DifferenceReasoner::AXIS::X) {
+    if (sort_axis_ == ObjectsFeatureExtractor::AXIS::X) {
       std::sort(sorted_indices.begin(), sorted_indices.end(),
                 [&input_boxes](size_t l, size_t r)
                 {return input_boxes.at(l).pose.position.x >
                     input_boxes.at(r).pose.position.x;});
-    } else if (sort_axis_ == DifferenceReasoner::AXIS::Y) {
+    } else if (sort_axis_ == ObjectsFeatureExtractor::AXIS::Y) {
       std::sort(sorted_indices.begin(), sorted_indices.end(),
                 [&input_boxes](size_t l, size_t r)
                 {return input_boxes.at(l).pose.position.y >
                     input_boxes.at(r).pose.position.y;});
-    } else if (sort_axis_ == DifferenceReasoner::AXIS::Z) {
+    } else if (sort_axis_ == ObjectsFeatureExtractor::AXIS::Z) {
       std::sort(sorted_indices.begin(), sorted_indices.end(),
                 [&input_boxes](size_t l, size_t r)
                 {return input_boxes.at(l).pose.position.z >
@@ -445,7 +445,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::run()
+  bool ObjectsFeatureExtractor::run()
   {
     for (size_t i=0; i<buffer_size_; ++i) {
       cv::Mat image;
@@ -493,7 +493,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::run(neatness_estimator_msgs::GetFeatures::Response& res)
+  bool ObjectsFeatureExtractor::run(neatness_estimator_msgs::GetFeatures::Response& res)
   {
     for (size_t i=0; i<buffer_size_; ++i) {
       cv::Mat image;
@@ -552,7 +552,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DifferenceReasoner::service_callback
+  bool ObjectsFeatureExtractor::service_callback
   (neatness_estimator_msgs::GetFeatures::Request& req,
    neatness_estimator_msgs::GetFeatures::Response& res)
   {
@@ -604,4 +604,4 @@ namespace neatness_estimator
 } // namespace neatness_estimator
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(neatness_estimator::DifferenceReasoner, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(neatness_estimator::ObjectsFeatureExtractor, nodelet::Nodelet)

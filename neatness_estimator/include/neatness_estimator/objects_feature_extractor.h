@@ -1,5 +1,5 @@
-#ifndef _NEATNESS_ESTIMATOR_DIFFERENCE_REASONER_H_
-#define _NEATNESS_ESTIMATOR_DIFFERENCE_REASONER_H_
+#ifndef _NEATNESS_ESTIMATOR_OBJECTS_FEATURE_EXTRACTOR_H_
+#define _NEATNESS_ESTIMATOR_OBJECTS_FEATURE_EXTRACTOR_H_
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
@@ -91,7 +91,7 @@ namespace neatness_estimator
 
   };
 
-  class DifferenceReasoner : public nodelet::Nodelet
+  class ObjectsFeatureExtractor : public nodelet::Nodelet
   {
   public:
 
