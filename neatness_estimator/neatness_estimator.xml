@@ -7,8 +7,8 @@
     </description>
   </class>
 
-  <class name="neatness_estimator/DataSaver"
-         type="neatness_estimator::DataSaver"
+  <class name="neatness_estimator/EstimationModuleInterface"
+         type="neatness_estimator::EstimationModuleInterface"
          base_class_type="nodelet::Nodelet">
     <description>
     </description>

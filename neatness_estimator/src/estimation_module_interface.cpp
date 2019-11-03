@@ -1,9 +1,9 @@
-#include "neatness_estimator/data_saver.h"
+#include "neatness_estimator/estimation_module_interface.h"
 
 namespace neatness_estimator
 {
 
-  void DataSaver::onInit()
+  void EstimationModuleInterface::onInit()
   {
     nh_ = getNodeHandle();
     pnh_ = getPrivateNodeHandle();
@@ -11,9 +11,9 @@ namespace neatness_estimator
     pnh_.getParam("fe_service_topic", fe_service_topic_);
     pnh_.getParam("de_service_topic", de_service_topic_);
 
-    save_server_ = pnh_.advertiseService("save", &DataSaver::save_service_callback, this);
+    save_server_ = pnh_.advertiseService("save", &EstimationModuleInterface::save_service_callback, this);
 
-    call_server_ = pnh_.advertiseService("call", &DataSaver::call_service_callback, this);
+    call_server_ = pnh_.advertiseService("call", &EstimationModuleInterface::call_service_callback, this);
 
     feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetFeatures>
       (fe_service_topic_);
@@ -45,7 +45,7 @@ namespace neatness_estimator
                            sub_labels_,
                            sub_instance_boxes_,
                            sub_cluster_boxes_);
-      async_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3, _4, _5, _6));
+      async_->registerCallback(boost::bind(&EstimationModuleInterface::callback, this, _1, _2, _3, _4, _5, _6));
     } else {
       sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
       sync_->connectInput(sub_point_cloud_,
@@ -54,13 +54,13 @@ namespace neatness_estimator
                           sub_labels_,
                           sub_instance_boxes_,
                           sub_cluster_boxes_);
-      sync_->registerCallback(boost::bind(&DataSaver::callback, this, _1, _2, _3, _4, _5, _6));
+      sync_->registerCallback(boost::bind(&EstimationModuleInterface::callback, this, _1, _2, _3, _4, _5, _6));
     }
 
   }
 
 
-  bool DataSaver::create_features_vec(const neatness_estimator_msgs::Features& features)
+  bool EstimationModuleInterface::create_features_vec(const neatness_estimator_msgs::Features& features)
   {
     if (features_vec_.size() > 1) {
       features_vec_.erase(features_vec_.begin());
@@ -71,7 +71,7 @@ namespace neatness_estimator
   }
 
 
-  bool DataSaver::create_save_dir(std::stringstream& ss,
+  bool EstimationModuleInterface::create_save_dir(std::stringstream& ss,
                                   std::string dir_name)
   {
     const boost::filesystem::path path(prefix_.c_str());
@@ -99,7 +99,7 @@ namespace neatness_estimator
 
 
 
-  void DataSaver::callback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
+  void EstimationModuleInterface::callback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
                            const sensor_msgs::Image::ConstPtr& image_msg,
                            const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
                            const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg,
@@ -119,7 +119,7 @@ namespace neatness_estimator
   }
 
 
-  bool DataSaver::save_service_callback(std_srvs::SetBool::Request& req,
+  bool EstimationModuleInterface::save_service_callback(std_srvs::SetBool::Request& req,
                                         std_srvs::SetBool::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
@@ -156,7 +156,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool DataSaver::call_service_callback(neatness_estimator_msgs::GetDifference::Request& req,
+  bool EstimationModuleInterface::call_service_callback(neatness_estimator_msgs::GetDifference::Request& req,
                                         neatness_estimator_msgs::GetDifference::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
@@ -235,4 +235,4 @@ namespace neatness_estimator
 } // namespace neatness_estimator
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(neatness_estimator::DataSaver, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(neatness_estimator::EstimationModuleInterface, nodelet::Nodelet)

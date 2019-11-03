@@ -58,7 +58,7 @@ target_link_libraries(normal_viewer
 
 add_library(${PROJECT_NAME} SHARED
   src/multi_euclidean_clustering.cpp
-  src/data_saver.cpp
+  src/estimation_module_interface.cpp
   src/objects_feature_extractor.cpp)
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}

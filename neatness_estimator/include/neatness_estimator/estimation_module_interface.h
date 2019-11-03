@@ -1,5 +1,5 @@
-#ifndef _NEATNESS_ESTIMATOR_DATA_SAVER_H_
-#define _NEATNESS_ESTIMATOR_DATA_SAVER_H_
+#ifndef _NEATNESS_ESTIMATOR_ESTIMATION_MODULE_INTERFACE_H_
+#define _NEATNESS_ESTIMATOR_ESTIMATION_MODULE_INTERFACE_H_
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
@@ -26,7 +26,7 @@
 
 namespace neatness_estimator
 {
-  class DataSaver : public nodelet::Nodelet
+  class EstimationModuleInterface : public nodelet::Nodelet
   {
   public:
 
