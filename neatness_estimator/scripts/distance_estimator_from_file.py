@@ -10,7 +10,7 @@ from scipy.spatial import distance as dist
 import rospy
 from std_srvs.srv import SetBool, SetBoolResponse
 
-class CompareData():
+class DistanceEstimator():
 
     def __init__(self):
         self.prefix = rospy.get_param(
@@ -18,7 +18,7 @@ class CompareData():
 
         self.label_lst = rospy.get_param('~fg_class_names')
         rospy.Service(
-            '~compare', SetBool, self.service_callback)
+            '~estimate', SetBool, self.service_callback)
 
     def get_data(self, dir_path):
         color_histograms = []
@@ -158,6 +158,6 @@ class CompareData():
 
 
 if __name__=='__main__':
-    rospy.init_node('compare_data_from_file')
-    compare_data = CompareData()
+    rospy.init_node('distance_estimator_from_file')
+    distance_estimator = DistanceEstimator()
     rospy.spin()

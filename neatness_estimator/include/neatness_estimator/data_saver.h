@@ -113,8 +113,8 @@ namespace neatness_estimator
 
     boost::mutex mutex_;
     std::string prefix_ = "./";
-    std::string difference_reasoner_service_topic_ = "/difference_reasoner/read";
-    std::string compare_data_service_topic_ = "/compare_data/compare";
+    std::string fe_service_topic_ = "";
+    std::string de_service_topic_ = "";
     std::vector<std::string> topics_;
 
   private:

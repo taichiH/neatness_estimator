@@ -11,7 +11,7 @@ import rospy
 from std_srvs.srv import SetBool, SetBoolResponse
 from neatness_estimator_msgs.srv import GetDifference, GetDifferenceResponse
 
-class CompareData():
+class DistanceEstimator():
 
     def __init__(self):
         self.prefix = rospy.get_param(
@@ -20,10 +20,10 @@ class CompareData():
         self.label_lst = rospy.get_param('~fg_class_names')
 
         rospy.Service(
-            '~compare', GetDifference, self.service_callback)
+            '~estimate', GetDifference, self.service_callback)
 
     def service_callback(self, req):
-        rospy.loginfo('compare_data service called')
+        rospy.loginfo('distance_estimator service called')
 
         res = GetDifferenceResponse()
         if len(req.features) != 2:
@@ -95,6 +95,6 @@ class CompareData():
         return res
 
 if __name__=='__main__':
-    rospy.init_node('compare_data')
-    compare_data = CompareData()
+    rospy.init_node('distance_estimator')
+    distance_estimator = DistanceEstimator()
     rospy.spin()

@@ -7,9 +7,9 @@
   <arg name="input_labels" default="/mask_rcnn_instance_segmentation/output/labels" />
 
   <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
-  <arg name="difference_reasoner_service_topic" default="/difference_reasoner/read" />
-  <arg name="compare_data_service_topic" default="/compare_data/compare" />
 
+  <arg name="fe_service_topic" default="/objects_feature_extractor/extract" />
+  <arg name="de_service_topic" default="/distance_estimator/estimate" />
 
   <node name="data_saver"
         pkg="nodelet" type="nodelet"
@@ -24,8 +24,8 @@
     <rosparam subst_value="true">
       approximate_sync: true
       prefix: $(arg prefix)
-      difference_reasoner_service_topic: $(arg difference_reasoner_service_topic)
-      compare_data_service_topic: $(arg compare_data_service_topic)
+      fe_service_topic: $(arg fe_service_topic)
+      de_service_topic: $(arg de_service_topic)
     </rosparam>
 
   </node>

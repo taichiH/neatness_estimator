@@ -1,44 +1,15 @@
 <launch>
-  <arg name="debug_view" default="false" />
   <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
-  <arg name="difference_reasoner_service_topic" default="/difference_reasoner/read" />
-  <arg name="compare_data_service_topic" default="/compare_data/compare" />
+  <arg name="de_node_name" default="distance_estimator" />
 
-  <arg name="cloud_topic" default="/openni_camera/depth_registered/points" />
-  <arg name="image_topic" default="/openni_camera/rgb/image_rect_color" />
-  <arg name="cluster_topic" default="/multi_euclidean_clustering/output_indices" />
-  <arg name="instance_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
-  <arg name="cluster_boxes_topic" default="/labeled_bounding_box_publisher_aligned/output/labeled_cluster_boxes" />
-  <arg name="labels_topic" default="/mask_rcnn_instance_segmentation/output/labels" />
-
-
-  <include file="$(find neatness_estimator)/launch/data_saver.launch">
-    <arg name="input_cloud" default="$(arg cloud_topic)" />
-    <arg name="input_image" default="$(arg image_topic)" />
-    <arg name="input_cluster" default="$(arg cluster_topic)" />
-    <arg name="input_instance_boxes" default="$(arg instance_boxes_topic)" />
-    <arg name="input_cluster_boxes" default="$(arg cluster_boxes_topic)" />
-    <arg name="input_labels" default="$(arg labels_topic)" />
-    <arg name="prefix" default="$(arg prefix)" />
-    <arg name="difference_reasoner_service_topic" default="$(arg difference_reasoner_service_topic)" />
-    <arg name="compare_data_service_topic" default="$(arg compare_data_service_topic)" />
-  </include>
-
-  <include file="$(find neatness_estimator)/launch/difference_reasoner.launch">
-    <arg name="debug_view" default="false" />
-    <arg name="sort_axis" default="0" />
-    <arg name="save_reasoning_result" default="false" />
-    <arg name="prefix" default="$(arg prefix)" />
-    <arg name="cloud_topic" default="$(arg cloud_topic)" />
-    <arg name="image_topic" default="$(arg image_topic)" />
-    <arg name="cluster_topic" default="$(arg cluster_topic)" />
-    <arg name="instance_boxes_topic" default="$(arg instance_boxes_topic)" />
-    <arg name="cluster_boxes_topic" default="$(arg cluster_boxes_topic)" />
-  </include>
-
-  <include file="$(find neatness_estimator)/launch/compare_data.launch" >
-    <arg name="prefix" value="$(arg prefix)" />
-  </include>
-
+  <node name="$(arg de_node_name)"
+        pkg="neatness_estimator" type="distance_estimator.py"
+        output="screen">
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/mask_rcnn_labels_191023.yaml" />
+    <rosparam subst_value="true">
+      prefix: $(arg prefix)
+    </rosparam>
+  </node>
 
 </launch>

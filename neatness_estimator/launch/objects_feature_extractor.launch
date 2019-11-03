@@ -12,9 +12,11 @@
   <arg name="instance_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
   <arg name="cluster_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
 
-  <node name="difference_reasoner"
+  <arg name="fe_node_name" default="objects_feature_extractor" />
+
+  <node name="$(arg fe_node_name)"
         pkg="nodelet" type="nodelet"
-        args="standalone neatness_estimator/DifferenceReasoner"
+        args="standalone neatness_estimator/ObjectsFeatureExtractor"
         output="screen">
     <remap from="~service_topic" to="$(arg service_node_name)/get_display_feature"/>
     <rosparam subst_value="true">
