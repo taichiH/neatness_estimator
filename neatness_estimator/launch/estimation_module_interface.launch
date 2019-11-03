@@ -11,9 +11,9 @@
   <arg name="fe_service_topic" default="/objects_feature_extractor/extract" />
   <arg name="de_service_topic" default="/distance_estimator/estimate" />
 
-  <node name="data_saver"
+  <node name="estimation_module_interface"
         pkg="nodelet" type="nodelet"
-        args="standalone neatness_estimator/DataSaver"
+        args="standalone neatness_estimator/EstimationModuleInterface"
         output="screen">
     <remap from="~input_cloud" to="$(arg input_cloud)" />
     <remap from="~input_image" to="$(arg input_image)" />

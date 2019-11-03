@@ -15,7 +15,7 @@
   <arg name="labels_topic" default="/mask_rcnn_instance_segmentation/output/labels" />
 
 
-  <include file="$(find neatness_estimator)/launch/data_saver.launch">
+  <include file="$(find neatness_estimator)/launch/estimation_module_interface.launch">
     <arg name="input_cloud" default="$(arg cloud_topic)" />
     <arg name="input_image" default="$(arg image_topic)" />
     <arg name="input_cluster" default="$(arg cluster_topic)" />

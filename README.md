@@ -53,11 +53,23 @@ Boxes pose are aligned by pca coordinates.
 
 
 ## neatness estimation
-stil developing
+under developing
 
 
-## difference reasoning
-stil developing
+## difference estimation
+under developing
+
+```
+roslaunch neatness_estimator distance_estimator_module.launch
+```
+
+- get distance between two scenes
+```
+rosservice call /estimation_module_interface/call ${features srv message}
+```
+
+- get distance between same class items
+feature work
 
 
 ## motion selection
