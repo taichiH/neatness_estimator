@@ -350,7 +350,7 @@ class NeatnessEstimatorVisionServer():
                     target_index = index
                     distance = np.linalg.norm(ref_point - target_point)
 
-        return nearest_box, has_request_item
+        return nearest_box, has_request_item, target_index
 
     def get_multi_boxes(self, req):
         distance = 100
