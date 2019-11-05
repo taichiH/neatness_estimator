@@ -70,23 +70,23 @@ namespace neatness_estimator
                           const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& instance_boxes_msg,
                           const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& cluster_boxes_msg);
 
-    virtual bool save_service_callback(std_srvs::SetBool::Request& req,
-                                       std_srvs::SetBool::Response& res);
-
-    virtual bool call_service_callback(neatness_estimator_msgs::GetDifference::Request& req,
-                                       neatness_estimator_msgs::GetDifference::Response& res);
+    virtual bool service_callback(neatness_estimator_msgs::GetDifference::Request& req,
+                                  neatness_estimator_msgs::GetDifference::Response& res);
 
     virtual bool create_save_dir(std::stringstream& ss,
                                  std::string dir_name);
 
     virtual bool create_features_vec(const neatness_estimator_msgs::Features& fetures);
 
+    virtual bool get_items_difference(neatness_estimator_msgs::GetDifference::Response& res);
+
+    virtual bool get_two_scene_difference(neatness_estimator_msgs::GetDifference::Response& res);
+
     // variables
 
     ros::NodeHandle nh_;
     ros::NodeHandle pnh_;
 
-    ros::ServiceServer save_server_;
     ros::ServiceServer call_server_;
 
     ros::ServiceClient feature_client_;

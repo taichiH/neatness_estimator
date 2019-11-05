@@ -11,14 +11,13 @@ namespace neatness_estimator
     pnh_.getParam("fe_service_topic", fe_service_topic_);
     pnh_.getParam("de_service_topic", de_service_topic_);
 
-    save_server_ = pnh_.advertiseService("save", &EstimationModuleInterface::save_service_callback, this);
+    call_server_ =
+      pnh_.advertiseService("call", &EstimationModuleInterface::service_callback, this);
 
-    call_server_ = pnh_.advertiseService("call", &EstimationModuleInterface::call_service_callback, this);
-
-    feature_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetFeatures>
-      (fe_service_topic_);
-    difference_client_ = pnh_.serviceClient<neatness_estimator_msgs::GetDifference>
-      (de_service_topic_);
+    feature_client_ =
+      pnh_.serviceClient<neatness_estimator_msgs::GetFeatures>(fe_service_topic_);
+    difference_client_ =
+      pnh_.serviceClient<neatness_estimator_msgs::GetDifference>(de_service_topic_);
 
     sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
     sub_image_.subscribe(pnh_, "input_image", 1);
@@ -99,12 +98,13 @@ namespace neatness_estimator
 
 
 
-  void EstimationModuleInterface::callback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
-                           const sensor_msgs::Image::ConstPtr& image_msg,
-                           const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
-                           const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg,
-                           const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& instance_boxes_msg,
-                           const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& cluster_boxes_msg)
+  void EstimationModuleInterface::callback
+  (const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
+   const sensor_msgs::Image::ConstPtr& image_msg,
+   const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
+   const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg,
+   const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& instance_boxes_msg,
+   const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& cluster_boxes_msg)
   {
     boost::mutex::scoped_lock lock(mutex_);
 
@@ -118,46 +118,9 @@ namespace neatness_estimator
     cluster_boxes_msg_ = cluster_boxes_msg;
   }
 
-
-  bool EstimationModuleInterface::save_service_callback(std_srvs::SetBool::Request& req,
-                                        std_srvs::SetBool::Response& res)
-  {
-    boost::mutex::scoped_lock lock(mutex_);
-
-    std::cerr << "save_service_callback!!!" << std::endl;
-
-    if ( cloud_msg_->height * cloud_msg_->width == 0 ) {
-      res.success = false;
-      return false;
-    }
-
-    std::stringstream ss;
-    std::string dir_name = std::to_string(cloud_msg_->header.stamp.sec);
-    if ( !create_save_dir(ss, dir_name) ) {
-      res.success = false;
-    }
-
-    std::stringstream bag_save_path;
-    bag_save_path << ss.str() << "/" << cloud_msg_->header.stamp.sec << ".bag";
-    rosbag::Bag bag;
-    bag.open(bag_save_path.str(), rosbag::bagmode::Write);
-    // topics : [cloud, rgb, cluster, labels]
-    bag.write(topics_.at(0), cloud_msg_->header.stamp, *cloud_msg_);
-    bag.write(topics_.at(1), image_msg_->header.stamp, *image_msg_);
-    bag.write(topics_.at(2), cluster_msg_->header.stamp, *cluster_msg_);
-    bag.write(topics_.at(3), labels_msg_->header.stamp, *labels_msg_);
-    bag.write(topics_.at(4), instance_boxes_msg_->header.stamp, *instance_boxes_msg_);
-    bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
-    bag.close();
-
-
-
-    res.success = true;
-    return true;
-  }
-
-  bool EstimationModuleInterface::call_service_callback(neatness_estimator_msgs::GetDifference::Request& req,
-                                        neatness_estimator_msgs::GetDifference::Response& res)
+  bool EstimationModuleInterface::service_callback
+  (neatness_estimator_msgs::GetDifference::Request& req,
+   neatness_estimator_msgs::GetDifference::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
 
@@ -186,9 +149,27 @@ namespace neatness_estimator
     bag.write(topics_.at(4), instance_boxes_msg_->header.stamp, *instance_boxes_msg_);
     bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
     bag.close();
-
     ROS_INFO("rosbag file saved \n %s", bag_save_path.str().c_str());
 
+    bool success = false;
+    if (req.task == "two_scene") {
+      success = get_two_scene_difference(res);
+    } else if (req.task == "items") {
+      success = get_items_difference(res);
+    }
+
+    if (!success) {
+      res.success = false;
+      return false;
+    }
+
+    res.success = true;
+    return true;
+  }
+
+  bool EstimationModuleInterface::get_two_scene_difference
+  (neatness_estimator_msgs::GetDifference::Response& res)
+  {
     // get feature service call
     neatness_estimator_msgs::GetFeatures feature_client_msg;
     feature_client_msg.request.cloud = *cloud_msg_;
@@ -200,7 +181,6 @@ namespace neatness_estimator
 
     if (!feature_client_msg.response.success) {
       ROS_WARN("failed to call %s", fe_service_topic_.c_str());
-      res.success = false;
       return false;
     }
 
@@ -213,7 +193,6 @@ namespace neatness_estimator
 
       if (!difference_msg.response.success) {
         ROS_WARN("failed to call %s", de_service_topic_.c_str());
-        res.success = false;
         return false;
       } else {
         res.message = "success compare data";
@@ -222,15 +201,19 @@ namespace neatness_estimator
         res.geometry_distance = difference_msg.response.geometry_distance;
         res.group_distance = difference_msg.response.group_distance;
       }
-
     } else {
       res.message = "need wait for features service call to compare datas";
     }
 
-    res.success = true;
     return true;
   }
 
+  bool EstimationModuleInterface::get_items_difference
+  (neatness_estimator_msgs::GetDifference::Response& res)
+  {
+
+    return true;
+  }
 
 } // namespace neatness_estimator
 
