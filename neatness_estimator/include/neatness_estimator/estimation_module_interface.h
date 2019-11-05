@@ -78,9 +78,14 @@ namespace neatness_estimator
 
     virtual bool create_features_vec(const neatness_estimator_msgs::Features& fetures);
 
-    virtual bool get_items_difference(neatness_estimator_msgs::GetDifference::Response& res);
+    virtual bool get_items_difference(neatness_estimator_msgs::GetDifference::Response& res,
+                                      unsigned int base_target_index,
+                                      std::vector<unsigned int> ref_target_indices);
 
     virtual bool get_two_scene_difference(neatness_estimator_msgs::GetDifference::Response& res);
+
+    virtual bool get_index_features(int index,
+                                    neatness_estimator_msgs::Features& features);
 
     // variables
 

@@ -155,7 +155,7 @@ namespace neatness_estimator
     if (req.task == "two_scene") {
       success = get_two_scene_difference(res);
     } else if (req.task == "items") {
-      success = get_items_difference(res);
+      success = get_items_difference(res, req.base_target_index, req.ref_target_indices);
     }
 
     if (!success) {
@@ -208,11 +208,66 @@ namespace neatness_estimator
     return true;
   }
 
-  bool EstimationModuleInterface::get_items_difference
-  (neatness_estimator_msgs::GetDifference::Response& res)
+  bool EstimationModuleInterface::get_index_features
+  (int index,
+   neatness_estimator_msgs::Features& features)
   {
+    // get base_target_index item feature
+    jsk_recognition_msgs::ClusterPointIndices cluster_msg;
+    cluster_msg.header = cluster_msg_->header;
+    cluster_msg.cluster_indices.push_back(cluster_msg_->cluster_indices.at(index));
+    jsk_recognition_msgs::BoundingBoxArray instance_boxes_msg;
+    instance_boxes_msg.header = instance_boxes_msg_->header;
+    instance_boxes_msg.boxes.push_back(instance_boxes_msg_->boxes.at(index));
+
+    neatness_estimator_msgs::GetFeatures feature_client_msg;
+    feature_client_msg.request.cloud = *cloud_msg_;
+    feature_client_msg.request.image = *image_msg_;
+    feature_client_msg.request.cluster = cluster_msg;
+    feature_client_msg.request.instance_boxes = instance_boxes_msg;
+    feature_client_.call(feature_client_msg);
+
+    if (!feature_client_msg.response.success) {
+      ROS_WARN("failed to call %s", fe_service_topic_.c_str());
+      return false;
+    }
+
+    features = feature_client_msg.response.features;
 
     return true;
+  }
+
+  bool EstimationModuleInterface::get_items_difference
+  (neatness_estimator_msgs::GetDifference::Response& res,
+   unsigned int base_target_index,
+   std::vector<unsigned int> ref_target_indices)
+  {
+    // TODO: support multi reference indices
+    int ref_target_index = ref_target_indices.at(0);
+
+    std::vector<neatness_estimator_msgs::Features> features_vec(2);
+    neatness_estimator_msgs::Features features;
+    get_index_features(base_target_index, features_vec.at(0));
+    get_index_features(ref_target_index, features_vec.at(1));
+
+    // compare histogram service call
+    neatness_estimator_msgs::GetDifference difference_msg;
+    difference_msg.request.features = features_vec;
+    difference_client_.call(difference_msg);
+
+    if (!difference_msg.response.success) {
+      ROS_WARN("failed to call %s", de_service_topic_.c_str());
+      return false;
+    } else {
+      res.message = "success compare data";
+      res.labels = difference_msg.response.labels;
+      res.color_distance = difference_msg.response.color_distance;
+      res.geometry_distance = difference_msg.response.geometry_distance;
+      res.group_distance = difference_msg.response.group_distance;
+
+
+      return true;
+    }
   }
 
 } // namespace neatness_estimator
