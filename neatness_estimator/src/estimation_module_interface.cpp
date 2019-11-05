@@ -157,7 +157,8 @@ namespace neatness_estimator
     if (req.task == "two_scene") {
       success = get_two_scene_difference(res);
     } else if (req.task == "items") {
-      success = get_items_difference(res, req.base_target_index, req.ref_target_indices);
+      success = get_items_difference
+        (res, req.base_target_index, req.ref_target_indices, ss.str());
     }
 
     if (!success) {
@@ -264,7 +265,8 @@ namespace neatness_estimator
   bool EstimationModuleInterface::get_items_difference
   (neatness_estimator_msgs::GetDifference::Response& res,
    unsigned int base_target_index,
-   std::vector<unsigned int> ref_target_indices)
+   std::vector<unsigned int> ref_target_indices,
+   std::string save_prefix)
   {
     // TODO: support multi reference indices
     int ref_target_index = ref_target_indices.at(0);
@@ -308,7 +310,9 @@ namespace neatness_estimator
       }
     }
 
-
+    std::stringstream color_mask_save_path;
+    color_mask_save_path << save_prefix << "/logs/color_mask.jpg";
+    cv::imwrite(color_mask_save_path.str(), color_mask);
 
     return true;
   }
