@@ -538,6 +538,10 @@ namespace neatness_estimator
       client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
       display_feature_client_.call(client_msg);
 
+      if (!client_msg.response.success) {
+        return false;
+      }
+
       std::vector<unsigned int> res_labels(labels.size());
       for (size_t i=0; i<labels.size(); ++i) {
         res_labels[i] = labels[i];

@@ -96,6 +96,10 @@ class NeatnessEstimator():
 
             res_group_neatness = self.run(instance_msg, cluster_msg, True)
 
+            if res_group_neatness is None:
+                res.success = False
+                return res
+
             self.has_requested_boxes = True
             res = GetDisplayFeatureResponse()
             res.success = True
