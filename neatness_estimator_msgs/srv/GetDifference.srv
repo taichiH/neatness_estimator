@@ -1,4 +1,6 @@
 string task
+uint32 base_target_index
+uint32[] ref_target_indices
 neatness_estimator_msgs/Features[] features
 ---
 string message

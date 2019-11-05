@@ -5,6 +5,7 @@ string parent_frame
 geometry_msgs/Point target
 ---
 bool status
+uint32 index
 float32 filling_dist
 float32 pulling_dist
 jsk_recognition_msgs/BoundingBox boxes
