@@ -10,6 +10,7 @@ namespace neatness_estimator
     pnh_.getParam("prefix", prefix_);
     pnh_.getParam("fe_service_topic", fe_service_topic_);
     pnh_.getParam("de_service_topic", de_service_topic_);
+    pnh_.getParam("fg_class_names", label_lst_);
 
     call_server_ =
       pnh_.advertiseService("call", &EstimationModuleInterface::service_callback, this);
@@ -220,11 +221,26 @@ namespace neatness_estimator
     instance_boxes_msg.header = instance_boxes_msg_->header;
     instance_boxes_msg.boxes.push_back(instance_boxes_msg_->boxes.at(index));
 
+    int cluster_boxes_index = 0;
+    for (int i=0; i<cluster_boxes_msg_->boxes.size(); ++i) {
+      if (cluster_boxes_msg_->boxes.at(i).label == instance_boxes_msg_->boxes.at(index).label) {
+        ROS_INFO("found corresponding index");
+        cluster_boxes_index = i;
+        break;
+      }
+    }
+
+    jsk_recognition_msgs::BoundingBoxArray cluster_boxes_msg;
+    cluster_boxes_msg.header = cluster_boxes_msg_->header;
+    cluster_boxes_msg.boxes.push_back
+      (cluster_boxes_msg_->boxes.at(cluster_boxes_index));
+
     neatness_estimator_msgs::GetFeatures feature_client_msg;
     feature_client_msg.request.cloud = *cloud_msg_;
     feature_client_msg.request.image = *image_msg_;
     feature_client_msg.request.cluster = cluster_msg;
     feature_client_msg.request.instance_boxes = instance_boxes_msg;
+    feature_client_msg.request.cluster_boxes = cluster_boxes_msg;
     feature_client_.call(feature_client_msg);
 
     if (!feature_client_msg.response.success) {

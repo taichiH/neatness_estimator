@@ -121,6 +121,7 @@ namespace neatness_estimator
     std::string fe_service_topic_ = "";
     std::string de_service_topic_ = "";
     std::vector<std::string> topics_;
+    std::vector<std::string> label_lst_;
 
   private:
 
