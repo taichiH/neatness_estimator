@@ -152,6 +152,7 @@ namespace neatness_estimator
     bag.close();
     ROS_INFO("rosbag file saved \n %s", bag_save_path.str().c_str());
 
+
     bool success = false;
     if (req.task == "two_scene") {
       success = get_two_scene_difference(res);
@@ -253,6 +254,13 @@ namespace neatness_estimator
     return true;
   }
 
+  int EstimationModuleInterface::get_confidence_color
+  (std::vector<float> v)
+  {
+    double results = std::accumulate(v.begin(), v.end(), 0.0) / v.size();
+    return static_cast<int>(results * 255);
+  }
+
   bool EstimationModuleInterface::get_items_difference
   (neatness_estimator_msgs::GetDifference::Response& res,
    unsigned int base_target_index,
@@ -280,10 +288,29 @@ namespace neatness_estimator
       res.color_distance = difference_msg.response.color_distance;
       res.geometry_distance = difference_msg.response.geometry_distance;
       res.group_distance = difference_msg.response.group_distance;
-
-
-      return true;
     }
+
+    // in this function, always response array size assume 0
+    std::vector<float> results;
+    results.push_back(res.color_distance.at(0));
+    results.push_back(res.geometry_distance.at(0));
+    results.push_back(res.group_distance.at(0));
+    int normalized_color = get_confidence_color(results);
+
+    std::vector<int> target_indices{base_target_index, ref_target_index};
+    cv::Mat color_mask
+      (cv::Size(image_msg_->height, image_msg_->width), CV_8UC3, cv::Scalar(0,0,0));
+    for (auto index : target_indices) {
+      for (auto point_index : cluster_msg_->cluster_indices.at(index).indices) {
+        size_t y = int(point_index / image_msg_->width);
+        size_t x = int(point_index % image_msg_->width);
+        color_mask.at<cv::Vec3b>(y,x)[2] = normalized_color;
+      }
+    }
+
+
+
+    return true;
   }
 
 } // namespace neatness_estimator

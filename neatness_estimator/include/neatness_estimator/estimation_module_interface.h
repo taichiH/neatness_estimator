@@ -22,7 +22,9 @@
 
 #include <mutex>
 #include <boost/filesystem.hpp>
-
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv/cv.hpp>
 
 namespace neatness_estimator
 {
@@ -86,6 +88,8 @@ namespace neatness_estimator
 
     virtual bool get_index_features(int index,
                                     neatness_estimator_msgs::Features& features);
+
+    virtual int get_confidence_color(std::vector<float> v);
 
     // variables
 
