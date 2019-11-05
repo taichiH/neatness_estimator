@@ -81,7 +81,7 @@ class NeatnessEstimatorVisionServer():
         has_nearest_item = False
 
         try:
-            nearest_box, has_nearest_item = self.get_nearest_box(req)
+            nearest_box, has_nearest_item, target_index = self.get_nearest_box(req)
             rospy.loginfo('has_nearest_item = true')
             if has_nearest_item:
                 if req.parent_frame == '':
@@ -102,6 +102,7 @@ class NeatnessEstimatorVisionServer():
                     transformed_box.dimensions = nearest_box.dimensions
 
                 res.boxes = transformed_box
+                res.index = target_index
                 res.status = True
                 print(res.boxes)
 
@@ -167,7 +168,7 @@ class NeatnessEstimatorVisionServer():
                 res.status = False
                 return res
 
-            nearest_box, has_nearest_item = self.get_nearest_box(req)
+            nearest_box, has_nearest_item, _ = self.get_nearest_box(req)
             if has_nearest_item:
                 target_vec = np.array([nearest_box.pose.position.x, nearest_box.pose.position.y])
                 target_vec = target_vec - shelf_front
@@ -208,7 +209,7 @@ class NeatnessEstimatorVisionServer():
                 res.status = False
                 return res
 
-            nearest_box, has_nearest_item = self.get_nearest_box(req)
+            nearest_box, has_nearest_item, _ = self.get_nearest_box(req)
             if has_nearest_item:
                 target = nearest_box.pose.position.x - box.dimensions.x * 0.5
                 distance  = target - shelf_front
@@ -325,6 +326,7 @@ class NeatnessEstimatorVisionServer():
     def get_nearest_box(self, req):
         distance = 100
         has_request_item = False
+        target_index = 0
         nearest_box = BoundingBox()
         for index, box in enumerate(self.boxes.boxes):
             if box.pose.position.x == 0 or \
@@ -344,6 +346,8 @@ class NeatnessEstimatorVisionServer():
                 if np.linalg.norm(ref_point - target_point) < distance:
                     nearest_box.pose = box.pose
                     nearest_box.dimensions = box.dimensions
+                    nearest_box.label = box.label
+                    target_index = index
                     distance = np.linalg.norm(ref_point - target_point)
 
         return nearest_box, has_request_item
