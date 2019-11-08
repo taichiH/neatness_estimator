@@ -11,6 +11,7 @@ namespace neatness_estimator
     pnh_.getParam("fe_service_topic", fe_service_topic_);
     pnh_.getParam("de_service_topic", de_service_topic_);
     pnh_.getParam("fg_class_names", label_lst_);
+    pnh_.getParam("get_color_mask", get_color_mask_);
 
     call_server_ =
       pnh_.advertiseService("call", &EstimationModuleInterface::service_callback, this);
@@ -259,7 +260,7 @@ namespace neatness_estimator
   (std::vector<float> v)
   {
     double results = std::accumulate(v.begin(), v.end(), 0.0) / v.size();
-    return static_cast<int>(results * 255);
+    return static_cast<int>((1 - results) * 255);
   }
 
   bool EstimationModuleInterface::get_items_difference
@@ -300,21 +301,40 @@ namespace neatness_estimator
     int normalized_color = get_confidence_color(results);
 
     std::vector<int> target_indices{base_target_index, ref_target_index};
-    cv::Mat color_mask
-      (cv::Size(image_msg_->width, image_msg_->height), CV_8UC3, cv::Scalar(0,0,0));
-    for (auto index : target_indices) {
+
+    int channel_size = static_cast<int>(target_indices.size());
+    cv::Mat mask = cv::Mat::zeros(image_msg_->height, image_msg_->width, CV_8UC1);
+
+    for (int i=0; i<target_indices.size(); ++i) {
+      int index = target_indices.at(i);
       for (auto point_index : cluster_msg_->cluster_indices.at(index).indices) {
-        size_t y = int(point_index / image_msg_->width);
-        size_t x = int(point_index % image_msg_->width);
-        color_mask.at<cv::Vec3b>(y,x)[2] = normalized_color;
+        int y = int(point_index / image_msg_->width);
+        int x = int(point_index % image_msg_->width);
+        mask.at<unsigned char>(y,x) = static_cast<unsigned char>(normalized_color);
       }
     }
 
-    std::stringstream color_mask_save_path;
-    color_mask_save_path << save_prefix << "/color_mask.jpg";
-    ROS_INFO("save color mask to: %s", color_mask_save_path.str().c_str());
-    cv::imwrite(color_mask_save_path.str(), color_mask);
+    // debug mask log
+    if (get_color_mask_) {
+      ROS_INFO("save debug mask image");
+      cv::Mat image;
+      try {
+        cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy
+          (image_msg_, "bgr8");
+        image = cv_image->image;
+      } catch (cv_bridge::Exception& e) {
+        ROS_ERROR("Failed to convert sensor_msgs::Image to cv::Mat \n%s", e.what());
+        return false;
+      }
+      std::stringstream color_mask_save_path;
+      color_mask_save_path << save_prefix << "/color_mask.jpg";
+      std::stringstream image_save_path;
+      image_save_path << save_prefix << "/image.jpg";
 
+      ROS_INFO("save color mask to: %s", color_mask_save_path.str().c_str());
+      cv::imwrite(color_mask_save_path.str(), mask);
+      cv::imwrite(image_save_path.str(), image);
+    }
     return true;
   }
 

@@ -29,6 +29,7 @@
       prefix: $(arg prefix)
       fe_service_topic: $(arg fe_service_topic)
       de_service_topic: $(arg de_service_topic)
+      get_color_mask: true
     </rosparam>
 
   </node>

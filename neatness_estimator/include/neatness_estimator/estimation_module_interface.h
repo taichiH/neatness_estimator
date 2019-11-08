@@ -5,6 +5,12 @@
 #include <nodelet/nodelet.h>
 #include <rosbag/bag.h>
 
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv/cv.hpp>
+
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/synchronizer.h>
@@ -127,6 +133,7 @@ namespace neatness_estimator
     std::string de_service_topic_ = "";
     std::vector<std::string> topics_;
     std::vector<std::string> label_lst_;
+    bool get_color_mask_ = true;
 
   private:
 
