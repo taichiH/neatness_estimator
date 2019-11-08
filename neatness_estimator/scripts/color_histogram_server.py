@@ -22,6 +22,11 @@ class ColorHistogramServer:
         mask_msg = req.mask
         mask = self.cv_bridge.imgmsg_to_cv2(mask_msg, 'mono8')
 
+        if image.shape[0] * image.shape[1] == 0:
+            rospy.logwarn('input image size: %d', image.shape[0] * image.shape[1])
+            res.success = False
+            return res
+
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         hist = np.array(cv2.calcHist([image], [0], mask, [256], [0,256]))
@@ -29,6 +34,7 @@ class ColorHistogramServer:
 
         res = GetColorHistogramResponse()
         res.histogram.histogram = list(hist)
+        res.success = True
         return res
 
 if __name__ == "__main__":

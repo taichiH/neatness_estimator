@@ -301,7 +301,7 @@ namespace neatness_estimator
 
     std::vector<int> target_indices{base_target_index, ref_target_index};
     cv::Mat color_mask
-      (cv::Size(image_msg_->height, image_msg_->width), CV_8UC3, cv::Scalar(0,0,0));
+      (cv::Size(image_msg_->width, image_msg_->height), CV_8UC3, cv::Scalar(0,0,0));
     for (auto index : target_indices) {
       for (auto point_index : cluster_msg_->cluster_indices.at(index).indices) {
         size_t y = int(point_index / image_msg_->width);
@@ -311,7 +311,8 @@ namespace neatness_estimator
     }
 
     std::stringstream color_mask_save_path;
-    color_mask_save_path << save_prefix << "/logs/color_mask.jpg";
+    color_mask_save_path << save_prefix << "/color_mask.jpg";
+    ROS_INFO("save color mask to: %s", color_mask_save_path.str().c_str());
     cv::imwrite(color_mask_save_path.str(), color_mask);
 
     return true;

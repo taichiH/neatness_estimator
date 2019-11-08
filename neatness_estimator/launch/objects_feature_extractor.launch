@@ -39,7 +39,7 @@
 
   <node name="$(arg service_node_name)"
         pkg="neatness_estimator" type="neatness_estimator.py"
-        output="log">
+        output="screen">
     <rosparam command="load"
               file="$(find neatness_estimator)/models/mask_rcnn_labels_191023.yaml" />
     <rosparam subst_value="true">

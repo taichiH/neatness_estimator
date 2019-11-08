@@ -181,7 +181,10 @@ namespace neatness_estimator
     client_msg.request.image = image_msg;
     client_msg.request.mask = mask_msg;
     color_hist_client_.call(client_msg);
-
+    if ( !client_msg.response.success) {
+      ROS_WARN("failed to call color_hist_client_ service");
+      return false;
+    }
     color_histogram = client_msg.response.histogram;
 
     // cv::cvtColor(image, image, CV_BGR2GRAY);
@@ -203,7 +206,6 @@ namespace neatness_estimator
     //   float val = hist[0].at<float>(i);
     //   color_histogram.histogram.push_back(val);
     // }
-
     return true;
   }
 
@@ -211,7 +213,6 @@ namespace neatness_estimator
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
    neatness_estimator_msgs::Histogram& geometry_histogram)
   {
-
     pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> normal_estimation;
     pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
     pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>());
@@ -228,11 +229,21 @@ namespace neatness_estimator
     cvfh.setCurvatureThreshold(1.0f);
     cvfh.setNormalizeBins(false);
 
+    if (cloud_normals->size() <= 0) {
+      ROS_WARN("cloud_normals size: %d", cloud_normals->size());
+      return false;
+    }
+
     pcl::PointCloud<pcl::VFHSignature308>::Ptr cvfhs
       (new pcl::PointCloud<pcl::VFHSignature308>());
     cvfh.compute(*cvfhs);
 
     int feature_size = sizeof(pcl::VFHSignature308) / sizeof(cvfhs->points[0].histogram[0]);
+    if (feature_size <= 0) {
+      ROS_WARN("feature_size: %d", feature_size);
+      return false;
+    }
+
     cv::Mat histogram = cv::Mat(sizeof(char), feature_size, CV_32F);
     for (int i = 0; i < histogram.cols; i++) {
       histogram.at<float>(0, i) = cvfhs->points[0].histogram[i];
@@ -283,38 +294,41 @@ namespace neatness_estimator
 
       std::vector<std::vector<cv::Point> > contours;
       std::vector<cv::Vec4i> hierarchy;
-      cv::findContours(tmp_mask, contours, hierarchy,
-                       CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
-
-      cv::Point min_pt(mask_image.cols * mask_image.cols,
-                       mask_image.rows * mask_image.rows);
-      for (auto contour : contours) {
-        for (size_t i=0; i<contour.size(); ++i) {
-          cv::Point pt1;
-          auto pt2 = contour.at(i);
-          if (i == 0) {
-            pt1 = contour.at(contour.size() - 1);
-          } else {
-            pt1 = contour.at(i-1);
+      try {
+        cv::findContours(tmp_mask, contours, hierarchy,
+                         CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+        cv::Point min_pt(mask_image.cols * mask_image.cols,
+                         mask_image.rows * mask_image.rows);
+        for (auto contour : contours) {
+          for (size_t i=0; i<contour.size(); ++i) {
+            cv::Point pt1;
+            auto pt2 = contour.at(i);
+            if (i == 0) {
+              pt1 = contour.at(contour.size() - 1);
+            } else {
+              pt1 = contour.at(i-1);
+            }
+            if (pt1.y < min_pt.y) {
+              min_pt.x = pt1.x;
+              min_pt.y = pt1.y;
+            }
+            cv::line(debug_image, pt1, pt2, cv::Scalar(0,0,255), 3);
           }
-          if (pt1.y < min_pt.y) {
-            min_pt.x = pt1.x;
-            min_pt.y = pt1.y;
-          }
-          cv::line(debug_image, pt1, pt2, cv::Scalar(0,0,255), 3);
         }
-      }
 
-      std::string txt1 = "label: " + std::to_string(labels.at(i));
-      std::string txt2 = "index: " + std::to_string(i);
-      cv::putText(debug_image, txt1,
-                  cv::Point(min_pt.x, min_pt.y - 15),
-                  cv::FONT_HERSHEY_SIMPLEX,
-                  0.3, cv::Scalar(0,0,0), 1);
-      cv::putText(debug_image, txt2,
-                  cv::Point(min_pt.x, min_pt.y - 5),
-                  cv::FONT_HERSHEY_SIMPLEX,
-                  0.3, cv::Scalar(0,0,0), 1);
+        std::string txt1 = "label: " + std::to_string(labels.at(i));
+        std::string txt2 = "index: " + std::to_string(i);
+        cv::putText(debug_image, txt1,
+                    cv::Point(min_pt.x, min_pt.y - 15),
+                    cv::FONT_HERSHEY_SIMPLEX,
+                    0.3, cv::Scalar(0,0,0), 1);
+        cv::putText(debug_image, txt2,
+                    cv::Point(min_pt.x, min_pt.y - 5),
+                    cv::FONT_HERSHEY_SIMPLEX,
+                    0.3, cv::Scalar(0,0,0), 1);
+      } catch (cv::Exception& e) {
+        ROS_WARN("failed create mask image: \n%s", e.what());
+      }
 
       pcl::ExtractIndices<pcl::PointXYZRGB> extract;
       extract.setInputCloud(rgb_cloud);
@@ -324,12 +338,16 @@ namespace neatness_estimator
       extract.filter(*clustered_cloud);
 
       neatness_estimator_msgs::Histogram color_histogram;
-      compute_color_histogram(image, tmp_mask, color_histogram);
+      if ( !compute_color_histogram(image, tmp_mask, color_histogram) ) {
+        return false;
+      }
       color_histogram.label = labels.at(i);
       color_histogram_array.histograms.push_back(color_histogram);
 
       neatness_estimator_msgs::Histogram geometry_histogram;
-      compute_geometry_histogram(clustered_cloud, geometry_histogram);
+      if ( !compute_geometry_histogram(clustered_cloud, geometry_histogram) ) {
+        return false;
+      }
       geometry_histogram.label = labels.at(i);
       geometry_histogram_array.histograms.push_back(geometry_histogram);
     }
@@ -440,7 +458,7 @@ namespace neatness_estimator
       // std::cerr << "label: " << input_boxes.at(v).label << ", ";
       // std::cerr << "}";
     }
-    std::cerr << std::endl;
+    // std::cerr << std::endl;
 
     return true;
   }
@@ -468,14 +486,17 @@ namespace neatness_estimator
 
       cv::Mat debug_image = image.clone();
 
-      compute_histograms(rgb_cloud,
-                         msgs.cluster.at(i),
-                         color_histogram_array,
-                         geometry_histogram_array,
-                         mask_image,
-                         debug_image,
-                         labels,
-                         sorted_indices);
+      if ( !compute_histograms(rgb_cloud,
+                               msgs.cluster.at(i),
+                               color_histogram_array,
+                               geometry_histogram_array,
+                               mask_image,
+                               debug_image,
+                               labels,
+                               sorted_indices) ) {
+        ROS_WARN("failed compute histograms");
+        return false;
+      }
 
 
       save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
@@ -516,14 +537,18 @@ namespace neatness_estimator
 
       cv::Mat debug_image = image.clone();
 
-      compute_histograms(rgb_cloud,
-                         msgs.cluster.at(i),
-                         color_histogram_array,
-                         geometry_histogram_array,
-                         mask_image,
-                         debug_image,
-                         labels,
-                         sorted_indices);
+      if ( !compute_histograms(rgb_cloud,
+                               msgs.cluster.at(i),
+                               color_histogram_array,
+                               geometry_histogram_array,
+                               mask_image,
+                               debug_image,
+                               labels,
+                               sorted_indices) ) {
+        ROS_WARN("failed compute histograms");
+        return false;
+      } else {
+      }
 
       if (save_data_) {
         save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
@@ -539,6 +564,7 @@ namespace neatness_estimator
       display_feature_client_.call(client_msg);
 
       if (!client_msg.response.success) {
+        ROS_WARN("failed call display_feature_client_ service");
         return false;
       }
 
@@ -551,8 +577,8 @@ namespace neatness_estimator
       res.features.color_histogram = color_histogram_array;
       res.features.geometry_histogram = geometry_histogram_array;
       res.features.neatness = client_msg.response.res_neatness;
-
     }
+
     return true;
   }
 
@@ -568,6 +594,7 @@ namespace neatness_estimator
     }
 
     if (from_file) {
+      ROS_INFO("read data from file");
       if ( !get_read_dirs() ) {
         res.success = false;
         return false;
@@ -599,7 +626,6 @@ namespace neatness_estimator
       };
 
     }
-
 
     res.success = true;
     return true;
