@@ -32,6 +32,7 @@ add_service_files(
   DisplayState.srv
   GetFeatures.srv
   GetDifference.srv
+  GetMotionPrimitive.srv
   )
 
 generate_messages(
