@@ -300,41 +300,76 @@ namespace neatness_estimator
     results.push_back(res.group_distance.at(0));
     int normalized_color = get_confidence_color(results);
 
-    std::vector<int> target_indices{base_target_index, ref_target_index};
-
-    int channel_size = static_cast<int>(target_indices.size());
-    cv::Mat mask = cv::Mat::zeros(image_msg_->height, image_msg_->width, CV_8UC1);
-
-    for (int i=0; i<target_indices.size(); ++i) {
-      int index = target_indices.at(i);
-      for (auto point_index : cluster_msg_->cluster_indices.at(index).indices) {
-        int y = int(point_index / image_msg_->width);
-        int x = int(point_index % image_msg_->width);
-        mask.at<unsigned char>(y,x) = static_cast<unsigned char>(normalized_color);
-      }
-    }
-
     // debug mask log
     if (get_color_mask_) {
-      ROS_INFO("save debug mask image");
-      cv::Mat image;
+      cv::Mat debug_image;
       try {
         cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy
           (image_msg_, "bgr8");
-        image = cv_image->image;
+        debug_image = cv_image->image;
       } catch (cv_bridge::Exception& e) {
         ROS_ERROR("Failed to convert sensor_msgs::Image to cv::Mat \n%s", e.what());
         return false;
       }
-      std::stringstream color_mask_save_path;
-      color_mask_save_path << save_prefix << "/color_mask.jpg";
-      std::stringstream image_save_path;
-      image_save_path << save_prefix << "/image.jpg";
 
-      ROS_INFO("save color mask to: %s", color_mask_save_path.str().c_str());
-      cv::imwrite(color_mask_save_path.str(), mask);
-      cv::imwrite(image_save_path.str(), image);
+      std::vector<int> target_indices{base_target_index, ref_target_index};
+      for (int i=0; i<target_indices.size(); ++i) {
+        int index = target_indices.at(i);
+        cv::Mat tmp_mask = cv::Mat::zeros(debug_image.rows, debug_image.cols, CV_8UC1);
+        for (auto point_index : cluster_msg_->cluster_indices.at(index).indices) {
+          int y = int(point_index / image_msg_->width);
+          int x = int(point_index % image_msg_->width);
+          tmp_mask.at<unsigned char>(y,x) = 255;
+        }
+
+        std::vector<std::vector<cv::Point> > contours;
+        std::vector<cv::Vec4i> hierarchy;
+        try {
+          cv::findContours(tmp_mask, contours, hierarchy,
+                           CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+          cv::Point min_pt(debug_image.cols * debug_image.cols,
+                           debug_image.rows * debug_image.rows);
+          for (auto contour : contours) {
+            for (size_t i=0; i<contour.size(); ++i) {
+              cv::Point pt1;
+              auto pt2 = contour.at(i);
+              if (i == 0) {
+                pt1 = contour.at(contour.size() - 1);
+              } else {
+                pt1 = contour.at(i-1);
+              }
+              if (pt1.y < min_pt.y) {
+                min_pt.x = pt1.x;
+                min_pt.y = pt1.y;
+              }
+              cv::line(debug_image, pt1, pt2, cv::Scalar(0,0,255), 3);
+            }
+          }
+
+          // color, geo, group
+          std::vector<std::string> feature_labels(results.size());
+          feature_labels[0] = "color: "; feature_labels[1] = "geo: "; feature_labels[2] = "group: ";
+          int txt_offset = -10;
+          for (int i=0; i<results.size(); ++i) {
+            std::string txt = feature_labels[i] + std::to_string(results[i]);
+            cv::putText(debug_image, txt,
+                        cv::Point(min_pt.x, min_pt.y + txt_offset),
+                        cv::FONT_HERSHEY_SIMPLEX,
+                        0.3, cv::Scalar(0,0,0), 1);
+            txt_offset -= 10;
+          }
+        } catch (cv::Exception& e) {
+          ROS_WARN("failed create debug image: \n%s", e.what());
+        }
+
+        std::stringstream image_save_path;
+        image_save_path << save_prefix << "/image.jpg";
+        ROS_INFO("save debug image to: %s", image_save_path.str().c_str());
+        cv::imwrite(image_save_path.str(), debug_image);
+      }
+
     }
+
     return true;
   }
 
