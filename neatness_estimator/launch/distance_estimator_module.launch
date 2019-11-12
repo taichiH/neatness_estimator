@@ -49,4 +49,9 @@
     <arg name="model_path" value="$(arg classification_model_path)" />
   </include>
 
+
+  <include file="$(find neatness_estimator)/launch/data_corrector.launch">
+    <arg name="model_path" value="$(arg classification_model_path)" />
+  </include>
+
 </launch>
