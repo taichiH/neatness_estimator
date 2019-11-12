@@ -22,8 +22,9 @@ class DataCorrector():
     def service_callback(self, req):
         res = CorrectDataResponse()
 
-        save_data = [req.label] + list(req.data)
+        save_data = [req.motion_label] + list(req.data) + [req.obj_label]
         print('save_data', save_data)
+
         with open(self.model_file_path, 'a') as f:
             writer = csv.writer(f)
             writer.writerow(save_data)

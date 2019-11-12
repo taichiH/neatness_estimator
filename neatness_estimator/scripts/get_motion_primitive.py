@@ -39,7 +39,7 @@ class GetMotionPrimitiveServer():
                     continue
 
                 y = float(row[0])
-                x = map(lambda x : float(x), row[1:])
+                x = map(lambda x : float(x), row[1:4])
                 test_data.append(x)
                 trained_data.append(y)
 
