@@ -61,6 +61,7 @@ class GetMotionPrimitiveServer():
         res = GetMotionPrimitiveResponse()
 
         if req.update_model:
+            rospy.loginfo('update model')
             self.generate_model(self.model_path)
 
         motion_primitives = []
