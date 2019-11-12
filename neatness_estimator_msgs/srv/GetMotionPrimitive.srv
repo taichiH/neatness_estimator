@@ -1,3 +1,4 @@
+bool update_model
 float32[] color_distance
 float32[] geometry_distance
 float32[] group_distance
