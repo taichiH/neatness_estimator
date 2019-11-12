@@ -1,0 +1,4 @@
+uint32 label
+float64[] data
+---
+bool success

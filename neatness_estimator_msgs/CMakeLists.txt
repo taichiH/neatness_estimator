@@ -33,6 +33,7 @@ add_service_files(
   GetFeatures.srv
   GetDifference.srv
   GetMotionPrimitive.srv
+  CorrectData.srv
   )
 
 generate_messages(
