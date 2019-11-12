@@ -13,7 +13,7 @@ from neatness_estimator_msgs.srv import GetMotionPrimitive, GetMotionPrimitiveRe
 class GetMotionPrimitiveServer():
 
     def __init__(self):
-        self.motion_lst = ['rot', 'trans', 'nothing']
+        self.motion_lst = ['rot', 'trans', 'ok', 'other']
         self.model_path = rospy.get_param(
             '~model_path',
             os.path.join(
@@ -59,6 +59,9 @@ class GetMotionPrimitiveServer():
 
     def service_callback(self, req):
         res = GetMotionPrimitiveResponse()
+
+        if req.update_model:
+            self.generate_model(self.model_path)
 
         motion_primitives = []
         for color, geometry, group in zip(
