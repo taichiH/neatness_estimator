@@ -225,7 +225,17 @@ namespace neatness_estimator
     cluster_msg.cluster_indices.push_back(cluster_msg_->cluster_indices.at(index));
     jsk_recognition_msgs::BoundingBoxArray instance_boxes_msg;
     instance_boxes_msg.header = instance_boxes_msg_->header;
+
+    ///////////////////////////////////////////////////////////////////////////
+    // TODO: debug
     instance_boxes_msg.boxes.push_back(instance_boxes_msg_->boxes.at(index));
+    //
+    // for (int i=0; i<instance_boxes_msg_->boxes.size(); ++i) {
+    //   if (instance_boxes_msg_->boxes.at(i).label == instance_boxes_msg_->boxes.at(index).label) {
+    //     instance_boxes_msg.boxes.push_back(instance_boxes_msg_->boxes.at(i));
+    //   }
+    // }
+    ///////////////////////////////////////////////////////////////////////////
 
     int cluster_boxes_index = 0;
     for (int i=0; i<cluster_boxes_msg_->boxes.size(); ++i) {
@@ -372,7 +382,6 @@ namespace neatness_estimator
       }
 
     }
-
     return true;
   }
 
