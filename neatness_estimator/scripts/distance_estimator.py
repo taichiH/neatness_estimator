@@ -44,7 +44,6 @@ class DistanceEstimator():
            len(curt_features.neatness.neatness):
             rospy.logerr('curt_features element size is not same')
 
-
         labels = []
         color_distances = []
         geometry_distances = []
@@ -72,8 +71,13 @@ class DistanceEstimator():
                 if neatness.label == index:
                     prev_target_idx = i
 
-            group_distance = 1 - abs(curt_features.neatness.neatness[curt_target_idx].group_neatness -\
-                                     prev_features.neatness.neatness[prev_target_idx].group_neatness)
+            # difference between tow scene
+            # group_distance = 1 - abs(
+            #     curt_features.neatness.neatness[curt_target_idx].group_neatness -\
+            #     prev_features.neatness.neatness[prev_target_idx].group_neatness)
+
+            # difference between two items
+            group_distance = curt_features.neatness.neatness[curt_target_idx].group_neatness
 
             labels.append(index)
             color_distances.append(color_distance)
