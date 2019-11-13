@@ -134,7 +134,7 @@ namespace neatness_estimator
     std::vector<std::string> topics_;
     std::vector<std::string> label_lst_;
     bool get_color_mask_ = true;
-
+    bool is_called_ = false;
   private:
 
   };

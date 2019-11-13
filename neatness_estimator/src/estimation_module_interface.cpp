@@ -110,7 +110,10 @@ namespace neatness_estimator
   {
     boost::mutex::scoped_lock lock(mutex_);
 
-    std::cerr << "callback!!! " << std::endl;
+    if ( !is_called_ ) {
+      std::cerr << "callback called" << std::endl;
+      is_called_ = true;
+    }
 
     cloud_msg_ = cloud_msg;
     image_msg_ = image_msg;
