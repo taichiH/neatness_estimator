@@ -14,37 +14,46 @@ class GetMotionPrimitiveServer():
 
     def __init__(self):
         self.motion_lst = ['rot', 'trans', 'ok', 'other']
+        self.label_lst = rospy.get_param('~fg_class_names')
         self.model_path = rospy.get_param(
             '~model_path',
             os.path.join(
                 rospkg.RosPack().get_path('neatness_estimator'),
                 'trained_data/sample.csv'))
 
+        self.target_item = rospy.get_param('target_item', '')
         self.classifier = None
         rospy.loginfo('model_path: %s' %(self.model_path))
-        self.generate_model(self.model_path)
+        self.generate_model(self.model_path, self.target_item)
 
         rospy.Service('~classify', GetMotionPrimitive, self.service_callback)
 
-    def generate_model(self, model_path):
+    def generate_model(self, model_path, target_item):
         self.classifier = RandomForestClassifier(max_depth=2, random_state=0)
         test_data = [] #x
         trained_data = [] #y
         labels = []
         with open(self.model_path) as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
+            rospy.loginfo('target_item: %s' %(target_item))
             for i, row in enumerate(reader):
                 if i == 0:
                     labels = row
                     continue
 
-                y = float(row[0])
-                x = map(lambda x : float(x), row[1:4])
-                test_data.append(x)
-                trained_data.append(y)
+                if target_item == '':
+                    test_data.append(map(lambda x : float(x), row[1:4]))
+                    trained_data.append(float(row[0]))
+                else:
+                    idx =self.label_lst.index(target_item)
+                    if int(row[4]) != idx:
+                        continue
+                    test_data.append(map(lambda x : float(x), row[1:4]))
+                    trained_data.append(float(row[0]))
 
-        print(test_data)
-        print(trained_data)
+        rospy.loginfo('test_data length: %s' %(len(test_data)))
+        rospy.loginfo('trained_data length: %s' %(len(trained_data)))
+
         self.classifier.fit(np.array(test_data), np.array(trained_data))
 
     def run(self, target_data):
@@ -62,7 +71,7 @@ class GetMotionPrimitiveServer():
 
         if req.update_model:
             rospy.loginfo('update model')
-            self.generate_model(self.model_path)
+            self.generate_model(self.model_path, req.target_item)
 
         motion_primitives = []
         for color, geometry, group in zip(

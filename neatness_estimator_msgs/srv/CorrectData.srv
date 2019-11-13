@@ -1,5 +1,6 @@
 uint32 motion_label
 uint32 obj_label
 float64[] data
+string target_item
 ---
 bool success
