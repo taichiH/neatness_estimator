@@ -1,9 +1,12 @@
 <launch>
   <arg name="model_path" default="$(find neatness_estimator)/trained_data/sample.csv" />
-  
+  <arg name="labels" default="mask_rcnn_labels_191023.yaml" />
+
   <node name="get_motion_primitive_server"
         pkg="neatness_estimator" type="get_motion_primitive.py"
         output="screen">
+    <rosparam command="load"
+              file="$(find neatness_estimator)/models/$(arg labels)" />
     <rosparam subst_value="true">
       model_path: $(arg model_path)
     </rosparam>
