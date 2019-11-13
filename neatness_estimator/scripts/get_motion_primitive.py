@@ -4,7 +4,7 @@ import os
 import csv
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.datasets import make_classification
+from sklearn.neural_network import MLPClassifier
 
 import rospy
 import rospkg
@@ -15,25 +15,37 @@ class GetMotionPrimitiveServer():
     def __init__(self):
         self.motion_lst = ['rot', 'trans', 'ok', 'other']
         self.label_lst = rospy.get_param('~fg_class_names')
-        self.model_path = rospy.get_param(
+        self.data_path = rospy.get_param(
             '~model_path',
             os.path.join(
                 rospkg.RosPack().get_path('neatness_estimator'),
                 'trained_data/sample.csv'))
 
-        self.target_item = rospy.get_param('target_item', '')
+        self.target_item = rospy.get_param('~target_item', '')
+        self.model = rospy.get_param('~model', 'mlp')
         self.classifier = None
-        rospy.loginfo('model_path: %s' %(self.model_path))
-        self.generate_model(self.model_path, self.target_item)
+        rospy.loginfo('data_path: %s' %(self.data_path))
+        self.generate_model(self.data_path, self.target_item)
 
         rospy.Service('~classify', GetMotionPrimitive, self.service_callback)
 
-    def generate_model(self, model_path, target_item):
-        self.classifier = RandomForestClassifier(max_depth=2, random_state=0)
+    def generate_model(self, data_path, target_item):
+        if self.model == 'random_forest':
+            self.classifier = RandomForestClassifier(
+                max_depth=2, random_state=0)
+        elif self.model == 'mlp':
+            self.classifier = MLPClassifier(
+                activation='relu', alpha=0.0001, batch_size='auto',
+                solver="adam", random_state=0, max_iter=10000,
+                hidden_layer_sizes=(100,200,100),
+                learning_rate='constant', learning_rate_init=0.001)
+        else:
+            rospy.logwarn('please set classification model')
+
         test_data = [] #x
         trained_data = [] #y
         labels = []
-        with open(self.model_path) as csvfile:
+        with open(self.data_path) as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             rospy.loginfo('target_item: %s' %(target_item))
             for i, row in enumerate(reader):
@@ -51,9 +63,8 @@ class GetMotionPrimitiveServer():
                     test_data.append(map(lambda x : float(x), row[1:4]))
                     trained_data.append(float(row[0]))
 
-        rospy.loginfo('test_data length: %s' %(len(test_data)))
         rospy.loginfo('trained_data length: %s' %(len(trained_data)))
-
+        rospy.loginfo('model type: %s' %(self.model))
         self.classifier.fit(np.array(test_data), np.array(trained_data))
 
     def run(self, target_data):
@@ -71,7 +82,7 @@ class GetMotionPrimitiveServer():
 
         if req.update_model:
             rospy.loginfo('update model')
-            self.generate_model(self.model_path, req.target_item)
+            self.generate_model(self.data_path, req.target_item)
 
         motion_primitives = []
         for color, geometry, group in zip(
