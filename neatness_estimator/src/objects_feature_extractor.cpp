@@ -563,11 +563,11 @@ namespace neatness_estimator
       load_image(msgs.image.at(i), image);
       pcl::fromROSMsg(*msgs.cloud.at(i), *rgb_cloud);
 
-      std::vector<size_t> sorted_indices;
-      std::vector<size_t> labels;
-      create_sorted_indices(msgs.instance_boxes.at(i)->boxes,
-                            sorted_indices,
-                            labels);
+      std::vector<size_t> sorted_indices(0);
+      std::vector<size_t> labels(0);
+      sorted_indices.at(0) = 0;
+      labels.at(0) = msgs.cluster_boxes.at(i)->boxes.label;
+
       cv::Mat mask_image = cv::Mat::zeros
         (msgs.image.at(i)->height, msgs.image.at(i)->width, CV_8UC1);
 
