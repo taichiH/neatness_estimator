@@ -13,6 +13,7 @@
   <arg name="cluster_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_cluster_boxes" />
 
   <arg name="fe_node_name" default="objects_feature_extractor" />
+  <arg name="geometry_feature" default="cvfh" />
 
   <node name="$(arg fe_node_name)"
         pkg="nodelet" type="nodelet"
@@ -34,6 +35,7 @@
       instance_boxes_topic: $(arg instance_boxes_topic)
       cluster_boxes_topic: $(arg cluster_boxes_topic)
       debug_view: $(arg debug_view)
+      geometry_feature: $(arg geometry_feature)
     </rosparam>
   </node>
 

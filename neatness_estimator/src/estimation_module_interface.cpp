@@ -251,6 +251,15 @@ namespace neatness_estimator
 
     if (!feature_client_msg.response.success) {
       ROS_WARN("failed to call %s", fe_service_topic_.c_str());
+      ROS_WARN("cloud info: %d, %d",
+               feature_client_msg.request.cloud.width,
+               feature_client_msg.request.cloud.height);
+      ROS_WARN("image info: %d, %d",
+               feature_client_msg.request.image.width,
+               feature_client_msg.request.image.height);
+      ROS_WARN("cluster info: %d", feature_client_msg.request.cluster.cluster_indices.size());
+      ROS_WARN("instance_boxes info: %d", feature_client_msg.request.instance_boxes.boxes.size());
+      ROS_WARN("cluster_boxes info: %d", feature_client_msg.request.cluster_boxes.boxes.size());
       return false;
     }
 
@@ -277,9 +286,19 @@ namespace neatness_estimator
 
     std::vector<neatness_estimator_msgs::Features> features_vec(2);
     neatness_estimator_msgs::Features features;
-    get_index_features(base_target_index, features_vec.at(0));
-    get_index_features(ref_target_index, features_vec.at(1));
+    std::vector<unsigned int> targets{base_target_index, ref_target_index};
+    bool success = true;
+    for (int i=0; i<targets.size(); ++i) {
+      success = get_index_features(targets.at(i), features_vec.at(i));
+      if ( !success ) {
+        ROS_WARN("failed to get_index_features");
+        ROS_WARN("i: %d, target_index: %d", i, targets.at(i));
+        break;
+      }
 
+    }
+    if ( !success ) return false;
+    
     // compare histogram service call
     neatness_estimator_msgs::GetDifference difference_msg;
     difference_msg.request.features = features_vec;

@@ -14,6 +14,7 @@
   <arg name="cluster_boxes_topic" default="/labeled_bounding_box_publisher_aligned/output/labeled_cluster_boxes" />
   <arg name="labels_topic" default="/mask_rcnn_instance_segmentation/output/labels" />
   <arg name="classification_model_path" default="$(find neatness_estimator)/trained_data/motion_classification_model_191111.csv" />
+  <arg name="geometry_feature" default="cvfh" />
 
   <include file="$(find neatness_estimator)/launch/estimation_module_interface.launch">
     <arg name="input_cloud" default="$(arg cloud_topic)" />
@@ -38,6 +39,7 @@
     <arg name="cluster_topic" default="$(arg cluster_topic)" />
     <arg name="instance_boxes_topic" default="$(arg instance_boxes_topic)" />
     <arg name="cluster_boxes_topic" default="$(arg cluster_boxes_topic)" />
+    <arg name="geometry_feature" default="$(arg geometry_feature)" />
   </include>
 
   <include file="$(find neatness_estimator)/launch/distance_estimator.launch" >

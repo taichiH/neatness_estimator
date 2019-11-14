@@ -19,7 +19,10 @@ namespace neatness_estimator
     pnh_.getParam("cluster_topic", cluster_topic_);
     pnh_.getParam("instance_boxes_topic", instance_boxes_topic_);
     pnh_.getParam("cluster_boxes_topic", cluster_boxes_topic_);
+    pnh_.getParam("geometry_feature", geometry_feature_);
 
+    ROS_INFO("geometry_feature: %s", geometry_feature_.c_str());
+    
     int sort_idx;
     pnh_.getParam("sort_axis", sort_idx);
     sort_axis_ = static_cast<ObjectsFeatureExtractor::AXIS>(sort_idx);
@@ -221,41 +224,75 @@ namespace neatness_estimator
     normal_estimation.setInputCloud(rgb_cloud);
     normal_estimation.compute(*cloud_normals);
 
-    pcl::CVFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::VFHSignature308> cvfh;
-    cvfh.setInputCloud(rgb_cloud);
-    cvfh.setInputNormals(cloud_normals);
-    cvfh.setSearchMethod(tree);
-    cvfh.setEPSAngleThreshold(5.0f / 180.0f * M_PI);
-    cvfh.setCurvatureThreshold(1.0f);
-    cvfh.setNormalizeBins(false);
+    ROS_WARN("rgb_cloud: %d", rgb_cloud->points.size());
+    ROS_WARN("normals: %d", cloud_normals->points.size());
 
-    if (cloud_normals->size() <= 0) {
-      ROS_WARN("cloud_normals size: %d", cloud_normals->size());
-      return false;
+    cv::Mat histogram;
+    if (geometry_feature_ == "cvfh") {
+      pcl::CVFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::VFHSignature308> cvfh;
+      cvfh.setInputCloud(rgb_cloud);
+      cvfh.setInputNormals(cloud_normals);
+      cvfh.setSearchMethod(tree);
+      cvfh.setEPSAngleThreshold(5.0f / 180.0f * M_PI);
+      cvfh.setCurvatureThreshold(0.025f);
+      cvfh.setClusterTolerance(0.015f);
+      cvfh.setNormalizeBins(false);
+
+      if (cloud_normals->size() <= 0) {
+        ROS_WARN("cloud_normals size: %d", cloud_normals->size());
+        return false;
+      }
+
+      pcl::PointCloud<pcl::VFHSignature308>::Ptr cvfhs
+        (new pcl::PointCloud<pcl::VFHSignature308>());
+      try {
+        ROS_INFO("start compute cvfh");
+        cvfh.compute(*cvfhs);
+        ROS_INFO("end compute cvfh");
+      } catch (...) {
+        ROS_ERROR("failed compute cvfh feature");
+      }
+
+      int feature_size = sizeof(pcl::VFHSignature308) / sizeof(cvfhs->points[0].histogram[0]);
+      if (feature_size <= 0) {
+        ROS_WARN("feature_size: %d", feature_size);
+        return false;
+      }
+
+      histogram = cv::Mat(sizeof(char), feature_size, CV_32F);
+      for (int i = 0; i < histogram.cols; i++) {
+        histogram.at<float>(0, i) = cvfhs->points[0].histogram[i];
+      }
+      cv::normalize(histogram, histogram, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+    } else if (geometry_feature_ == "fpfh") {
+      pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::FPFHSignature33> fpfh;
+      fpfh.setInputCloud(rgb_cloud);
+      fpfh.setInputNormals(cloud_normals);
+      fpfh.setSearchMethod (tree);
+      pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
+      fpfh.setRadiusSearch (0.05);
+
+      ROS_INFO("start compute fpfh");
+      fpfh.compute (*fpfhs);
+      ROS_INFO("end compute fpfh");
+
+      int feature_size = sizeof(pcl::FPFHSignature33) / sizeof(fpfhs->points[0].histogram[0]);
+      if (feature_size <= 0) {
+        ROS_WARN("feature_size: %d", feature_size);
+        return false;
+      }
+
+      histogram = cv::Mat(sizeof(char), feature_size, CV_32F);
+      for (int i = 0; i < histogram.cols; i++) {
+        histogram.at<float>(0, i) = fpfhs->points[0].histogram[i];
+      }
+      cv::normalize(histogram, histogram, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+    } else {
+      ROS_WARN("please set geometry feature type");
     }
 
-    pcl::PointCloud<pcl::VFHSignature308>::Ptr cvfhs
-      (new pcl::PointCloud<pcl::VFHSignature308>());
-    cvfh.compute(*cvfhs);
-
-    int feature_size = sizeof(pcl::VFHSignature308) / sizeof(cvfhs->points[0].histogram[0]);
-    if (feature_size <= 0) {
-      ROS_WARN("feature_size: %d", feature_size);
-      return false;
-    }
-
-    cv::Mat histogram = cv::Mat(sizeof(char), feature_size, CV_32F);
-    for (int i = 0; i < histogram.cols; i++) {
-      histogram.at<float>(0, i) = cvfhs->points[0].histogram[i];
-    }
-
-    float curvature = 0.0f;
-    for (int i = 0; i < cloud_normals->size(); i++) {
-      curvature += cloud_normals->points[i].curvature;
-    }
-    curvature /= static_cast<float>(cloud_normals->size());
-    cv::normalize(histogram, histogram, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
-
+    ROS_INFO("histogram.cols: %d", histogram.cols);
+    
     for (int i = 0; i < histogram.cols; i++) {
       geometry_histogram.histogram.push_back(histogram.at<float>(0, i));
     }
@@ -531,7 +568,6 @@ namespace neatness_estimator
       create_sorted_indices(msgs.instance_boxes.at(i)->boxes,
                             sorted_indices,
                             labels);
-
       cv::Mat mask_image = cv::Mat::zeros
         (msgs.image.at(i)->height, msgs.image.at(i)->width, CV_8UC1);
 
@@ -545,18 +581,16 @@ namespace neatness_estimator
                                debug_image,
                                labels,
                                sorted_indices) ) {
-        ROS_WARN("failed compute histograms");
         return false;
       } else {
       }
-
       if (save_data_) {
         save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
         save_image(log_dir_.at(i), image, mask_image, debug_image);
         save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
         save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
       }
-
+      
       neatness_estimator_msgs::GetDisplayFeature client_msg;
       client_msg.request.save_dir = save_data_dir_.at(i);
       client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
@@ -567,16 +601,17 @@ namespace neatness_estimator
         ROS_WARN("failed call display_feature_client_ service");
         return false;
       }
-
+      
       std::vector<unsigned int> res_labels(labels.size());
       for (size_t i=0; i<labels.size(); ++i) {
         res_labels[i] = labels[i];
       }
-
+      
       res.labels = res_labels;
       res.features.color_histogram = color_histogram_array;
       res.features.geometry_histogram = geometry_histogram_array;
       res.features.neatness = client_msg.response.res_neatness;
+      
     }
 
     return true;

@@ -34,6 +34,7 @@
 #include <pcl/keypoints/uniform_sampling.h>
 #include <pcl/features/vfh.h>
 #include <pcl/features/cvfh.h>
+#include <pcl/features/fpfh.h>
 
 #include <pcl/features/normal_3d_omp.h>
 /* #include <pcl/features/shot_omp.h> */
@@ -211,6 +212,8 @@ namespace neatness_estimator
 
     AXIS sort_axis_ = AXIS::Y;
 
+    std::string geometry_feature_ = "cvfh";
+    
   private:
 
   };
