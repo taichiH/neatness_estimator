@@ -107,6 +107,7 @@ class NeatnessEstimator():
             return res
 
     def run(self, instance_msg, cluster_msg, debug):
+
         bridge = self.bridge
         labeled_boxes = {}
         category_boxes = {}
@@ -261,28 +262,32 @@ class NeatnessEstimator():
 
     def calc_group_dist(self, category_boxes, labeled_boxes, labels):
         group_dist = {}
+
         for label in labels:
             if not label == self.label_lst.index('shelf_flont'):
                 item_vol = 0
 
-                # TODO: search all union
                 for i in range(len(labeled_boxes[label])):
                     item = labeled_boxes[label][i]
-                    base_voxel = self.get_voxel(item)
-                    item_vol_union = 0
 
-                    for j in range(i+1, len(labeled_boxes[label])):
-                        ref_voxel = self.get_voxel(labeled_boxes[label][j])
-                        union_voxel = np.array([len(list(set(base_voxel[0]) & set(ref_voxel[0]))) * 0.001,
-                                                len(list(set(base_voxel[1]) & set(ref_voxel[1]))) * 0.001,
-                                                len(list(set(base_voxel[2]) & set(ref_voxel[2]))) * 0.001])
+                    # deprecated
+                    #
+                    # base_voxel = self.get_voxel(item)
+                    # item_vol_union = 0
+                    # for j in range(i+1, len(labeled_boxes[label])):
+                    #     ref_voxel = self.get_voxel(labeled_boxes[label][j])
+                    #     union_voxel = np.array([len(list(set(base_voxel[0]) & set(ref_voxel[0]))) * 0.001,
+                    #                             len(list(set(base_voxel[1]) & set(ref_voxel[1]))) * 0.001,
+                    #                             len(list(set(base_voxel[2]) & set(ref_voxel[2]))) * 0.001])
 
-                        item_vol_union += union_voxel.prod()
-                    item_vol += item.prod(1)[1] - item_vol_union
+                    #     item_vol_union += union_voxel.prod()
+                    # item_vol += item.prod(1)[1] - item_vol_union
+
+                    item_vol += item.prod(1)[1]
 
                 category_vol = category_boxes[label].prod(1)[1]
-                group_dist[label] = (item_vol - item_vol_union)/ category_vol
-
+                # group_dist[label] = (item_vol - item_vol_union)/ category_vol
+                group_dist[label] = item_vol / category_vol
         return group_dist
 
     def calc_filling_dist(self, category_boxes, labels):
