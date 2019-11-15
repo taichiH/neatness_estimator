@@ -22,7 +22,7 @@ namespace neatness_estimator
     pnh_.getParam("geometry_feature", geometry_feature_);
 
     ROS_INFO("geometry_feature: %s", geometry_feature_.c_str());
-    
+
     int sort_idx;
     pnh_.getParam("sort_axis", sort_idx);
     sort_axis_ = static_cast<ObjectsFeatureExtractor::AXIS>(sort_idx);
@@ -130,11 +130,6 @@ namespace neatness_estimator
   bool ObjectsFeatureExtractor::read_data
   (neatness_estimator_msgs::GetFeatures::Request& req)
   {
-    std::cerr << __func__ << std::endl;
-    std::cerr << req.cluster.cluster_indices.size() << std::endl;
-    std::cerr << req.instance_boxes.boxes.size() << std::endl;
-    std::cerr << req.cluster_boxes.boxes.size() << std::endl;
-    
     msgs.cluster.at(0) = boost::make_shared<jsk_recognition_msgs::ClusterPointIndices>(req.cluster);
     msgs.cloud.at(0) = boost::make_shared<sensor_msgs::PointCloud2>(req.cloud);
     msgs.image.at(0) = boost::make_shared<sensor_msgs::Image>(req.image);
@@ -227,9 +222,7 @@ namespace neatness_estimator
     normal_estimation.setSearchMethod (tree);
     normal_estimation.setRadiusSearch(normal_search_radius_);
     normal_estimation.setInputCloud(rgb_cloud);
-    ROS_INFO("start compute normal");
     normal_estimation.compute(*cloud_normals);
-    ROS_INFO("end compute normal");
 
     ROS_WARN("rgb_cloud: %d", rgb_cloud->points.size());
     ROS_WARN("normals: %d", cloud_normals->points.size());
@@ -299,7 +292,6 @@ namespace neatness_estimator
     }
 
     ROS_INFO("histogram.cols: %d", histogram.cols);
-    
     for (int i = 0; i < histogram.cols; i++) {
       geometry_histogram.histogram.push_back(histogram.at<float>(0, i));
     }
@@ -317,14 +309,9 @@ namespace neatness_estimator
    std::vector<size_t>& labels,
    std::vector<size_t>& sorted_indices)
   {
-    std::cerr << __func__ << std::endl;
-    std::cerr << 0 << std::endl;
-    
     cv::Mat image = debug_image.clone();
     for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
       size_t index = sorted_indices.at(i);
-      std::cerr << "index: " << index << std::endl;
-      
       cv::Mat tmp_mask = cv::Mat::zeros
         (mask_image.rows, mask_image.cols, CV_8UC1);
 
@@ -339,7 +326,6 @@ namespace neatness_estimator
           nonnan_indices->indices.push_back(point_index);
         }
       }
-      std::cerr << 1 << std::endl;
     
       std::vector<std::vector<cv::Point> > contours;
       std::vector<cv::Vec4i> hierarchy;
@@ -378,8 +364,6 @@ namespace neatness_estimator
       } catch (cv::Exception& e) {
         ROS_WARN("failed create mask image: \n%s", e.what());
       }
-      std::cerr << 2 << std::endl;
-      
       pcl::ExtractIndices<pcl::PointXYZRGB> extract;
       extract.setInputCloud(rgb_cloud);
       extract.setIndices(nonnan_indices);
@@ -387,16 +371,12 @@ namespace neatness_estimator
         (new pcl::PointCloud<pcl::PointXYZRGB>());
       extract.filter(*clustered_cloud);
       
-      std::cerr << 3 << std::endl;
-
       neatness_estimator_msgs::Histogram color_histogram;
       if ( !compute_color_histogram(image, tmp_mask, color_histogram) ) {
         return false;
       }
       color_histogram.label = labels.at(i);
       color_histogram_array.histograms.push_back(color_histogram);
-
-      std::cerr << 4 << std::endl;
 
       neatness_estimator_msgs::Histogram geometry_histogram;
       if ( !compute_geometry_histogram(clustered_cloud, geometry_histogram) ) {
@@ -405,7 +385,6 @@ namespace neatness_estimator
       geometry_histogram.label = labels.at(i);
       geometry_histogram_array.histograms.push_back(geometry_histogram);
 
-      std::cerr << 5 << std::endl;
     }
 
     return true;
@@ -572,9 +551,6 @@ namespace neatness_estimator
 
   bool ObjectsFeatureExtractor::run(neatness_estimator_msgs::GetFeatures::Response& res)
   {
-    std::cerr << __func__ << std::endl;
-    std::cerr << "buffer_size_: " << buffer_size_ << std::endl;
-    
     for (size_t i=0; i<buffer_size_; ++i) {
       cv::Mat image;
       pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
@@ -585,32 +561,16 @@ namespace neatness_estimator
       load_image(msgs.image.at(i), image);
       pcl::fromROSMsg(*msgs.cloud.at(i), *rgb_cloud);
 
-      std::cerr << 0 << std::endl;
       std::vector<size_t> sorted_indices(1);
-      
-      std::cerr << 0.1 << std::endl;
       std::vector<size_t> labels(1);
-      
-      std::cerr << 0.2 << std::endl;
       sorted_indices.at(0) = 0;
-      
-      std::cerr << 0.3 << std::endl;
-      std::cerr << msgs.cluster_boxes.size() << std::endl;
-      
-      std::cerr << 0.4 << std::endl;
-      std::cerr << msgs.cluster_boxes.at(i)->boxes.size() << std::endl;
-      
-      std::cerr << 0.5 << std::endl;
       labels.at(0) = msgs.cluster_boxes.at(i)->boxes.at(0).label;
-
-      std::cerr << 1 << std::endl;
 
       cv::Mat mask_image = cv::Mat::zeros
         (msgs.image.at(i)->height, msgs.image.at(i)->width, CV_8UC1);
 
       cv::Mat debug_image = image.clone();
 
-      std::cerr << 2 << std::endl;
       if ( !compute_histograms(rgb_cloud,
                                msgs.cluster.at(i),
                                color_histogram_array,
@@ -628,7 +588,6 @@ namespace neatness_estimator
         save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
         save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
       }
-      
       neatness_estimator_msgs::GetDisplayFeature client_msg;
       client_msg.request.save_dir = save_data_dir_.at(i);
       client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
@@ -639,17 +598,14 @@ namespace neatness_estimator
         ROS_WARN("failed call display_feature_client_ service");
         return false;
       }
-      
       std::vector<unsigned int> res_labels(labels.size());
       for (size_t i=0; i<labels.size(); ++i) {
         res_labels[i] = labels[i];
       }
-      
       res.labels = res_labels;
       res.features.color_histogram = color_histogram_array;
       res.features.geometry_histogram = geometry_histogram_array;
       res.features.neatness = client_msg.response.res_neatness;
-      
     }
 
     return true;

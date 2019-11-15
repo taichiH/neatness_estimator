@@ -284,10 +284,8 @@ class NeatnessEstimator():
                     # item_vol += item.prod(1)[1] - item_vol_union
 
                     item_vol += item.prod(1)[1]
-                    print('item_vol: %f' %(item_vol))
 
                 category_vol = category_boxes[label].prod(1)[1]
-                print('category_vol: %f' %(category_vol))
                 # group_dist[label] = (item_vol - item_vol_union)/ category_vol
                 group_dist[label] = item_vol / category_vol
         return group_dist
