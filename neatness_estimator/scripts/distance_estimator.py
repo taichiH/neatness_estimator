@@ -18,6 +18,13 @@ class DistanceEstimator():
             '~prefix', os.path.join(os.environ['HOME'], '.ros/neatness_estimator'))
 
         self.label_lst = rospy.get_param('~fg_class_names')
+        method = rospy.get_param('~compare_method', 'bray')
+        if method == 'bray':
+            self.compare_method = dist.braycurtis
+        elif method == 'cosine':
+            self.compare_method = dist.cosine
+        else:
+            rospy.logerr('set compare method from [cosine, bray]')
 
         rospy.Service(
             '~estimate', GetDifference, self.service_callback)
@@ -56,9 +63,9 @@ class DistanceEstimator():
             cur_color_hist = (cur_color_hist - cur_color_hist.min()) / (cur_color_hist.max() - cur_color_hist.min())
             prev_color_hist = (prev_color_hist - prev_color_hist.min()) / (prev_color_hist.max() - prev_color_hist.min())
 
-            color_distance = 1 - dist.cosine(
+            color_distance = 1 - self.compare_method(
                 cur_color_hist, prev_color_hist)
-            geometry_distance = 1 - dist.cosine(
+            geometry_distance = 1 - self.compare_method(
                 np.array(curt_features.geometry_histogram.histograms[i].histogram),
                 np.array(prev_features.geometry_histogram.histograms[i].histogram))
 
