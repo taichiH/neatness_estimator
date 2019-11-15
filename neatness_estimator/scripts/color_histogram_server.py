@@ -16,6 +16,21 @@ class ColorHistogramServer:
         rospy.Service(
             '~get_color_histogram', GetColorHistogram, self.service_callback)
 
+    def get_histogram(self, image, mask):
+        color = ('b','g','r')
+        hists = []
+        for i, col in enumerate(color):
+            hist = cv2.calcHist([image], [i], mask, [256], [0,256])
+            hist = hist.T
+            hists.append(hist[0])
+
+        hists = np.array(hists).T
+        vec = np.zeros((hists.shape[0]), dtype=np.float64)
+        for i in range(hists.shape[0]):
+            vec[i] = np.linalg.norm(hists[i])
+
+        return vec
+
     def service_callback(self, req):
         image_msg = req.image
         image = self.cv_bridge.imgmsg_to_cv2(image_msg, 'bgr8')
@@ -27,10 +42,8 @@ class ColorHistogramServer:
             res.success = False
             return res
 
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-        hist = np.array(cv2.calcHist([image], [0], mask, [256], [0,256]))
-        hist = hist.reshape(1,256)[0]
+        hist = self.get_histogram(image, mask)
+        hist = hist / hist.max()
 
         res = GetColorHistogramResponse()
         res.histogram.histogram = list(hist)
