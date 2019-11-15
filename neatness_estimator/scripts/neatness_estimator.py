@@ -30,8 +30,6 @@ class NeatnessEstimator():
         self.instance_msg = BoundingBoxArray()
         self.cluster_msg = BoundingBoxArray()
 
-
-
         self.output_dir_name = os.path.join(rospkg.RosPack().get_path('neatness_estimator'), 'output')
         self.output_dir = self.output_dir_name
         self.neatness_log = 'neatness_output.csv'
@@ -287,7 +285,10 @@ class NeatnessEstimator():
 
                 category_vol = category_boxes[label].prod(1)[1]
                 # group_dist[label] = (item_vol - item_vol_union)/ category_vol
-                group_dist[label] = item_vol / category_vol
+                ratio = item_vol / category_vol
+                if ratio > 1.0:
+                    ratio = 1
+                group_dist[label] = ratio
         return group_dist
 
     def calc_filling_dist(self, category_boxes, labels):
