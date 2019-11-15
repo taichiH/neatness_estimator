@@ -225,14 +225,14 @@ namespace neatness_estimator
     cluster_msg.cluster_indices.push_back(cluster_msg_->cluster_indices.at(index));
     jsk_recognition_msgs::BoundingBoxArray instance_boxes_msg;
     instance_boxes_msg.header = instance_boxes_msg_->header;
-    instance_boxes_msg.boxes.push_back(instance_boxes_msg_->boxes.at(index));
+    // instance_boxes_msg.boxes.push_back(instance_boxes_msg_->boxes.at(index));
 
     // TODO: debug
-    // for (int i=0; i<instance_boxes_msg_->boxes.size(); ++i) {
-    //   if (instance_boxes_msg_->boxes.at(i).label == instance_boxes_msg_->boxes.at(index).label) {
-    //     instance_boxes_msg.boxes.push_back(instance_boxes_msg_->boxes.at(i));
-    //   }
-    // }
+    for (int i=0; i<instance_boxes_msg_->boxes.size(); ++i) {
+      if (instance_boxes_msg_->boxes.at(i).label == instance_boxes_msg_->boxes.at(index).label) {
+        instance_boxes_msg.boxes.push_back(instance_boxes_msg_->boxes.at(i));
+      }
+    }
     // error
     // [ERROR] [1573745826.422376975] [/objects_feature_extractor:ros.roscpp]: Exception thrown while processing servicecall: vector::_M_range_check: __n (which is 1) >= this->size() (which is 1)
     // [ERROR] [1573745826.422681495] [/estimation_module_interface:ros.roscpp]: Service call failed: service [/objects_feature_extractor/extract] responded with an error: vector::_M_range_check: __n (which is 1) >= this->size() (which is 1)
