@@ -588,24 +588,30 @@ namespace neatness_estimator
         save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
         save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
       }
-      neatness_estimator_msgs::GetDisplayFeature client_msg;
-      client_msg.request.save_dir = save_data_dir_.at(i);
-      client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
-      client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
-      display_feature_client_.call(client_msg);
 
-      if (!client_msg.response.success) {
-        ROS_WARN("failed call display_feature_client_ service");
-        return false;
-      }
-      std::vector<unsigned int> res_labels(labels.size());
-      for (size_t i=0; i<labels.size(); ++i) {
-        res_labels[i] = labels[i];
-      }
-      res.labels = res_labels;
       res.features.color_histogram = color_histogram_array;
       res.features.geometry_histogram = geometry_histogram_array;
-      res.features.neatness = client_msg.response.res_neatness;
+      
+      if (!only_color_and_geometry_) {
+        neatness_estimator_msgs::GetDisplayFeature client_msg;
+        client_msg.request.save_dir = save_data_dir_.at(i);
+        client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
+        client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
+        display_feature_client_.call(client_msg);
+
+        if (!client_msg.response.success) {
+          ROS_WARN("failed call display_feature_client_ service");
+          return false;
+        }
+        std::vector<unsigned int> res_labels(labels.size());
+        for (size_t i=0; i<labels.size(); ++i) {
+          res_labels[i] = labels[i];
+        }
+        res.labels = res_labels;
+        res.features.neatness = client_msg.response.res_neatness;
+
+      }
+
     }
 
     return true;
@@ -616,6 +622,8 @@ namespace neatness_estimator
    neatness_estimator_msgs::GetFeatures::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
+
+    only_color_and_geometry_ = req.only_color_and_geometry;
 
     bool from_file = false;
     if (req.cloud.height * req.cloud.width == 0) {
