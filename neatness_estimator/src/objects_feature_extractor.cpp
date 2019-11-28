@@ -135,7 +135,6 @@ namespace neatness_estimator
     msgs.image.at(0) = boost::make_shared<sensor_msgs::Image>(req.image);
     msgs.instance_boxes.at(0) = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(req.instance_boxes);
     msgs.cluster_boxes.at(0) = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(req.cluster_boxes);
-
     return true;
   }
 
@@ -326,7 +325,7 @@ namespace neatness_estimator
           nonnan_indices->indices.push_back(point_index);
         }
       }
-    
+
       std::vector<std::vector<cv::Point> > contours;
       std::vector<cv::Vec4i> hierarchy;
       try {
@@ -364,6 +363,7 @@ namespace neatness_estimator
       } catch (cv::Exception& e) {
         ROS_WARN("failed create mask image: \n%s", e.what());
       }
+
       pcl::ExtractIndices<pcl::PointXYZRGB> extract;
       extract.setInputCloud(rgb_cloud);
       extract.setIndices(nonnan_indices);
@@ -375,6 +375,7 @@ namespace neatness_estimator
       if ( !compute_color_histogram(image, tmp_mask, color_histogram) ) {
         return false;
       }
+
       color_histogram.label = labels.at(i);
       color_histogram_array.histograms.push_back(color_histogram);
 
@@ -382,9 +383,9 @@ namespace neatness_estimator
       if ( !compute_geometry_histogram(clustered_cloud, geometry_histogram) ) {
         return false;
       }
+
       geometry_histogram.label = labels.at(i);
       geometry_histogram_array.histograms.push_back(geometry_histogram);
-
     }
 
     return true;
@@ -533,7 +534,6 @@ namespace neatness_estimator
         return false;
       }
 
-
       save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
       save_image(log_dir_.at(i), image, mask_image, debug_image);
       save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
@@ -561,10 +561,20 @@ namespace neatness_estimator
       load_image(msgs.image.at(i), image);
       pcl::fromROSMsg(*msgs.cloud.at(i), *rgb_cloud);
 
-      std::vector<size_t> sorted_indices(1);
-      std::vector<size_t> labels(1);
-      sorted_indices.at(0) = 0;
-      labels.at(0) = msgs.cluster_boxes.at(i)->boxes.at(0).label;
+      std::vector<size_t> sorted_indices;
+      std::vector<size_t> labels;
+      if (task_ == "items") {
+        sorted_indices.resize(1);
+        labels.resize(1);
+        sorted_indices.at(0) = 0;
+        labels.at(0) = msgs.cluster_boxes.at(i)->boxes.at(0).label;
+      } else if (task_ == "two_scene") {
+        create_sorted_indices(msgs.instance_boxes.at(i)->boxes,
+                              sorted_indices,
+                              labels);
+      } else {
+        ROS_WARN("set task {items, two_scene}");
+      }
 
       cv::Mat mask_image = cv::Mat::zeros
         (msgs.image.at(i)->height, msgs.image.at(i)->width, CV_8UC1);
@@ -582,6 +592,7 @@ namespace neatness_estimator
         return false;
       } else {
       }
+
       if (save_data_) {
         save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
         save_image(log_dir_.at(i), image, mask_image, debug_image);
@@ -591,27 +602,24 @@ namespace neatness_estimator
 
       res.features.color_histogram = color_histogram_array;
       res.features.geometry_histogram = geometry_histogram_array;
-      
-      if (!only_color_and_geometry_) {
-        neatness_estimator_msgs::GetDisplayFeature client_msg;
-        client_msg.request.save_dir = save_data_dir_.at(i);
-        client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
-        client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
-        display_feature_client_.call(client_msg);
 
-        if (!client_msg.response.success) {
-          ROS_WARN("failed call display_feature_client_ service");
-          return false;
-        }
-        std::vector<unsigned int> res_labels(labels.size());
-        for (size_t i=0; i<labels.size(); ++i) {
-          res_labels[i] = labels[i];
-        }
-        res.labels = res_labels;
-        res.features.neatness = client_msg.response.res_neatness;
 
+      neatness_estimator_msgs::GetDisplayFeature client_msg;
+      client_msg.request.save_dir = save_data_dir_.at(i);
+      client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
+      client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
+      display_feature_client_.call(client_msg);
+
+      if (!client_msg.response.success) {
+        ROS_WARN("failed call display_feature_client_ service");
+        return false;
       }
-
+      std::vector<unsigned int> res_labels(labels.size());
+      for (size_t i=0; i<labels.size(); ++i) {
+        res_labels[i] = labels[i];
+      }
+      res.labels = res_labels;
+      res.features.neatness = client_msg.response.res_neatness;
     }
 
     return true;
@@ -622,8 +630,7 @@ namespace neatness_estimator
    neatness_estimator_msgs::GetFeatures::Response& res)
   {
     boost::mutex::scoped_lock lock(mutex_);
-
-    only_color_and_geometry_ = req.only_color_and_geometry;
+    task_ = req.task;
 
     bool from_file = false;
     if (req.cloud.height * req.cloud.width == 0) {
@@ -649,7 +656,12 @@ namespace neatness_estimator
 
     } else {
       ROS_INFO("read data from reqeusted data.");
-      buffer_size_ = 1;
+      if (task_ == "items") {
+        buffer_size_ = 1;
+      } else if (task_ == "two_scene") {
+        buffer_size_ = 1;
+      }
+
       msgs.resize(buffer_size_);
 
       if ( !read_data(req) ) {

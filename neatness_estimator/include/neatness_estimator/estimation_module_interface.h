@@ -161,6 +161,7 @@ namespace neatness_estimator
     bool get_color_mask_ = true;
     bool is_called_ = false;
     bool approximate_sync_ = true;
+    bool only_color_and_geometry_ = false;
   private:
 
   };

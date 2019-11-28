@@ -13,6 +13,10 @@ namespace neatness_estimator
     pnh_.getParam("fg_class_names", label_lst_);
     pnh_.getParam("get_color_mask", get_color_mask_);
     pnh_.getParam("approximate_sync", approximate_sync_);
+    pnh_.getParam("only_color_and_geometry", only_color_and_geometry_);
+
+    std::cout << "approximate_sync: " << approximate_sync_ << std::endl;
+    std::cout << "only_color_and_geometry: " << only_color_and_geometry_ << std::endl;
 
     call_server_ =
       pnh_.advertiseService("call", &EstimationModuleInterface::service_callback, this);
@@ -21,16 +25,11 @@ namespace neatness_estimator
     difference_client_ =
       pnh_.serviceClient<neatness_estimator_msgs::GetDifference>(de_service_topic_);
 
-    bool only_color_and_geometry = false;
-    pnh_.getParam("only_color_and_geometry", only_color_and_geometry);
-
-    if (only_color_and_geometry) {
-
+    if (only_color_and_geometry_) {
       sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
       sub_image_.subscribe(pnh_, "input_image", 1);
       sub_cluster_.subscribe(pnh_, "input_cluster", 1);
     } else {
-
       sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
       sub_image_.subscribe(pnh_, "input_image", 1);
       sub_cluster_.subscribe(pnh_, "input_cluster", 1);
@@ -45,24 +44,19 @@ namespace neatness_estimator
       std::cout << i << ", " << topics_.at(i) << std::endl;
     }
 
-    register_callback(only_color_and_geometry);
+    register_callback(only_color_and_geometry_);
   }
 
   void EstimationModuleInterface::register_callback(bool only_color_and_geometry)
   {
     if (approximate_sync_) {
-      std::cout << "approximate_sync: true" << std::endl;
       if (only_color_and_geometry) {
-        std::cout << "only_color_and_geometry: true" << std::endl;
-
         async_color_and_geo_ =
           boost::make_shared<message_filters::Synchronizer<ApproximateSyncColorAndGeo> >(1000);
         async_color_and_geo_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_);
         async_color_and_geo_->registerCallback
           (boost::bind(&EstimationModuleInterface::color_and_geometry_callback,this, _1, _2, _3));
       } else {
-        std::cout << "only_color_and_geometry: false" << std::endl;
-
         async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSync> >(1000);
         async_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_,
                              sub_labels_, sub_instance_boxes_, sub_cluster_boxes_);
@@ -70,18 +64,12 @@ namespace neatness_estimator
           (boost::bind(&EstimationModuleInterface::callback,this, _1, _2, _3, _4, _5, _6));
       }
     } else {
-      std::cout << "approximate_sync: false" << std::endl;
-
       if (only_color_and_geometry) {
-        std::cout << "only_color_and_geometry: true" << std::endl;
-
         sync_color_and_geo_  = boost::make_shared<message_filters::Synchronizer<SyncColorAndGeo> >(1000);
         sync_color_and_geo_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_);
         sync_color_and_geo_->registerCallback
           (boost::bind(&EstimationModuleInterface::color_and_geometry_callback, this, _1, _2, _3));
       } else {
-        std::cout << "only_color_and_geometry: fales" << std::endl;
-
         sync_  = boost::make_shared<message_filters::Synchronizer<Sync> >(1000);
         sync_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_,
                             sub_labels_, sub_instance_boxes_, sub_cluster_boxes_);
@@ -159,22 +147,36 @@ namespace neatness_estimator
    const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg)
   {
     boost::mutex::scoped_lock lock(mutex_);
-    std::cerr << __func__ << " callback function called" << std::endl;
 
-    // if ( !is_called_ ) {
-    //   std::cerr << __func__ << " callback function called" << std::endl;
-    //   is_called_ = true;
-    // }
+    if ( !is_called_ ) {
+      std::cerr << __func__ << " callback function called" << std::endl;
+      is_called_ = true;
+    }
 
-    jsk_recognition_msgs::LabelArray::ConstPtr dummy_labels;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr dummy_instance_boxes;
-    jsk_recognition_msgs::BoundingBoxArray::ConstPtr dummy_cluster_boxes;
+    jsk_recognition_msgs::ClusterPointIndices dummy_cluster;
+    dummy_cluster.cluster_indices.push_back(cluster_msg->cluster_indices.at(0));
+
+    jsk_recognition_msgs::LabelArray dummy_labels;
+    jsk_recognition_msgs::BoundingBoxArray dummy_instance_boxes;
+    jsk_recognition_msgs::BoundingBoxArray dummy_cluster_boxes;
+    for (int i=0; i<dummy_cluster.cluster_indices.size(); ++i) {
+      jsk_recognition_msgs::Label dummy_label;
+      jsk_recognition_msgs::BoundingBox dummy_box;
+      dummy_labels.labels.push_back(dummy_label);
+      dummy_instance_boxes.boxes.push_back(dummy_box);
+      dummy_cluster_boxes.boxes.push_back(dummy_box);
+    }
+    dummy_cluster.header = cloud_msg->header;
+    dummy_labels.header = cloud_msg->header;
+    dummy_instance_boxes.header = cloud_msg->header;
+    dummy_cluster_boxes.header = cloud_msg->header;
+
     cloud_msg_ = cloud_msg;
     image_msg_ = image_msg;
-    cluster_msg_ = cluster_msg;
-    labels_msg_ = dummy_labels;
-    instance_boxes_msg_ = dummy_instance_boxes;
-    cluster_boxes_msg_ = dummy_cluster_boxes;
+    cluster_msg_ = boost::make_shared<jsk_recognition_msgs::ClusterPointIndices>(dummy_cluster);
+    labels_msg_ = boost::make_shared<jsk_recognition_msgs::LabelArray>(dummy_labels);
+    instance_boxes_msg_ = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(dummy_instance_boxes);
+    cluster_boxes_msg_ = boost::make_shared<jsk_recognition_msgs::BoundingBoxArray>(dummy_cluster_boxes);
   }
 
 
@@ -202,20 +204,25 @@ namespace neatness_estimator
     rosbag::Bag bag;
     bag.open(bag_save_path.str(), rosbag::bagmode::Write);
     // topics : [cloud, rgb, cluster, labels]
-    bag.write(topics_.at(0), cloud_msg_->header.stamp, *cloud_msg_);
-    bag.write(topics_.at(1), image_msg_->header.stamp, *image_msg_);
-    bag.write(topics_.at(2), cluster_msg_->header.stamp, *cluster_msg_);
-    bag.write(topics_.at(3), labels_msg_->header.stamp, *labels_msg_);
-    bag.write(topics_.at(4), instance_boxes_msg_->header.stamp, *instance_boxes_msg_);
-    bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
+
+    if ( !only_color_and_geometry_) {
+      bag.write(topics_.at(0), cloud_msg_->header.stamp, *cloud_msg_);
+      bag.write(topics_.at(1), image_msg_->header.stamp, *image_msg_);
+      bag.write(topics_.at(2), cluster_msg_->header.stamp, *cluster_msg_);
+      bag.write(topics_.at(3), labels_msg_->header.stamp, *labels_msg_);
+      bag.write(topics_.at(4), instance_boxes_msg_->header.stamp, *instance_boxes_msg_);
+      bag.write(topics_.at(5), cluster_boxes_msg_->header.stamp, *cluster_boxes_msg_);
+    }
+
     bag.close();
     ROS_INFO("rosbag file saved \n %s", bag_save_path.str().c_str());
 
-
     bool success = false;
     if (req.task == "two_scene") {
+      ROS_INFO("get two scene difference");
       success = get_two_scene_difference(res);
     } else if (req.task == "items") {
+      ROS_INFO("get items difference");
       success = get_items_difference
         (res, req.base_target_index, req.ref_target_indices, ss.str());
     }
@@ -239,6 +246,7 @@ namespace neatness_estimator
     feature_client_msg.request.cluster = *cluster_msg_;
     feature_client_msg.request.instance_boxes = *instance_boxes_msg_;
     feature_client_msg.request.cluster_boxes = *cluster_boxes_msg_;
+    feature_client_msg.request.task = "two_scene";
     feature_client_.call(feature_client_msg);
 
     if (!feature_client_msg.response.success) {
@@ -248,6 +256,7 @@ namespace neatness_estimator
 
     bool buffered = create_features_vec(feature_client_msg.response.features);
     if (buffered) {
+      ROS_WARN("buffered");
       // compare histogram service call
       neatness_estimator_msgs::GetDifference difference_msg;
       difference_msg.request.features = features_vec_;
@@ -264,6 +273,7 @@ namespace neatness_estimator
         res.group_distance = difference_msg.response.group_distance;
       }
     } else {
+      ROS_WARN("need wait for features service call to compare datas");
       res.message = "need wait for features service call to compare datas";
     }
 
@@ -307,6 +317,7 @@ namespace neatness_estimator
     feature_client_msg.request.cluster = cluster_msg;
     feature_client_msg.request.instance_boxes = instance_boxes_msg;
     feature_client_msg.request.cluster_boxes = cluster_boxes_msg;
+    feature_client_msg.request.task = "items";
     feature_client_.call(feature_client_msg);
 
     if (!feature_client_msg.response.success) {
@@ -355,10 +366,9 @@ namespace neatness_estimator
         ROS_WARN("i: %d, target_index: %d", i, targets.at(i));
         break;
       }
-
     }
     if ( !success ) return false;
-    
+
     // compare histogram service call
     neatness_estimator_msgs::GetDifference difference_msg;
     difference_msg.request.features = features_vec;

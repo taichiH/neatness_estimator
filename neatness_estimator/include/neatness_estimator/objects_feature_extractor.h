@@ -204,6 +204,7 @@ namespace neatness_estimator
     bool debug_view_ = false;
     bool save_data_ = false;
     bool only_color_and_geometry_ = false;
+    std::string task_ = "items";
 
     int bin_size_ = 10;
     double white_threshold_ = 0.3;
