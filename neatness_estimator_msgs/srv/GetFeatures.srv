@@ -1,3 +1,4 @@
+bool only_color_and_geometry
 jsk_recognition_msgs/ClusterPointIndices cluster
 sensor_msgs/PointCloud2 cloud
 sensor_msgs/Image image

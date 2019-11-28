@@ -71,12 +71,18 @@ namespace neatness_estimator
 
     virtual void onInit();
 
-    virtual void callback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
-                          const sensor_msgs::Image::ConstPtr& image_msg,
-                          const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
-                          const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg,
-                          const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& instance_boxes_msg,
-                          const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& cluster_boxes_msg);
+    virtual void callback
+      (const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
+       const sensor_msgs::Image::ConstPtr& image_msg,
+       const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg,
+       const jsk_recognition_msgs::LabelArray::ConstPtr& labels_msg,
+       const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& instance_boxes_msg,
+       const jsk_recognition_msgs::BoundingBoxArray::ConstPtr& cluster_boxes_msg);
+
+    virtual void color_and_geometry_callback
+      (const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
+       const sensor_msgs::Image::ConstPtr& image_msg,
+       const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg);
 
     virtual bool service_callback(neatness_estimator_msgs::GetDifference::Request& req,
                                   neatness_estimator_msgs::GetDifference::Response& res);

@@ -13,6 +13,9 @@ namespace neatness_estimator
     pnh_.getParam("fg_class_names", label_lst_);
     pnh_.getParam("get_color_mask", get_color_mask_);
 
+    bool only_color_and_geometry = false;
+    pnh_.getParam("only_color_and_geometry", only_color_and_geometry);
+
     call_server_ =
       pnh_.advertiseService("call", &EstimationModuleInterface::service_callback, this);
 
@@ -38,24 +41,43 @@ namespace neatness_estimator
     pnh_.getParam("approximate_sync", approximate_sync);
     std::cerr << "approximate_sync: " << approximate_sync << std::endl;
 
-    if (approximate_sync) {
-      async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
-      async_->connectInput(sub_point_cloud_,
-                           sub_image_,
-                           sub_cluster_,
-                           sub_labels_,
-                           sub_instance_boxes_,
-                           sub_cluster_boxes_);
-      async_->registerCallback(boost::bind(&EstimationModuleInterface::callback, this, _1, _2, _3, _4, _5, _6));
+    if (only_color_and_geometry) {
+      std::cerr << "only_color_and_geometry: true" << std::endl;
+      if (approximate_sync) {
+        async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
+        async_->connectInput(sub_point_cloud_,
+                             sub_image_,
+                             sub_cluster_);
+        async_->registerCallback(boost::bind(&EstimationModuleInterface::color_and_geometry_callback, this, _1, _2, _3));
+      } else {
+        sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
+        sync_->connectInput(sub_point_cloud_,
+                            sub_image_,
+                            sub_cluster_);
+        sync_->registerCallback(boost::bind(&EstimationModuleInterface::color_and_geometry_callback, this, _1, _2, _3));
+      }
+
     } else {
-      sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
-      sync_->connectInput(sub_point_cloud_,
-                          sub_image_,
-                          sub_cluster_,
-                          sub_labels_,
-                          sub_instance_boxes_,
-                          sub_cluster_boxes_);
-      sync_->registerCallback(boost::bind(&EstimationModuleInterface::callback, this, _1, _2, _3, _4, _5, _6));
+      std::cerr << "only_color_and_geometry: false" << std::endl;
+      if (approximate_sync) {
+        async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
+        async_->connectInput(sub_point_cloud_,
+                             sub_image_,
+                             sub_cluster_,
+                             sub_labels_,
+                             sub_instance_boxes_,
+                             sub_cluster_boxes_);
+        async_->registerCallback(boost::bind(&EstimationModuleInterface::callback, this, _1, _2, _3, _4, _5, _6));
+      } else {
+        sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
+        sync_->connectInput(sub_point_cloud_,
+                            sub_image_,
+                            sub_cluster_,
+                            sub_labels_,
+                            sub_instance_boxes_,
+                            sub_cluster_boxes_);
+        sync_->registerCallback(boost::bind(&EstimationModuleInterface::callback, this, _1, _2, _3, _4, _5, _6));
+      }
     }
 
   }
@@ -122,6 +144,30 @@ namespace neatness_estimator
     instance_boxes_msg_ = instance_boxes_msg;
     cluster_boxes_msg_ = cluster_boxes_msg;
   }
+
+  void EstimationModuleInterface::color_and_geometry_callback
+  (const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
+   const sensor_msgs::Image::ConstPtr& image_msg,
+   const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg)
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+
+    if ( !is_called_ ) {
+      std::cerr << "callback called" << std::endl;
+      is_called_ = true;
+    }
+
+    jsk_recognition_msgs::LabelArray::ConstPtr dummy_labels;
+    jsk_recognition_msgs::BoundingBoxArray::ConstPtr dummy_instance_boxes;
+    jsk_recognition_msgs::BoundingBoxArray::ConstPtr dummy_cluster_boxes;
+    cloud_msg_ = cloud_msg;
+    image_msg_ = image_msg;
+    cluster_msg_ = cluster_msg;
+    labels_msg_ = dummy_labels;
+    instance_boxes_msg_ = dummy_instance_boxes;
+    cluster_boxes_msg_ = dummy_cluster_boxes;
+  }
+
 
   bool EstimationModuleInterface::service_callback
   (neatness_estimator_msgs::GetDifference::Request& req,
