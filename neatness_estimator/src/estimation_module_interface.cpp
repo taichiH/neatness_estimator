@@ -14,7 +14,7 @@ namespace neatness_estimator
     pnh_.getParam("get_color_mask", get_color_mask_);
 
     bool only_color_and_geometry = false;
-    pnh_.getParam("only_color_ang_geometry", only_color_and_geometry);
+    pnh_.getParam("only_color_and_geometry", only_color_and_geometry);
 
     call_server_ =
       pnh_.advertiseService("call", &EstimationModuleInterface::service_callback, this);
@@ -41,7 +41,7 @@ namespace neatness_estimator
     pnh_.getParam("approximate_sync", approximate_sync);
     std::cerr << "approximate_sync: " << approximate_sync << std::endl;
 
-    if (only_color_ang_geometry) {
+    if (only_color_and_geometry) {
       std::cerr << "only_color_and_geometry: true" << std::endl;
       if (approximate_sync) {
         async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
@@ -164,8 +164,8 @@ namespace neatness_estimator
     image_msg_ = image_msg;
     cluster_msg_ = cluster_msg;
     labels_msg_ = dummy_labels;
-    instance_boxes_msg_ = dymmy_instance_boxes;
-    cluster_boxes_msg_ = dymmy_cluster_boxes;
+    instance_boxes_msg_ = dummy_instance_boxes;
+    cluster_boxes_msg_ = dummy_cluster_boxes;
   }
 
 
