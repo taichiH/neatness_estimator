@@ -12,76 +12,84 @@ namespace neatness_estimator
     pnh_.getParam("de_service_topic", de_service_topic_);
     pnh_.getParam("fg_class_names", label_lst_);
     pnh_.getParam("get_color_mask", get_color_mask_);
-
-    bool only_color_and_geometry = false;
-    pnh_.getParam("only_color_and_geometry", only_color_and_geometry);
+    pnh_.getParam("approximate_sync", approximate_sync_);
 
     call_server_ =
       pnh_.advertiseService("call", &EstimationModuleInterface::service_callback, this);
-
     feature_client_ =
       pnh_.serviceClient<neatness_estimator_msgs::GetFeatures>(fe_service_topic_);
     difference_client_ =
       pnh_.serviceClient<neatness_estimator_msgs::GetDifference>(de_service_topic_);
 
-    sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
-    sub_image_.subscribe(pnh_, "input_image", 1);
-    sub_cluster_.subscribe(pnh_, "input_cluster", 1);
-    sub_labels_.subscribe(pnh_, "input_labels", 1);
-    sub_instance_boxes_.subscribe(pnh_, "input_instance_boxes", 1);
-    sub_cluster_boxes_.subscribe(pnh_, "input_cluster_boxes", 1);
+    bool only_color_and_geometry = false;
+    pnh_.getParam("only_color_and_geometry", only_color_and_geometry);
+
+    if (only_color_and_geometry) {
+
+      sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
+      sub_image_.subscribe(pnh_, "input_image", 1);
+      sub_cluster_.subscribe(pnh_, "input_cluster", 1);
+    } else {
+
+      sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
+      sub_image_.subscribe(pnh_, "input_image", 1);
+      sub_cluster_.subscribe(pnh_, "input_cluster", 1);
+      sub_labels_.subscribe(pnh_, "input_labels", 1);
+      sub_instance_boxes_.subscribe(pnh_, "input_instance_boxes", 1);
+      sub_cluster_boxes_.subscribe(pnh_, "input_cluster_boxes", 1);
+    }
 
     // topic name added to topic_manager when subscribe function is called
     ros::this_node::getSubscribedTopics(topics_);
     for (size_t i=0; i<topics_.size(); ++i) {
-      std::cerr << i << ", " << topics_.at(i) << std::endl;
+      std::cout << i << ", " << topics_.at(i) << std::endl;
     }
 
-    bool approximate_sync;
-    pnh_.getParam("approximate_sync", approximate_sync);
-    std::cerr << "approximate_sync: " << approximate_sync << std::endl;
-
-    if (only_color_and_geometry) {
-      std::cerr << "only_color_and_geometry: true" << std::endl;
-      if (approximate_sync) {
-        async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
-        async_->connectInput(sub_point_cloud_,
-                             sub_image_,
-                             sub_cluster_);
-        async_->registerCallback(boost::bind(&EstimationModuleInterface::color_and_geometry_callback, this, _1, _2, _3));
-      } else {
-        sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
-        sync_->connectInput(sub_point_cloud_,
-                            sub_image_,
-                            sub_cluster_);
-        sync_->registerCallback(boost::bind(&EstimationModuleInterface::color_and_geometry_callback, this, _1, _2, _3));
-      }
-
-    } else {
-      std::cerr << "only_color_and_geometry: false" << std::endl;
-      if (approximate_sync) {
-        async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSyncPolicy> >(1000);
-        async_->connectInput(sub_point_cloud_,
-                             sub_image_,
-                             sub_cluster_,
-                             sub_labels_,
-                             sub_instance_boxes_,
-                             sub_cluster_boxes_);
-        async_->registerCallback(boost::bind(&EstimationModuleInterface::callback, this, _1, _2, _3, _4, _5, _6));
-      } else {
-        sync_  = boost::make_shared<message_filters::Synchronizer<SyncPolicy> >(1000);
-        sync_->connectInput(sub_point_cloud_,
-                            sub_image_,
-                            sub_cluster_,
-                            sub_labels_,
-                            sub_instance_boxes_,
-                            sub_cluster_boxes_);
-        sync_->registerCallback(boost::bind(&EstimationModuleInterface::callback, this, _1, _2, _3, _4, _5, _6));
-      }
-    }
-
+    register_callback(only_color_and_geometry);
   }
 
+  void EstimationModuleInterface::register_callback(bool only_color_and_geometry)
+  {
+    if (approximate_sync_) {
+      std::cout << "approximate_sync: true" << std::endl;
+      if (only_color_and_geometry) {
+        std::cout << "only_color_and_geometry: true" << std::endl;
+
+        async_color_and_geo_ =
+          boost::make_shared<message_filters::Synchronizer<ApproximateSyncColorAndGeo> >(1000);
+        async_color_and_geo_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_);
+        async_color_and_geo_->registerCallback
+          (boost::bind(&EstimationModuleInterface::color_and_geometry_callback,this, _1, _2, _3));
+      } else {
+        std::cout << "only_color_and_geometry: false" << std::endl;
+
+        async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSync> >(1000);
+        async_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_,
+                             sub_labels_, sub_instance_boxes_, sub_cluster_boxes_);
+        async_->registerCallback
+          (boost::bind(&EstimationModuleInterface::callback,this, _1, _2, _3, _4, _5, _6));
+      }
+    } else {
+      std::cout << "approximate_sync: false" << std::endl;
+
+      if (only_color_and_geometry) {
+        std::cout << "only_color_and_geometry: true" << std::endl;
+
+        sync_color_and_geo_  = boost::make_shared<message_filters::Synchronizer<SyncColorAndGeo> >(1000);
+        sync_color_and_geo_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_);
+        sync_color_and_geo_->registerCallback
+          (boost::bind(&EstimationModuleInterface::color_and_geometry_callback, this, _1, _2, _3));
+      } else {
+        std::cout << "only_color_and_geometry: fales" << std::endl;
+
+        sync_  = boost::make_shared<message_filters::Synchronizer<Sync> >(1000);
+        sync_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_,
+                            sub_labels_, sub_instance_boxes_, sub_cluster_boxes_);
+        sync_->registerCallback
+          (boost::bind(&EstimationModuleInterface::callback,this, _1, _2, _3, _4, _5, _6));
+      }
+    }
+  }
 
   bool EstimationModuleInterface::create_features_vec(const neatness_estimator_msgs::Features& features)
   {
@@ -133,7 +141,7 @@ namespace neatness_estimator
     boost::mutex::scoped_lock lock(mutex_);
 
     if ( !is_called_ ) {
-      std::cerr << "callback called" << std::endl;
+      std::cerr << __func__ << " callback function called" << std::endl;
       is_called_ = true;
     }
 
@@ -151,11 +159,12 @@ namespace neatness_estimator
    const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg)
   {
     boost::mutex::scoped_lock lock(mutex_);
+    std::cerr << __func__ << " callback function called" << std::endl;
 
-    if ( !is_called_ ) {
-      std::cerr << "callback called" << std::endl;
-      is_called_ = true;
-    }
+    // if ( !is_called_ ) {
+    //   std::cerr << __func__ << " callback function called" << std::endl;
+    //   is_called_ = true;
+    // }
 
     jsk_recognition_msgs::LabelArray::ConstPtr dummy_labels;
     jsk_recognition_msgs::BoundingBoxArray::ConstPtr dummy_instance_boxes;

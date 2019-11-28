@@ -38,24 +38,6 @@ namespace neatness_estimator
   {
   public:
 
-    typedef message_filters::sync_policies::ExactTime<
-      sensor_msgs::PointCloud2,
-      sensor_msgs::Image,
-      jsk_recognition_msgs::ClusterPointIndices,
-      jsk_recognition_msgs::LabelArray,
-      jsk_recognition_msgs::BoundingBoxArray,
-      jsk_recognition_msgs::BoundingBoxArray
-      > SyncPolicy;
-
-    typedef message_filters::sync_policies::ApproximateTime<
-      sensor_msgs::PointCloud2,
-      sensor_msgs::Image,
-      jsk_recognition_msgs::ClusterPointIndices,
-      jsk_recognition_msgs::LabelArray,
-      jsk_recognition_msgs::BoundingBoxArray,
-      jsk_recognition_msgs::BoundingBoxArray
-      > ApproximateSyncPolicy;
-
     enum Topics {
       CLOUD = 1,
       IMAGE = 2,
@@ -104,6 +86,46 @@ namespace neatness_estimator
 
     virtual int get_confidence_color(std::vector<float> v);
 
+
+    virtual void register_callback(bool only_color_and_geometry);
+
+
+
+    typedef message_filters::sync_policies::ApproximateTime<
+      sensor_msgs::PointCloud2,
+      sensor_msgs::Image,
+      jsk_recognition_msgs::ClusterPointIndices,
+      jsk_recognition_msgs::LabelArray,
+      jsk_recognition_msgs::BoundingBoxArray,
+      jsk_recognition_msgs::BoundingBoxArray
+      > ApproximateSync;
+
+    typedef message_filters::sync_policies::ApproximateTime<
+      sensor_msgs::PointCloud2,
+      sensor_msgs::Image,
+      jsk_recognition_msgs::ClusterPointIndices
+      > ApproximateSyncColorAndGeo;
+
+    typedef message_filters::sync_policies::ExactTime<
+      sensor_msgs::PointCloud2,
+      sensor_msgs::Image,
+      jsk_recognition_msgs::ClusterPointIndices,
+      jsk_recognition_msgs::LabelArray,
+      jsk_recognition_msgs::BoundingBoxArray,
+      jsk_recognition_msgs::BoundingBoxArray
+      > Sync;
+
+    typedef message_filters::sync_policies::ExactTime<
+      sensor_msgs::PointCloud2,
+      sensor_msgs::Image,
+      jsk_recognition_msgs::ClusterPointIndices
+      > SyncColorAndGeo;
+
+    boost::shared_ptr<message_filters::Synchronizer<ApproximateSync> > async_;
+    boost::shared_ptr<message_filters::Synchronizer<ApproximateSyncColorAndGeo> > async_color_and_geo_;
+    boost::shared_ptr<message_filters::Synchronizer<Sync> > sync_;
+    boost::shared_ptr<message_filters::Synchronizer<SyncColorAndGeo> > sync_color_and_geo_;
+
     // variables
 
     ros::NodeHandle nh_;
@@ -113,9 +135,6 @@ namespace neatness_estimator
 
     ros::ServiceClient feature_client_;
     ros::ServiceClient difference_client_;
-
-    boost::shared_ptr<message_filters::Synchronizer<SyncPolicy> >sync_;
-    boost::shared_ptr<message_filters::Synchronizer<ApproximateSyncPolicy> > async_;
 
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub_point_cloud_;
     message_filters::Subscriber<sensor_msgs::Image> sub_image_;
@@ -141,6 +160,7 @@ namespace neatness_estimator
     std::vector<std::string> label_lst_;
     bool get_color_mask_ = true;
     bool is_called_ = false;
+    bool approximate_sync_ = true;
   private:
 
   };

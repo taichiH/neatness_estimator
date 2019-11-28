@@ -1,6 +1,6 @@
 <launch>
-  <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
-  <arg name="input_image" default="/openni_camera/rgb/image_rect_color" />
+  <arg name="input_cloud" default="/aeroa_remote/point_cloud/cloud_registered/remote" />
+  <arg name="input_image" default="/aeroa_remote/openni_camera/rgb/image_rect_color" />
   <arg name="input_cluster" default="/multi_euclidean_clustering/output_indices" />
   <arg name="prefix" default="$(env HOME)/.ros/neatness_estimator" />
 

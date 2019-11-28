@@ -7,9 +7,14 @@
   <arg name="fe_service_topic" default="/$(arg fe_node_name)/extract" />
   <arg name="de_service_topic" default="/$(arg de_node_name)/estimate" />
 
-  <arg name="cloud_topic" default="/openni_camera/depth_registered/points" />
-  <arg name="image_topic" default="/openni_camera/rgb/image_rect_color" />
+  <arg name="cloud_topic" default="/aeroa_remote/point_cloud/cloud_registered/remote" />
+  <arg name="image_topic" default="/aeroa_remote/openni_camera/rgb/image_rect_color" />
   <arg name="cluster_topic" default="/multi_euclidean_clustering/output_indices" />
+
+  <arg name="instance_boxes_topic" default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
+  <arg name="cluster_boxes_topic" default="/labeled_bounding_box_publisher_aligned/output/labeled_cluster_boxes" />
+  <arg name="labels_topic" default="/mask_rcnn_instance_segmentation/output/labels" />
+
   <arg name="classification_model_path" default="$(find neatness_estimator)/trained_data/motion_classification_model_191111.csv" />
   <arg name="geometry_feature" default="cvfh" />
 
