@@ -392,19 +392,20 @@ namespace neatness_estimator
   }
 
   bool ObjectsFeatureExtractor::load_image(const sensor_msgs::Image::ConstPtr& input_msg,
-                                      cv::Mat& input_image)
+                                           cv::Mat& input_image)
   {
     try {
+      ROS_INFO("image encoding: %s", input_msg->encoding.c_str());
       cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy
-        (input_msg, "bgr8");
+        (input_msg, input_msg->encoding);
       input_image = cv_image->image;
     } catch (cv_bridge::Exception& e) {
       ROS_ERROR("Failed to convert sensor_msgs::Image to cv::Mat \n%s", e.what());
       return false;
     }
 
-    return true;
-  }
+  return true;
+}
 
   bool ObjectsFeatureExtractor::save_color_histogram
   (std::string save_dir, 
