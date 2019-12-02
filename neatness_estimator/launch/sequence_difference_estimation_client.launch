@@ -1,0 +1,14 @@
+<launch>
+
+  <node name="sequence_difference_estimation_client"
+        pkg="neatness_estimator" type="sequence_difference_estimation_client.py"
+        output="screen">
+  </node>
+
+  <node name="sequence_difference_plot"
+        pkg="rqt_plot" type="rqt_plot"
+        output="screen"
+        args=" sequence_difference_estimation_client/color_distance/data sequence_difference_estimation_client/geometry_distance/data">
+  </node>
+
+</launch>

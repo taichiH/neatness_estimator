@@ -1,5 +1,5 @@
 <launch>
-  <arg name="filename" default="$(find neatness_estimator)/sample/gomibako.bag" />
+  <arg name="filename" default="$(find neatness_estimator)/sample/gomibako_191129.bag" />
   <arg name="options" value="--clock --loop" />
   <arg name="manager" value="camera_remote_nodelet_manager" />
   <arg name="respawn" value="false" />
@@ -108,5 +108,10 @@
     <arg name="image_topic" value="/remote/tablet/head_rgbd_sensor/rgb/image_rect_color" />
     <arg name="cluster_topic" value="/point_indices_to_cluster_point_indices/output" />
   </include>
+
+  <node name="sequence_difference_estimation_client"
+        pkg="neatness_estimator" type="sequence_difference_estimation_client.py"
+        output="screen">
+  </node>
 
 </launch>
