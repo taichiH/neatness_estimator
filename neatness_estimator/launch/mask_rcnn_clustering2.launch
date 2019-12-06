@@ -2,16 +2,19 @@
   <arg name="input_image" default="/openni_camera/rgb/image_rect_color" />
   <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
   <arg name="labels" default="mask_rcnn_labels_191023.yaml" />
+  <arg name="target_frame" default="base_link" />
 
   <include file="$(find neatness_estimator)/launch/mask_rcnn_clustering.launch">
     <arg name="input_image" value="$(arg input_image)"/>
     <arg name="input_cloud" value="$(arg input_cloud)"/>
     <arg name="labels" value="$(arg labels)" />
+    <arg name="target_frame" value="$(arg target_frame)" />
   </include>
 
   <include file="$(find neatness_estimator)/launch/multi_euclidean_clustering_module.launch">
     <arg name="input_cloud" value="$(arg input_cloud)"/>
     <arg name="labels" value="$(arg labels)" />
+    <arg name="target_frame" value="$(arg target_frame)" />
   </include>
 
   <include file="$(find neatness_estimator)/launch/vision_server.launch">

@@ -3,6 +3,7 @@
   <arg name="input_cloud" default="/openni_camera/depth_registered/points" />
   <arg name="input_cluster_indices" default="/instance_cluster_point_indices_decomposer/cluster_indices" />
   <arg name="labels" default="mask_rcnn_labels.yaml" />
+  <arg name="target_frame" default="base_link" />
 
   <include file="$(find neatness_estimator)/launch/multi_euclidean_clustering.launch">
     <arg name="input_cloud" value="$(arg input_cloud)" />
@@ -14,12 +15,12 @@
         args="standalone jsk_pcl/ClusterPointIndicesDecomposer">
     <remap from="~input" to="$(arg input_cloud)" />
     <remap from="~target" to="/multi_euclidean_clustering/output_indices" />
-    <rosparam>
+    <rosparam subst_value="true">
       align_boxes: false
       align_boxes_with_plane: false
       approximate_sync: false
       queue_size: 100
-      target_frame_id: base_link
+      target_frame_id: $(arg target_frame)
       sort_by: input_indices
       use_pca: true
     </rosparam>
@@ -30,12 +31,12 @@
         args="standalone jsk_pcl/ClusterPointIndicesDecomposer">
     <remap from="~input" to="$(arg input_cloud)" />
     <remap from="~target" to="/multi_euclidean_clustering/output_indices" />
-    <rosparam>
+    <rosparam subst_value="true">
       align_boxes: true
       align_boxes_with_plane: false
       approximate_sync: false
       queue_size: 100
-      target_frame_id: base_link
+      target_frame_id: $(arg target_frame)
       sort_by: input_indices
       use_pca: false
     </rosparam>
