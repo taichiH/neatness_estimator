@@ -1,5 +1,5 @@
 <launch>
-  <arg name="filename" default="$(find neatness_estimator)/sample/gomibako_191129.bag" />
+  <arg name="filename" default="$(find neatness_estimator)/sample/gomibako.bag" />
   <arg name="options" value="--clock --loop" />
   <arg name="manager" value="camera_remote_nodelet_manager" />
   <arg name="respawn" value="false" />
@@ -98,7 +98,7 @@
 
   <node name="rviz"
         pkg="rviz" type="rviz"
-        args="-d /home/leus/rosbag/gomibako/gomibako.rviz">
+        args="-d $(find neatness_estimator)/sample/gomibako.rviz">
   </node>
 
   <!-- distance estimator -->
@@ -112,6 +112,9 @@
   <node name="sequence_difference_estimation_client"
         pkg="neatness_estimator" type="sequence_difference_estimation_client.py"
         output="screen">
+    <rosparam subst_value="true">
+      rate: 1
+    </rosparam>
   </node>
 
 </launch>
