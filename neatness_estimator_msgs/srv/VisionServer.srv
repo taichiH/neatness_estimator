@@ -1,12 +1,18 @@
+uint32 label_index
+uint32 ref_label_index
 string label
 string ref_label
 string task
 string parent_frame
 geometry_msgs/Point target
 ---
+bool has_item
 bool status
+bool need_repleshment
+string message
 uint32 index
 float32 filling_dist
 float32 pulling_dist
+float32 pose_dist
 jsk_recognition_msgs/BoundingBox boxes
 jsk_recognition_msgs/BoundingBox[] multi_boxes

@@ -23,7 +23,7 @@ class NeatnessEstimatorVisionServer():
 
         self.header = None
         self.red_boxes = BoundingBoxArray()
-        self.labeled_boxes = BoundingBoxArray()
+        self.cluster_boxes = BoundingBoxArray()
         self.mask_rcnn_boxes = BoundingBoxArray()
         self.qatm_boxes = BoundingBoxArray()
 
@@ -54,7 +54,7 @@ class NeatnessEstimatorVisionServer():
         self.red_boxes = msg
 
     def cluster_box_callback(self, msg):
-        self.labeled_boxes = msg
+        self.cluster_boxes = msg
 
     def qatm_pose_callback(self, pose_msg):
         self.header = pose_msg.header
@@ -148,6 +148,129 @@ class NeatnessEstimatorVisionServer():
             traceback.print_exc()
 
         return res
+
+    ''' task get_cluster_items '''
+    def get_cluster_items(self, req):
+        print('get_cluster_items')
+
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+        res.status = False
+
+        try:
+            sorted_boxes = sorted(
+                self.cluster_boxes.boxes, key = lambda box : box.pose.position.y, reverse=True)
+            res.multi_boxes = sorted_boxes
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
+    ''' task check_mis_place_item '''
+    def get_mis_place_item(self, req):
+        print('get_mis_place_item')
+
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+        res.status = False
+        res.has_item = False
+
+        try:
+            res.boxes = BoundingBox()
+
+            ### TODO: implement mis place item ###
+
+            res.has_item = True
+            res.status = True
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
+    ''' task get_item_belonging '''
+    def get_item_belonging(self, req):
+        print('get_item_belonging')
+
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+        res.status = False
+
+        try:
+            ### TODO: implement check_shelf_data_base ###
+
+            res.message = self.check_shelf_data_base(req.item)
+            res.status = True
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
+    ''' task get_container_stock '''
+    def get_container_stock(self, req):
+        print('get_container_stock')
+
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+        res.status = False
+
+        try:
+            ### TODO: implement check_container_stock ###
+            res.status = True
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
+    ''' task check_need_repleshment '''
+    def check_need_repleshment(self, req):
+        print('check_need_repleshment')
+
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+        res.status = False
+
+        try:
+            ### TODO: implement check_need_repleshment ###
+            res.status = True
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
+    ''' task check_rough_pose_fitting '''
+    def check_rough_pose_fitting(self, req):
+        print('check_rough_pose_fitting')
+
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+        res.status = False
+
+        try:
+            ### TODO: implement check_rough_pose_fitting ###
+            # req.label_index
+            # req.ref_label_index
+            # res.pose_dist = dot
+
+            res.status = True
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
+
+
 
     ''' task get_distance_from_shelf_front '''
     def get_distance_from_shelf_front(self, req):
@@ -417,6 +540,31 @@ class NeatnessEstimatorVisionServer():
         elif req.task == 'get_shelf_map_rotation':
             rospy.loginfo(req.task)
             return self.get_shelf_map_rotation(req)
+
+        elif req.task == 'get_cluster_items':
+            rospy.loginfo(req.task)
+            return self.get_cluster_items(req)
+
+        elif req.task == 'get_mis_place_item':
+            rospy.loginfo(req.task)
+            return self.get_mis_place_item(req)
+
+        elif req.task == 'get_item_belonging':
+            rospy.loginfo(req.task)
+            return self.get_item_belonging(req)
+
+        elif req.task == 'get_container_stock':
+            rospy.loginfo(req.task)
+            return self.get_container_stock(req)
+
+        elif req.task == 'check_need_repleshment':
+            rospy.loginfo(req.task)
+            return self.check_need_repleshment(req)
+
+        elif req.task == 'check_rough_pose_fitting':
+            rospy.loginfo(req.task)
+            return self.check_rough_pose_fitting(req)
+
 
 if __name__ == "__main__":
     rospy.init_node("display_task_vision_server")
