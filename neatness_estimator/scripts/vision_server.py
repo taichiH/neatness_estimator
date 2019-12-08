@@ -17,6 +17,8 @@ class NeatnessEstimatorVisionServer():
         mask_rcnn_label_lst = rospy.get_param('~fg_class_names')
         qatm_label_lst = rospy.get_param('~qatm_class_names')
         color_label_lst = ['red']
+        self.item_owners = {'conveniShelf1', 'conveniShelf2', 'container'}
+
         self.label_lst = mask_rcnn_label_lst + qatm_label_lst + color_label_lst
 
         self.boxes = BoundingBoxArray()
@@ -168,21 +170,41 @@ class NeatnessEstimatorVisionServer():
 
         return res
 
-    ''' task check_mis_place_item '''
+    ''' task get_mis_place_item '''
     def get_mis_place_item(self, req):
         print('get_mis_place_item')
 
         rospy.loginfo(req.task)
         res = VisionServerResponse()
         res.status = False
-        res.has_item = False
 
         try:
-            res.boxes = BoundingBox()
+            item = req.label # cluster item label (string)
 
-            ### TODO: implement mis place item ###
+            x_range = {'min': 0, 'max':0}
+            y_range = {'min': 0, 'max':0}
+            z_range = {'min': 0, 'max':0}
+            for cluster_box in self.cluster_boxes:
+                if self.label_lst[cluster_box.label] == req.label:
+                    x_range['min'] = target_cluster_box.pose.position.x - target_cluster_box.dimensions.x * 0.5
+                    x_range['max'] = target_cluster_box.pose.position.x + target_cluster_box.dimensions.x * 0.5
+                    y_range['min'] = target_cluster_box.pose.position.y - target_cluster_box.dimensions.y * 0.5
+                    y_range['max'] = target_cluster_box.pose.position.y + target_cluster_box.dimensions.y * 0.5
+                    z_range['min'] = target_cluster_box.pose.position.z - target_cluster_box.dimensions.z * 0.5
+                    z_range['max'] = target_cluster_box.pose.position.z + target_cluster_box.dimensions.z * 0.5
+                    break
 
-            res.has_item = True
+            res.has_item = False
+            for box in self.boxes:
+                if self.label_lst[box.label] == req.label:
+                    continue
+                if x_range['min'] < box.x and box.x < x_range['max'] or\
+                   y_range['min'] < box.y and box.y < y_range['max'] or\
+                   z_range['min'] < box.z and box.z < z_range['max']:
+                    res.has_item = True
+                    res.boxes = box
+                    break
+
             res.status = True
         except:
             res.status = False
@@ -190,6 +212,31 @@ class NeatnessEstimatorVisionServer():
             traceback.print_exc()
 
         return res
+
+    ''' task check_item_stock '''
+    def check_item_stock(self, req):
+        print('check_item_stock')
+
+        rospy.loginfo(req.task)
+        res = VisionServerResponse()
+        res.status = False
+
+        try:
+            spot_name = req.label
+            self.item_owners[spot_name] = []
+            for box in self.boxes:
+                label_name = self.label_lst[box.label]
+                if not label_name in self.item_owners[spot_name]:
+                    self.item_owners[spot_name].append(label_name)
+
+            res.status = True
+        except:
+            res.status = False
+            import traceback
+            traceback.print_exc()
+
+        return res
+
 
     ''' task get_item_belonging '''
     def get_item_belonging(self, req):
@@ -202,7 +249,9 @@ class NeatnessEstimatorVisionServer():
         try:
             ### TODO: implement check_shelf_data_base ###
 
-            res.message = self.check_shelf_data_base(req.item)
+            for owner_spot, owner_contents in zip(self.item_owners.keys(), self.item_owners.values()):
+                if req.item in owner_contents:
+                    res.message = owner_spot
             res.status = True
         except:
             res.status = False
@@ -564,6 +613,11 @@ class NeatnessEstimatorVisionServer():
         elif req.task == 'check_rough_pose_fitting':
             rospy.loginfo(req.task)
             return self.check_rough_pose_fitting(req)
+
+        elif req.task == 'check_item_stock':
+            rospy.loginfo(req.task)
+            return self.check_item_stock(req)
+
 
 
 if __name__ == "__main__":
