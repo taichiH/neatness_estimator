@@ -1,7 +1,7 @@
 <launch>
   <arg name="model_path" default="$(find neatness_estimator)/trained_data/sample.csv" />
   <arg name="model" default="mlp"
-       doc="sklearn classification model {random_forest, mlp}" />
+       doc="sklearn classification model {random_forest, mlp, bayes}" />
   <arg name="labels" default="mask_rcnn_labels_191023.yaml" />
 
   <node name="get_motion_primitive_server"

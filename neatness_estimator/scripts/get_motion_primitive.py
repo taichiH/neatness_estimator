@@ -5,6 +5,7 @@ import csv
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.naive_bayes import GaussianNB
 
 import rospy
 import rospkg
@@ -13,7 +14,7 @@ from neatness_estimator_msgs.srv import GetMotionPrimitive, GetMotionPrimitiveRe
 class GetMotionPrimitiveServer():
 
     def __init__(self):
-        self.motion_lst = ['rot', 'trans', 'ok', 'other']
+        self.motion_lst = ['rot', 'trans', 'ok', 'unknown']
         self.label_lst = rospy.get_param('~fg_class_names')
         self.data_path = rospy.get_param(
             '~model_path',
@@ -39,6 +40,8 @@ class GetMotionPrimitiveServer():
                 solver="adam", random_state=0, max_iter=10000,
                 hidden_layer_sizes=(100,200,100),
                 learning_rate='constant', learning_rate_init=0.001)
+        elif self.model == 'bayes':
+            self.classifier = GaussianNB()
         else:
             rospy.logwarn('please set classification model')
 
@@ -74,6 +77,8 @@ class GetMotionPrimitiveServer():
         print('target_data', target_data)
         # random forest
         motion_class = self.classifier.predict(np.array([target_data]))
+        predict_proba = self.classifier.predict_proba([target_data])
+        print('predict proba: ', predict_proba)
         motion_class = int(motion_class[0])
         return self.motion_lst[motion_class]
 

@@ -15,6 +15,7 @@
   <arg name="labels_topic" default="/mask_rcnn_instance_segmentation/output/labels" />
   <arg name="classification_model_path" default="$(find neatness_estimator)/trained_data/motion_classification_model_191111.csv" />
   <arg name="geometry_feature" default="cvfh" />
+  <arg name="motion_primitive_classifier" default="mlp" />
 
   <include file="$(find neatness_estimator)/launch/estimation_module_interface.launch">
     <arg name="input_cloud" default="$(arg cloud_topic)" />
@@ -49,6 +50,7 @@
 
   <include file="$(find neatness_estimator)/launch/get_motion_primitive.launch">
     <arg name="model_path" value="$(arg classification_model_path)" />
+    <arg name="model" value="$(arg motion_primitive_classifier)" />
   </include>
 
 
