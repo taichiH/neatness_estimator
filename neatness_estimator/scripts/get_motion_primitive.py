@@ -22,6 +22,7 @@ class GetMotionPrimitiveServer():
                 rospkg.RosPack().get_path('neatness_estimator'),
                 'trained_data/sample.csv'))
 
+        self.trained_data_size = 0
         self.target_item = rospy.get_param('~target_item', '')
         self.model = rospy.get_param('~model', 'mlp')
         self.classifier = None
@@ -68,19 +69,32 @@ class GetMotionPrimitiveServer():
 
         rospy.loginfo('trained_data length: %s' %(len(trained_data)))
         rospy.loginfo('model type: %s' %(self.model))
+        self.trained_data_size = len(trained_data)
         self.classifier.fit(np.array(test_data), np.array(trained_data))
 
     def run(self, target_data):
         if self.classifier is None:
             return None
 
-        print('target_data', target_data)
-        # random forest
+        data_size_thresh = 3
+        if self.trained_data_size < data_size_thresh:
+            rospy.loginfo('data size: %d. teaching data is needed more than %d'
+                          %(self.trained_data_size, data_size_thresh))
+            return 'unknown'
+
         motion_class = self.classifier.predict(np.array([target_data]))
-        predict_proba = self.classifier.predict_proba([target_data])
-        print('predict proba: ', predict_proba)
         motion_class = int(motion_class[0])
+
+        debug = True
+        if debug:
+            predict_proba = self.classifier.predict_proba([target_data])
+            for label, proba in zip(self.classifier.classes_, predict_proba[0]):
+                rospy.loginfo('motion: %s proba: %f'
+                              %(self.motion_lst[int(label)], float(proba)))
+
+
         return self.motion_lst[motion_class]
+
 
     def service_callback(self, req):
         res = GetMotionPrimitiveResponse()
