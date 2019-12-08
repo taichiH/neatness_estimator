@@ -195,7 +195,7 @@ class NeatnessEstimatorVisionServer():
                     break
 
             res.has_item = False
-            for box in self.boxes:
+            for box in self.boxes.boxes:
                 if self.label_lst[box.label] == req.label:
                     continue
                 if x_range['min'] < box.x and box.x < x_range['max'] or\
@@ -224,7 +224,7 @@ class NeatnessEstimatorVisionServer():
         try:
             spot_name = req.label
             self.item_owners[spot_name] = []
-            for box in self.boxes:
+            for box in self.boxes.boxes:
                 label_name = self.label_lst[box.label]
                 if not label_name in self.item_owners[spot_name]:
                     self.item_owners[spot_name].append(label_name)
@@ -287,7 +287,12 @@ class NeatnessEstimatorVisionServer():
         res.status = False
 
         try:
-            ### TODO: implement check_need_repleshment ###
+            res.need_repleshment = True
+            for own_item in self.item_owners['container']:
+                if req.item == own_item:
+                    res.need_repleshment = False
+                    break
+
             res.status = True
         except:
             res.status = False
@@ -305,11 +310,35 @@ class NeatnessEstimatorVisionServer():
         res.status = False
 
         try:
-            ### TODO: implement check_rough_pose_fitting ###
-            # req.label_index
-            # req.ref_label_index
-            # res.pose_dist = dot
+            target_quaternion = []
+            ref_quaternion = []
 
+            target_box = self.boxes.boxes[req.label_index]
+            if self.label_lst[target_box.label] != req.label:
+                rospy.logwarn(
+                    '[error] target box label: %s' %(self.label_lst[target_box.label]))
+                res.status = False
+                return res
+            target_quaternion = np.array([target_box.pose.orientation.x,
+                                          target_box.pose.orientation.y,
+                                          target_box.pose.orientation.z,
+                                          target_box.pose.orientation.w])
+
+
+            ref_box = self.boxes.boxes[req.ref_label_index]
+            if self.label_lst[ref_box.label] != req.label:
+                rospy.logwarn(
+                    '[error] ref box label: %s' %(self.label_lst[ref_box.label]))
+                res.status = False
+                return res
+            ref_quaternion = np.array([ref_box.pose.orientation.x,
+                                       ref_box.pose.orientation.y,
+                                       ref_box.pose.orientation.z,
+                                       ref_box.pose.orientation.w])
+
+            print('target: ', target_quaternion)
+            print('ref: ', ref_quaternion)
+            res.pose_dist = np.dot(target_quaternion, ref_quaternion)
             res.status = True
         except:
             res.status = False
@@ -317,8 +346,6 @@ class NeatnessEstimatorVisionServer():
             traceback.print_exc()
 
         return res
-
-
 
 
     ''' task get_distance_from_shelf_front '''
