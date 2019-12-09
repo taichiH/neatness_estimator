@@ -17,7 +17,9 @@ class NeatnessEstimatorVisionServer():
         mask_rcnn_label_lst = rospy.get_param('~fg_class_names')
         qatm_label_lst = rospy.get_param('~qatm_class_names')
         color_label_lst = ['red']
-        self.item_owners = {'conveniShelf1', 'conveniShelf2', 'container'}
+        self.item_owners = {'conveniShelf1' : [],
+                            'conveniShelf2' : [],
+                            'container' : []}
 
         self.label_lst = mask_rcnn_label_lst + qatm_label_lst + color_label_lst
 
@@ -119,6 +121,9 @@ class NeatnessEstimatorVisionServer():
     def get_multi_obj_pos(self, req):
         print('get_multi_obj_pos')
 
+        self.boxes = self.merge_boxes(
+            self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+
         rospy.loginfo(req.task)
         res = VisionServerResponse()
         res.status = False
@@ -174,6 +179,9 @@ class NeatnessEstimatorVisionServer():
     def get_mis_place_item(self, req):
         print('get_mis_place_item')
 
+        self.boxes = self.merge_boxes(
+            self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+
         rospy.loginfo(req.task)
         res = VisionServerResponse()
         res.status = False
@@ -215,20 +223,24 @@ class NeatnessEstimatorVisionServer():
 
     ''' task check_item_stock '''
     def check_item_stock(self, req):
-        print('check_item_stock')
-
         rospy.loginfo(req.task)
         res = VisionServerResponse()
         res.status = False
 
         try:
+            self.boxes = self.merge_boxes(
+                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
             spot_name = req.label
-            self.item_owners[spot_name] = []
-            for box in self.boxes.boxes:
-                label_name = self.label_lst[box.label]
-                if not label_name in self.item_owners[spot_name]:
-                    self.item_owners[spot_name].append(label_name)
 
+            # when update stock is true, update stock
+            if req.flag:
+                self.item_owners[spot_name] = []
+                for box in self.boxes.boxes:
+                    label_name = self.label_lst[box.label]
+                    if not label_name in self.item_owners[spot_name]:
+                        self.item_owners[spot_name].append(label_name)
+
+            res.labels = self.item_owners[spot_name]
             res.status = True
         except:
             res.status = False
@@ -247,8 +259,6 @@ class NeatnessEstimatorVisionServer():
         res.status = False
 
         try:
-            ### TODO: implement check_shelf_data_base ###
-
             for owner_spot, owner_contents in zip(self.item_owners.keys(), self.item_owners.values()):
                 if req.item in owner_contents:
                     res.message = owner_spot
@@ -290,6 +300,7 @@ class NeatnessEstimatorVisionServer():
             res.need_repleshment = True
             for own_item in self.item_owners['container']:
                 if req.item == own_item:
+                    # TODO: implement
                     res.need_repleshment = False
                     break
 
@@ -310,6 +321,9 @@ class NeatnessEstimatorVisionServer():
         res.status = False
 
         try:
+            self.boxes = self.merge_boxes(
+                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+
             target_quaternion = []
             ref_quaternion = []
 
@@ -354,6 +368,9 @@ class NeatnessEstimatorVisionServer():
         res = VisionServerResponse()
 
         try:
+            self.boxes = self.merge_boxes(
+                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+
             has_shelf = False
             for box in self.boxes.boxes:
                 if box.label == int(self.label_lst.index('shelf_flont')):
@@ -397,6 +414,9 @@ class NeatnessEstimatorVisionServer():
         res = VisionServerResponse()
 
         try:
+            self.boxes = self.merge_boxes(
+                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+
             has_shelf = False
             for box in self.boxes.boxes:
                 if box.label == int(self.label_lst.index('shelf_flont')):
@@ -436,12 +456,12 @@ class NeatnessEstimatorVisionServer():
         has_item = False
         has_ref_item = False
 
-        self.boxes = self.merge_boxes(self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
-
         try:
+            self.boxes = self.merge_boxes(
+                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+
             left_side = -sys.maxsize # left side of right item
             right_side = sys.maxsize # right side of left item
-
 
             for box in self.boxes.boxes:
                 if box.pose.position.x == 0 and box.pose.position.y == 0 and box.pose.position.z == 0:
@@ -527,6 +547,8 @@ class NeatnessEstimatorVisionServer():
         has_request_item = False
         target_index = 0
         nearest_box = BoundingBox()
+        self.boxes = self.merge_boxes(
+            self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
         for index, box in enumerate(self.boxes.boxes):
             if box.pose.position.x == 0 or \
                box.pose.position.y == 0 or \
@@ -555,6 +577,8 @@ class NeatnessEstimatorVisionServer():
         distance = 100
         has_request_item = False
         multi_boxes = BoundingBoxArray()
+        self.boxes = self.merge_boxes(
+            self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
         for index, box in enumerate(self.boxes.boxes):
             if box.pose.position.x == 0 or \
                box.pose.position.y == 0 or \

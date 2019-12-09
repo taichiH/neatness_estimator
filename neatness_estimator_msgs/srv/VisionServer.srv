@@ -1,3 +1,4 @@
+bool flag
 uint32 label_index
 uint32 ref_label_index
 string label
@@ -10,6 +11,7 @@ bool has_item
 bool status
 bool need_repleshment
 string message
+string[] labels
 uint32 index
 float32 filling_dist
 float32 pulling_dist
