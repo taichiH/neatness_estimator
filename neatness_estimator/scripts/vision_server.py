@@ -163,14 +163,34 @@ class NeatnessEstimatorVisionServer():
         res.status = False
 
         try:
+            shelf_height = 0
+            for cluster_box in self.cluster_boxes.boxes:
+                if cluster_box.label == int(self.label_lst.index('shelf_flont')):
+                    if cluster_box.pose.position.z > shelf_height:
+                        shelf_height = cluster_box.pose.position.z
+
+            rospy.loginfo('shelf_height: %f' %(shelf_height))
             sorted_boxes = sorted(
                 self.cluster_boxes.boxes, key = lambda box : box.pose.position.y, reverse=True)
-            res.multi_boxes = sorted_boxes
+
+            extracted_boxes = BoundingBoxArray()
+            for box in sorted_boxes:
+                if box.pose.position.z > shelf_height:
+                    self.broadcaster.sendTransform(
+                        (box.pose.position.x, box.pose.position.y, box.pose.position.z),
+                        (box.pose.orientation.x, box.pose.orientation.y,
+                         box.pose.orientation.z, box.pose.orientation.w),
+                        rospy.Time.now(), self.label_lst[box.label] + '_cluster',
+                        self.cluster_boxes.header.frame_id)
+                    extracted_boxes.boxes.append(box)
+
+            res.multi_boxes = extracted_boxes.boxes
         except:
             res.status = False
             import traceback
             traceback.print_exc()
 
+        res.status = True
         return res
 
     ''' task get_mis_place_item '''
