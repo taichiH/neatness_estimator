@@ -26,6 +26,7 @@ class NeatnessEstimatorVisionServer():
         self.boxes = BoundingBoxArray()
 
         self.header = None
+        self.cluster_boxes_header = None
         self.red_boxes = BoundingBoxArray()
         self.cluster_boxes = BoundingBoxArray()
         self.mask_rcnn_boxes = BoundingBoxArray()
@@ -58,6 +59,7 @@ class NeatnessEstimatorVisionServer():
         self.red_boxes = msg
 
     def cluster_box_callback(self, msg):
+        self.cluster_boxes_header = msg.header
         self.cluster_boxes = msg
 
     def qatm_pose_callback(self, pose_msg):
@@ -73,10 +75,6 @@ class NeatnessEstimatorVisionServer():
 
     ''' task get_obj_pos '''
     def get_obj_pos(self, req):
-        print('get_obj_pos')
-
-        print(self.red_boxes)
-
         self.boxes = self.merge_boxes(self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
 
         rospy.loginfo(req.task)
@@ -189,29 +187,60 @@ class NeatnessEstimatorVisionServer():
         try:
             item = req.label # cluster item label (string)
 
+            print(len(self.cluster_boxes.boxes))
+
             x_range = {'min': 0, 'max':0}
             y_range = {'min': 0, 'max':0}
             z_range = {'min': 0, 'max':0}
-            for cluster_box in self.cluster_boxes:
+            for cluster_box in self.cluster_boxes.boxes:
                 if self.label_lst[cluster_box.label] == req.label:
-                    x_range['min'] = target_cluster_box.pose.position.x - target_cluster_box.dimensions.x * 0.5
-                    x_range['max'] = target_cluster_box.pose.position.x + target_cluster_box.dimensions.x * 0.5
-                    y_range['min'] = target_cluster_box.pose.position.y - target_cluster_box.dimensions.y * 0.5
-                    y_range['max'] = target_cluster_box.pose.position.y + target_cluster_box.dimensions.y * 0.5
-                    z_range['min'] = target_cluster_box.pose.position.z - target_cluster_box.dimensions.z * 0.5
-                    z_range['max'] = target_cluster_box.pose.position.z + target_cluster_box.dimensions.z * 0.5
+                    x_range['min'] = cluster_box.pose.position.x - (cluster_box.dimensions.x * 0.5)
+                    x_range['max'] = cluster_box.pose.position.x + (cluster_box.dimensions.x * 0.5)
+                    y_range['min'] = cluster_box.pose.position.y - (cluster_box.dimensions.y * 0.5)
+                    y_range['max'] = cluster_box.pose.position.y + (cluster_box.dimensions.y * 0.5)
+                    z_range['min'] = cluster_box.pose.position.z - (cluster_box.dimensions.z * 0.5)
+                    z_range['max'] = cluster_box.pose.position.z + (cluster_box.dimensions.z * 0.5)
                     break
+
+            # self.broadcaster.sendTransform(
+            #     (x_range['min'], y_range['min'], z_range['min']),
+            #     (0,0,0,1),
+            #     rospy.Time.now(), 'min_pos',
+            #     self.cluster_boxes_header.frame_id)
+
+            # self.broadcaster.sendTransform(
+            #     (x_range['max'], y_range['max'], z_range['max']),
+            #     (0,0,0,1),
+            #     rospy.Time.now(), 'max_pos',
+            #     self.cluster_boxes_header.frame_id)
 
             res.has_item = False
             for box in self.boxes.boxes:
                 if self.label_lst[box.label] == req.label:
                     continue
-                if x_range['min'] < box.x and box.x < x_range['max'] or\
-                   y_range['min'] < box.y and box.y < y_range['max'] or\
-                   z_range['min'] < box.z and box.z < z_range['max']:
+
+                transformed_box = self.transform_poses(
+                    box.pose, self.label_lst[box.label],
+                    self.boxes.header.frame_id, self.cluster_boxes_header.frame_id)
+                center = [transformed_box.pose.position.x,
+                          transformed_box.pose.position.y,
+                          transformed_box.pose.position.z]
+
+                if (x_range['min'] < center[0] and center[0] < x_range['max']) and\
+                   (y_range['min'] < center[1] and center[1] < y_range['max']) and\
+                   (z_range['min'] < center[2] and center[2] < z_range['max']):
+                    message = 'get mis-place item,  {} inside {} cluster'.format(
+                        self.label_lst[box.label], req.label)
+                    rospy.loginfo(message)
                     res.has_item = True
-                    res.boxes = box
+                    transformed_box.label = box.label
+                    res.boxes = transformed_box
+                    res.message = message
                     break
+            if not res.has_item:
+                message = 'there are no mis place item'
+                rospy.loginfo(message)
+                res.message = message
 
             res.status = True
         except:
@@ -252,16 +281,18 @@ class NeatnessEstimatorVisionServer():
 
     ''' task get_item_belonging '''
     def get_item_belonging(self, req):
-        print('get_item_belonging')
-
         rospy.loginfo(req.task)
         res = VisionServerResponse()
         res.status = False
 
         try:
             for owner_spot, owner_contents in zip(self.item_owners.keys(), self.item_owners.values()):
-                if req.item in owner_contents:
+                if req.label in owner_contents:
+                    print(owner_spot)
                     res.message = owner_spot
+                    break
+
+            rospy.loginfo('item belong in %s' %(res.message))
             res.status = True
         except:
             res.status = False
@@ -272,14 +303,15 @@ class NeatnessEstimatorVisionServer():
 
     ''' task get_container_stock '''
     def get_container_stock(self, req):
-        print('get_container_stock')
-
         rospy.loginfo(req.task)
         res = VisionServerResponse()
         res.status = False
-
+        res.has_item = False
         try:
-            ### TODO: implement check_container_stock ###
+            if req.label in self.item_owners['container']:
+                rospy.loginfo('%s has %s' %('container', req.label))
+                res.has_item = True
+
             res.status = True
         except:
             res.status = False
