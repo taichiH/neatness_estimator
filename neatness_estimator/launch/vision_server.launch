@@ -1,6 +1,8 @@
 <launch>
   <arg name="input_instance_boxes"
        default="/labeled_bounding_box_publisher/output/labeled_instance_boxes" />
+  <arg name="input_aligned_instance_boxes"
+       default="/labeled_bounding_box_publisher_aligned/output/labeled_instance_boxes" />
   <arg name="input_cluster_boxes"
        default="/labeled_bounding_box_publisher_aligned/output/labeled_cluster_boxes" />
   <arg name="input_red_boxes"
@@ -17,6 +19,7 @@
     <rosparam command="load"
               file="$(find neatness_estimator)/models/qatm_labels.yaml" />
     <remap from="~input_instance_boxes" to="$(arg input_instance_boxes)" />
+    <remap from="~input_aligned_instance_boxes" to="$(arg input_aligned_instance_boxes)" />
     <remap from="~input_cluster_boxes" to="$(arg input_cluster_boxes)" />
     <remap from="~input_red_boxes" to="$(arg input_red_boxes)" />
     <remap from="~input_qatm_pos" to="$(arg input_qatm_pos)" />
