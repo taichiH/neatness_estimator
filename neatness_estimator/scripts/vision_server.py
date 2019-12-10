@@ -163,7 +163,7 @@ class NeatnessEstimatorVisionServer():
         res.status = False
 
         try:
-            shelf_height = 0
+            shelf_height = req.target.z
             for cluster_box in self.cluster_boxes.boxes:
                 if cluster_box.label == int(self.label_lst.index('shelf_flont')):
                     if cluster_box.pose.position.z > shelf_height:
