@@ -179,93 +179,75 @@ class NeatnessEstimatorVisionServer():
                     rospy.loginfo('detect shelf front edge')
                     front_edge = cluster_box.pose.position.x
 
-            nearest_box = self.get_nearest_box(req, self.aligned_instance_boxes)[0]
+            sorted_boxes = sorted(
+                self.aligned_instance_boxes.boxes,
+                key = lambda box : box.pose.position.y, reverse=True)
 
-            # support only base_link coords (left: +y, right: -y, front: -x)
-            pos = {'left' : np.zeros(3),
-                   'right' : np.zeros(3),
-                   'front' : np.zeros(3)}
-            edge = {'left' : np.zeros(3),
-                    'right' : np.zeros(3),
-                    'front' : np.zeros(3)}
+            # calc mean of (y_dim * 0.5)
+            dim_mean = 0
+            for sorted_box in sorted_boxes:
+                dim_mean += sorted_box.dimensions.y
+            dim_mean = dim_mean / len(sorted_boxes)
 
-            pos['left'] = np.array(
-                [nearest_box.pose.position.x,
-                 nearest_box.pose.position.y + (nearest_box.dimensions.y * 0.5),
-                 nearest_box.pose.position.z])
-            edge['left'] = np.array(
-                [nearest_box.pose.position.x,
-                 ref_cluster_box.pose.position.y + (ref_cluster_box.dimensions.y * 0.5),
-                 nearest_box.pose.position.z])
+            row_boxes_array = []
+            tmp_boxes = []
+            for i in range(len(sorted_boxes) - 1):
+                tmp_boxes.append(sorted_boxes[i])
+                y_diff = sorted_boxes[i+1].pose.position.y - sorted_boxes[i].pose.position.y
+                if y_diff > dim_mean:
+                    row_boxes_array.append(tmp_boxes)
+                    tmp_boxes = []
 
-            pos['right'] = np.array(
-                [nearest_box.pose.position.x,
-                 nearest_box.pose.position.y - (nearest_box.dimensions.y * 0.5),
-                 nearest_box.pose.position.z])
-            edge['right']  = np.array(
-                [nearest_box.pose.position.x,
-                 ref_cluster_box.pose.position.y - (ref_cluster_box.dimensions.y * 0.5),
-                 nearest_box.pose.position.z])
-
-            pos['front'] = np.array(
-                [nearest_box.pose.position.x - (nearest_box.dimensions.x * 0.5),
-                 nearest_box.pose.position.y,
-                 nearest_box.pose.position.z])
-
-            if front_edge:
-                edge['front'] = np.array(
-                    [ref_cluster_box.pose.position.x - (ref_cluster_box.dimensions.x * 0.5),
+            for row_boxes in row_boxes_array:
+                nearest_box = self.get_nearest_box(req, row_boxes)[0]
+                pos = np.array(
+                    [nearest_box.pose.position.x - (nearest_box.dimensions.x * 0.5),
                      nearest_box.pose.position.y,
                      nearest_box.pose.position.z])
-            else:
-                edge['front'] = np.array(
-                    [ref_cluster_box.pose.position.x - front_edge,
-                     nearest_box.pose.position.y,
-                     nearest_box.pose.position.z])
+                if front_edge:
+                    edge = np.array(
+                        [ref_cluster_box.pose.position.x - (ref_cluster_box.dimensions.x * 0.5),
+                         nearest_box.pose.position.y,
+                         nearest_box.pose.position.z])
+                else:
+                    edge = np.array(
+                        [ref_cluster_box.pose.position.x - front_edge,
+                         nearest_box.pose.position.y,
+                         nearest_box.pose.position.z])
 
-            for key in ['left', 'right', 'front']:
                 self.broadcaster.sendTransform(
-                    (pos[key][0], pos[key][1], pos[key][2]),
+                    (pos[0], pos[1], pos[2]),
                     (0,0,0,1),
-                    rospy.Time.now(), key + '_pos',
+                    rospy.Time.now(), 'pos',
                     self.cluster_boxes.header.frame_id)
                 self.broadcaster.sendTransform(
-                    (edge[key][0], edge[key][1], edge[key][2]),
+                    (edge[0], edge[1], edge[2]),
                     (0,0,0,1),
-                    rospy.Time.now(), key + '_edge',
+                    rospy.Time.now(), 'edge',
                     self.cluster_boxes.header.frame_id)
 
+                dist_vec = edge - pos
+                target_pos = nearest_box
+                rospy.loginfo('can_place_thresh %f' %(req.can_place_thresh))
+                if np.linalg.norm() > req.can_place_thresh:
+                    rospy.loginfo('can place')
+                    can_place = True
+                    target_pos = pos + (dist_vec * 0.5)
+                    self.broadcaster.sendTransform(
+                        (target_pos[0], target_pos[1], target_pos[2]),
+                        (0,0,0,1),
+                        rospy.Time.now(), 'target_pos',
+                        self.cluster_boxes.header.frame_id)
 
-            vectors = {'left': edge['left'] - pos['left'],
-                       'right': edge['right'] - pos['right'],
-                       'front': edge['front'] - pos['front']}
-
-            max_dist_vec = np.zeros(3)
-            max_dist_key = ''
-            for key, vec in zip(vectors.keys(), vectors.values()):
-                dist_norm = np.linalg.norm(max_dist_vec)
-                if np.linalg.norm(vec) > dist_norm:
-                    max_dist_vec = vec
-                    max_dist_key = key
-
-            target_pos = nearest_box
-            rospy.loginfo('can_place_thresh %f' %(req.can_place_thresh))
-            if np.linalg.norm(max_dist_vec) > req.can_place_thresh:
-                rospy.loginfo('can place')
-                can_place = True
-                target_pos = pos[max_dist_key] + (max_dist_vec * 0.5)
-                self.broadcaster.sendTransform(
-                    (target_pos[0], target_pos[1], target_pos[2]),
-                    (0,0,0,1),
-                    rospy.Time.now(), 'target_pos',
-                    self.cluster_boxes.header.frame_id)
-            else:
-                rospy.loginfo('cannot place')
-                target_pos = np.array(
-                    [nearest_box.pose.position.x,
-                     nearest_box.pose.position.y,
-                     nearest_box.pose.position.z])
-                can_place = False
+                    # end place pos search
+                    break
+                else:
+                    rospy.loginfo('cannot place')
+                    target_pos = np.array(
+                        [nearest_box.pose.position.x,
+                         nearest_box.pose.position.y,
+                         nearest_box.pose.position.z])
+                    can_place = False
 
             target_box = nearest_box
             target_box.pose.position.x = target_pos[0]
@@ -274,7 +256,7 @@ class NeatnessEstimatorVisionServer():
 
             res.boxes = target_box
             res.index = target_box.label
-            res.need_repleshment = can_place
+            res.can_place = can_place
             res.status = True
 
         except:
@@ -471,29 +453,6 @@ class NeatnessEstimatorVisionServer():
 
         return res
 
-    ''' task check_need_repleshment '''
-    def check_need_repleshment(self, req):
-        print('check_need_repleshment')
-
-        rospy.loginfo(req.task)
-        res = VisionServerResponse()
-        res.status = False
-
-        try:
-            res.need_repleshment = True
-            for own_item in self.item_owners['container']:
-                if req.item == own_item:
-                    # TODO: implement
-                    res.need_repleshment = False
-                    break
-
-            res.status = True
-        except:
-            res.status = False
-            import traceback
-            traceback.print_exc()
-
-        return res
 
     ''' task check_rough_pose_fitting '''
     def check_rough_pose_fitting(self, req):
@@ -840,10 +799,6 @@ class NeatnessEstimatorVisionServer():
         elif req.task == 'get_container_stock':
             rospy.loginfo(req.task)
             return self.get_container_stock(req)
-
-        elif req.task == 'check_need_repleshment':
-            rospy.loginfo(req.task)
-            return self.check_need_repleshment(req)
 
         elif req.task == 'check_rough_pose_fitting':
             rospy.loginfo(req.task)

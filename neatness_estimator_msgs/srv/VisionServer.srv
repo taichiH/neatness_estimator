@@ -10,7 +10,7 @@ geometry_msgs/Point target
 ---
 bool has_item
 bool status
-bool need_repleshment
+bool can_place
 string message
 string[] labels
 uint32 index
