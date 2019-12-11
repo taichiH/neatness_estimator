@@ -6,6 +6,7 @@ string label
 string ref_label
 string task
 string parent_frame
+string spot
 geometry_msgs/Point target
 ---
 bool has_item

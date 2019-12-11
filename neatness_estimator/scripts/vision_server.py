@@ -441,7 +441,7 @@ class NeatnessEstimatorVisionServer():
 
         try:
             for owner_spot, owner_contents in zip(self.item_owners.keys(), self.item_owners.values()):
-                if owner_spot == 'container':
+                if owner_spot == 'container' or req.spot:
                     continue
 
                 if req.label in owner_contents:
