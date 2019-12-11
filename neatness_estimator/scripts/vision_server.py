@@ -170,14 +170,32 @@ class NeatnessEstimatorVisionServer():
         can_place = True
         try:
             ref_cluster_box = BoundingBox()
+
+            foremost_item_front = 24 ** 24
             front_edge = False
             for cluster_box in self.cluster_boxes.boxes:
+                item_front = cluster_box.pose.position.x -\
+                             (cluster_box.dimensions.x * 0.5)
+                if item_front == 0.0:
+                    continue
+
+                print(self.label_lst[cluster_box.label], item_front)
+
+                if item_front < foremost_item_front:
+                    foremost_item_front = item_front
+
                 if self.label_lst[cluster_box.label] == req.label:
                     ref_cluster_box = cluster_box
+
                 if self.label_lst[cluster_box.label] == 'shelf_flont':
                     rospy.loginfo('detect shelf front edge')
                     front_edge = cluster_box.pose.position.x -\
                                  (cluster_box.dimensions.x * 0.5)
+
+            # when could not detect shelf front, min front item
+            if not front_edge:
+                rospy.loginfo('use foremost item %f' %(foremost_item_front))
+                front_edge = foremost_item_front
 
             input_boxes = BoundingBoxArray()
             has_item = False
@@ -195,7 +213,7 @@ class NeatnessEstimatorVisionServer():
 
             sorted_boxes = sorted(
                 input_boxes.boxes,
-                key = lambda box : box.pose.position.y, reverse=True)
+                key = lambda box : box.pose.position.y, reverse=False)
 
             # calc mean of (y_dim * 0.75)
             dim_mean = 0
@@ -299,7 +317,7 @@ class NeatnessEstimatorVisionServer():
             shelf_height = req.target.z
             for cluster_box in self.cluster_boxes.boxes:
                 if cluster_box.label == int(self.label_lst.index('shelf_flont')):
-                    if cluster_box.pose.position.z + (cluster_box.dimenstions.z * 0.5) > shelf_height:
+                    if cluster_box.pose.position.z + (cluster_box.dimensions.z * 0.5) > shelf_height:
                         shelf_height = cluster_box.pose.position.z
 
             rospy.loginfo('shelf_height: %f' %(shelf_height))
@@ -439,10 +457,17 @@ class NeatnessEstimatorVisionServer():
         res = VisionServerResponse()
         res.status = False
 
+        print(self.item_owners)
+        print('req label: ', req.label)
+
         try:
             for owner_spot, owner_contents in zip(self.item_owners.keys(), self.item_owners.values()):
-                if owner_spot == 'container' or req.spot:
+                print('owner_spot: ', owner_spot)
+                print('owner_contents: ', owner_contents)
+
+                if owner_spot == 'container' or owner_spot == req.spot:
                     continue
+
 
                 if req.label in owner_contents:
                     rospy.loginfo(owner_spot)
@@ -759,6 +784,7 @@ class NeatnessEstimatorVisionServer():
         return multi_boxes, has_request_item
 
     def listen_transform(self, parent_frame, child_frame):
+        rospy.loginfo('lookup')
         box = BoundingBox()
         try:
             self.listener.waitForTransform(
@@ -774,6 +800,8 @@ class NeatnessEstimatorVisionServer():
             return box
 
     def transform_poses(self, pose, label, frame_id, parent):
+        rospy.loginfo('transform_poses')
+        rospy.loginfo('broadcast')
         self.broadcaster.sendTransform(
             (pose.position.x, pose.position.y, pose.position.z),
             (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
