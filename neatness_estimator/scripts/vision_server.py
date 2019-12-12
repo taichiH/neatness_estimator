@@ -221,16 +221,23 @@ class NeatnessEstimatorVisionServer():
                 dim_mean += (sorted_box.dimensions.y * 0.75)
             dim_mean = dim_mean / len(sorted_boxes)
 
+            print('dim_mean: ', dim_mean)
+
+            # TODO: need debug split rows
             row_boxes_array = []
             row_boxes = BoundingBoxArray()
             for i in range(len(sorted_boxes) - 1):
                 row_boxes.boxes.append(sorted_boxes[i])
                 y_diff = abs(sorted_boxes[i+1].pose.position.y -\
                              sorted_boxes[i].pose.position.y)
+                print('y_diff: ', y_diff)
                 if y_diff > dim_mean or i == (len(sorted_boxes) - 1) - 1:
+                    print('split rows')
                     row_boxes_array.append(row_boxes)
                     row_boxes = BoundingBoxArray()
 
+
+            print('rows: ', len(row_boxes_array))
             target_box = BoundingBox()
             for i, row_boxes in enumerate(row_boxes_array):
                 nearest_box, _, _ = self.get_nearest_box(req, row_boxes)
