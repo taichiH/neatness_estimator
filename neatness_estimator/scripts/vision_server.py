@@ -541,9 +541,11 @@ class NeatnessEstimatorVisionServer():
                                        ref_box.pose.orientation.z,
                                        ref_box.pose.orientation.w])
 
+            res.pose_dist = np.dot(target_quaternion, ref_quaternion)
+
             print('target: ', target_quaternion)
             print('ref: ', ref_quaternion)
-            res.pose_dist = np.dot(target_quaternion, ref_quaternion)
+            print('dot: ', res.pose_dist)
             res.status = True
         except:
             res.status = False
