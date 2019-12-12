@@ -210,10 +210,9 @@ class NeatnessEstimatorVisionServer():
                 res.status = False
                 return res
 
-
             sorted_boxes = sorted(
                 input_boxes.boxes,
-                key = lambda box : box.pose.position.y, reverse=False)
+                key = lambda box : box.pose.position.y, reverse=True)
 
             # calc mean of (y_dim * 0.75)
             dim_mean = 0
@@ -236,8 +235,10 @@ class NeatnessEstimatorVisionServer():
                     row_boxes_array.append(row_boxes)
                     row_boxes = BoundingBoxArray()
 
+            rows = len(row_boxes_array)
+            print('rows: ', rows)
+            res.rows = rows
 
-            print('rows: ', len(row_boxes_array))
             target_box = BoundingBox()
             for i, row_boxes in enumerate(row_boxes_array):
                 nearest_box, _, _ = self.get_nearest_box(req, row_boxes)
