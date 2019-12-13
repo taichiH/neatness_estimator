@@ -309,6 +309,9 @@ namespace neatness_estimator
    std::vector<size_t>& sorted_indices)
   {
     cv::Mat image = debug_image.clone();
+    std::cerr << "------ input_indices->cluster_indices.size(): "
+              << input_indices->cluster_indices.size() << std::endl;
+
     for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
       size_t index = sorted_indices.at(i);
       cv::Mat tmp_mask = cv::Mat::zeros
@@ -604,23 +607,33 @@ namespace neatness_estimator
       res.features.color_histogram = color_histogram_array;
       res.features.geometry_histogram = geometry_histogram_array;
 
+      bool use_cloud_ratio_ = true;
+      if (use_cloud_ratio_){
+        neatness_estimator_msgs::NeatnessArray neatness_array;
+        neatness_estimator_msgs::Neatness neatness;
+        neatness.group_neatness = msgs.cluster.at(i)->cluster_indices.at(0).indices.size();
+        std::cerr << " ------------------ cluster " << i << "volume " << neatness.group_neatness << std::endl;
+        neatness_array.neatness.push_back(neatness);
+        res.features.neatness = neatness_array;
+      } else {
+        neatness_estimator_msgs::GetDisplayFeature client_msg;
+        client_msg.request.save_dir = save_data_dir_.at(i);
+        client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
+        client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
+        display_feature_client_.call(client_msg);
 
-      neatness_estimator_msgs::GetDisplayFeature client_msg;
-      client_msg.request.save_dir = save_data_dir_.at(i);
-      client_msg.request.instance_boxes = *msgs.instance_boxes.at(i);
-      client_msg.request.cluster_boxes = *msgs.cluster_boxes.at(i);
-      display_feature_client_.call(client_msg);
-
-      if (!client_msg.response.success) {
-        ROS_WARN("failed call display_feature_client_ service");
-        return false;
+        if (!client_msg.response.success) {
+          ROS_WARN("failed call display_feature_client_ service");
+          return false;
+        }
+        res.features.neatness = client_msg.response.res_neatness;
       }
+
       std::vector<unsigned int> res_labels(labels.size());
       for (size_t i=0; i<labels.size(); ++i) {
         res_labels[i] = labels[i];
       }
       res.labels = res_labels;
-      res.features.neatness = client_msg.response.res_neatness;
     }
 
     return true;

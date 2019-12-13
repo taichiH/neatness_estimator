@@ -84,7 +84,15 @@ class DistanceEstimator():
             #     prev_features.neatness.neatness[prev_target_idx].group_neatness)
 
             # difference between two items
-            group_distance = curt_features.neatness.neatness[curt_target_idx].group_neatness
+            # group_distance = curt_features.neatness.neatness[curt_target_idx].group_neatness
+
+            # calc volume ratio
+            curt_volume = curt_features.neatness.neatness[0].group_neatness
+            prev_volume = prev_features.neatness.neatness[0].group_neatness
+            if curt_volume > prev_volume:
+                group_distance = prev_volume / curt_volume
+            else:
+                group_distance = curt_volume / prev_volume
 
             labels.append(index)
             color_distances.append(color_distance)
