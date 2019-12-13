@@ -10,6 +10,7 @@ import tf
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from neatness_estimator_msgs.srv import VisionServer, VisionServerResponse
+from visualization_msgs.msg import Marker, MarkerArray
 
 class NeatnessEstimatorVisionServer():
 
@@ -38,6 +39,10 @@ class NeatnessEstimatorVisionServer():
         self.shelf_flont_angle = 181.28271996356708
 
         self.instance_box_callback_cnt = 0
+        self.instance_aligned_box_callback_cnt = 0
+
+        self.marker_pub = rospy.Publisher(
+            "~output/markers", MarkerArray, queue_size=1)
 
         rospy.Subscriber(
             "~input_instance_boxes", BoundingBoxArray, self.instance_box_callback)
@@ -49,6 +54,7 @@ class NeatnessEstimatorVisionServer():
             "~input_qatm_pos", BoundingBoxArray, self.qatm_pose_callback)
         rospy.Subscriber(
             "~input_red_boxes", BoundingBoxArray, self.red_box_callback)
+
 
         rospy.Service(
             '/display_task_vision_server', VisionServer, self.vision_server)
@@ -62,7 +68,11 @@ class NeatnessEstimatorVisionServer():
         self.mask_rcnn_boxes = msg
         # print('mask_rcnn_boxes size: %s' %(len(self.mask_rcnn_boxes.boxes)))
 
+
     def aligned_instance_box_callback(self, msg):
+        if self.instance_aligned_box_callback_cnt == 0:
+            print('instance_aligned_box_callback')
+            self.instance_aligned_box_callback_cnt += 1
         self.aligned_instance_boxes = msg
 
     def red_box_callback(self, msg):
@@ -249,8 +259,35 @@ class NeatnessEstimatorVisionServer():
             rows = len(row_boxes_array)
             res.rows = rows
 
+            # rows visualization
+            marker_array = MarkerArray()
+            for i, row_boxes in enumerate(row_boxes_array):
+                marker = Marker()
+                marker.header = self.aligned_instance_boxes.header
+                marker.ns = 'row_' + str(i)
+                marker.action = marker.ADD
+                marker.pose.orientation.w = 1.0
+                marker.id = 2
+                marker.type = marker.LINE_STRIP
+                marker.scale.x = 0.1
+                marker.color.g = 1.0
+                marker.color.a = 1.0
+                for i, box in enumerate(row_boxes.boxes):
+                    x = box.pose.position.x - box.dimensions.x
+                    y = box.pose.position.y
+                    z = box.pose.position.z
+                    marker.points.append(Point(x, y ,z))
+                    if i == (len(row_boxes.boxes) - 1):
+                        x = box.pose.position.x + box.dimensions.x
+                        marker.points.append(Point(x, y ,z))
+
+                marker_array.markers.append(marker)
+
+            self.marker_pub.publish(marker_array)
+
             target_box = BoundingBox()
             for i, row_boxes in enumerate(row_boxes_array):
+
                 nearest_box, _, _ = self.get_nearest_box(req, row_boxes)
                 pos = np.array(
                     [nearest_box.pose.position.x - (nearest_box.dimensions.x * 0.5),
