@@ -37,6 +37,8 @@ class NeatnessEstimatorVisionServer():
         self.broadcaster = tf.TransformBroadcaster()
         self.shelf_flont_angle = 181.28271996356708
 
+        self.instance_box_callback_cnt = 0
+
         rospy.Subscriber(
             "~input_instance_boxes", BoundingBoxArray, self.instance_box_callback)
         rospy.Subscriber(
@@ -52,6 +54,10 @@ class NeatnessEstimatorVisionServer():
             '/display_task_vision_server', VisionServer, self.vision_server)
 
     def instance_box_callback(self, msg):
+        if self.instance_box_callback_cnt == 0:
+            print('instance_box_callback')
+            self.instance_box_callback_cnt += 1
+
         self.header = msg.header
         self.mask_rcnn_boxes = msg
         # print('mask_rcnn_boxes size: %s' %(len(self.mask_rcnn_boxes.boxes)))
@@ -179,7 +185,7 @@ class NeatnessEstimatorVisionServer():
                 if item_front == 0.0:
                     continue
 
-                print(self.label_lst[cluster_box.label], item_front)
+                # print(self.label_lst[cluster_box.label], item_front)
 
                 if item_front < foremost_item_front:
                     foremost_item_front = item_front
@@ -220,23 +226,27 @@ class NeatnessEstimatorVisionServer():
                 dim_mean += (sorted_box.dimensions.y * 0.75)
             dim_mean = dim_mean / len(sorted_boxes)
 
-            print('dim_mean: ', dim_mean)
-
-            # TODO: need debug split rows
             row_boxes_array = []
             row_boxes = BoundingBoxArray()
-            for i in range(len(sorted_boxes) - 1):
-                row_boxes.boxes.append(sorted_boxes[i])
-                y_diff = abs(sorted_boxes[i+1].pose.position.y -\
-                             sorted_boxes[i].pose.position.y)
-                print('y_diff: ', y_diff)
-                if y_diff > dim_mean or i == (len(sorted_boxes) - 1) - 1:
-                    print('split rows')
-                    row_boxes_array.append(row_boxes)
-                    row_boxes = BoundingBoxArray()
+            if len(sorted_boxes) == 1:
+                row_boxes.boxes.append(sorted_boxes[0])
+                row_boxes_array.append(row_boxes)
+            else:
+                for i in range(1, len(sorted_boxes)):
+                    row_boxes.boxes.append(sorted_boxes[i-1])
+                    y_diff = abs(sorted_boxes[i].pose.position.y -\
+                                 sorted_boxes[i-1].pose.position.y)
+                    if y_diff > dim_mean:
+                        row_boxes_array.append(row_boxes)
+                        row_boxes = BoundingBoxArray()
+                    if i == (len(sorted_boxes) - 1):
+                        if y_diff > dim_mean:
+                            row_boxes.boxes.append(sorted_boxes[i])
+                            row_boxes_array.append(row_boxes)
+                        else:
+                            row_boxes_array.append(row_boxes)
 
             rows = len(row_boxes_array)
-            print('rows: ', rows)
             res.rows = rows
 
             target_box = BoundingBox()
@@ -273,6 +283,7 @@ class NeatnessEstimatorVisionServer():
 
                 dist_vec = edge - pos
                 target_pos = nearest_box
+                rospy.loginfo('dist: %f' %(np.linalg.norm(dist_vec)))
                 if np.linalg.norm(dist_vec) > req.can_place_thresh:
                     rospy.loginfo('can place')
                     target_pos = pos + (dist_vec * 0.5)
