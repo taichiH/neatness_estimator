@@ -312,6 +312,11 @@ namespace neatness_estimator
     std::cerr << "------ input_indices->cluster_indices.size(): "
               << input_indices->cluster_indices.size() << std::endl;
 
+    if (rgb_cloud->points.size() == 0) {
+      ROS_WARN("rgb_cloud size is 0");
+      return false;
+    }
+
     for (size_t i = 0; i < input_indices->cluster_indices.size(); ++i) {
       size_t index = sorted_indices.at(i);
       cv::Mat tmp_mask = cv::Mat::zeros
