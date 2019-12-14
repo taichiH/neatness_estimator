@@ -233,9 +233,10 @@ class NeatnessEstimatorVisionServer():
             # calc mean of (y_dim * 0.75)
             dim_mean = 0
             for sorted_box in sorted_boxes:
-                dim_mean += (sorted_box.dimensions.y * 0.75)
+                dim_mean += (sorted_box.dimensions.y * 0.55)
             dim_mean = dim_mean / len(sorted_boxes)
 
+            rospy.loginfo('dim_mean: %f' %(dim_mean))
             row_boxes_array = []
             row_boxes = BoundingBoxArray()
             if len(sorted_boxes) == 1:
@@ -246,48 +247,58 @@ class NeatnessEstimatorVisionServer():
                     row_boxes.boxes.append(sorted_boxes[i-1])
                     y_diff = abs(sorted_boxes[i].pose.position.y -\
                                  sorted_boxes[i-1].pose.position.y)
+                    rospy.loginfo('y_diff: %f' %(y_diff))
                     if y_diff > dim_mean:
                         row_boxes_array.append(row_boxes)
                         row_boxes = BoundingBoxArray()
+
+                    print('i, sorted_boxes size', i, len(sorted_boxes) - 1)
                     if i == (len(sorted_boxes) - 1):
-                        if y_diff > dim_mean:
-                            row_boxes.boxes.append(sorted_boxes[i])
-                            row_boxes_array.append(row_boxes)
-                        else:
-                            row_boxes_array.append(row_boxes)
+                        row_boxes.boxes.append(sorted_boxes[i])
+                        row_boxes_array.append(row_boxes)
 
             rows = len(row_boxes_array)
+            rospy.loginfo('rows: %d' %(rows))
             res.rows = rows
 
-            # rows visualization
+            ##### rows visualization
             marker_array = MarkerArray()
             for i, row_boxes in enumerate(row_boxes_array):
+                sorted_row_boxes = sorted(
+                    row_boxes.boxes,
+                    key = lambda box : box.pose.position.x, reverse=False)
                 marker = Marker()
                 marker.header = self.aligned_instance_boxes.header
+                marker.lifetime = rospy.Duration(5)
                 marker.ns = 'row_' + str(i)
                 marker.action = marker.ADD
                 marker.pose.orientation.w = 1.0
                 marker.id = 2
                 marker.type = marker.LINE_STRIP
-                marker.scale.x = 0.1
-                marker.color.g = 1.0
+                marker.scale.x = 0.01
+                marker.scale.y = 0.01
+                marker.scale.z = 0.01
+                marker.color.r = 1.0
                 marker.color.a = 1.0
-                for i, box in enumerate(row_boxes.boxes):
+                rospy.loginfo('row: %d, size: %d'
+                              %(i, len(sorted_row_boxes)))
+                for i, box in enumerate(sorted_row_boxes):
                     x = box.pose.position.x - box.dimensions.x
                     y = box.pose.position.y
                     z = box.pose.position.z
                     marker.points.append(Point(x, y ,z))
-                    if i == (len(row_boxes.boxes) - 1):
+                    if i == (len(sorted_row_boxes) - 1):
                         x = box.pose.position.x + box.dimensions.x
                         marker.points.append(Point(x, y ,z))
 
                 marker_array.markers.append(marker)
 
             self.marker_pub.publish(marker_array)
+            #####
+
 
             target_box = BoundingBox()
             for i, row_boxes in enumerate(row_boxes_array):
-
                 nearest_box, _, _ = self.get_nearest_box(req, row_boxes)
                 pos = np.array(
                     [nearest_box.pose.position.x - (nearest_box.dimensions.x * 0.5),
