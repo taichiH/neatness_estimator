@@ -116,6 +116,10 @@ class NeatnessEstimatorVisionServer():
                     transformed_box = self.transform_poses(
                         nearest_box.pose, req.label, self.boxes.header.frame_id, req.parent_frame)
 
+                if not transformed_box:
+                    res.status = False
+                    return res
+
                 # faile lookup transform
                 if transformed_box == BoundingBox():
                     transformed_box = nearest_box
@@ -128,7 +132,6 @@ class NeatnessEstimatorVisionServer():
                 res.boxes = transformed_box
                 res.index = target_index
                 res.status = True
-                print(res.boxes)
 
         except:
             res.status = False
@@ -258,7 +261,7 @@ class NeatnessEstimatorVisionServer():
                         row_boxes_array.append(row_boxes)
 
             rows = len(row_boxes_array)
-            rospy.loginfo('rows: %d' %(rows))
+            rospy.loginfo('%s rows: %d' %(req.label, rows))
             res.rows = rows
 
             ##### rows visualization
@@ -819,9 +822,11 @@ class NeatnessEstimatorVisionServer():
                 ref_point = np.array([box.pose.position.x + (box.dimensions.x * 0.5),
                                       box.pose.position.y + (box.dimensions.y * 0.5),
                                       box.pose.position.z + (box.dimensions.z * 0.5)])
+
                 target_point = np.array([req.target.x,
                                          req.target.y,
                                          req.target.z])
+
                 if np.linalg.norm(ref_point - target_point) < distance:
                     nearest_box.pose = box.pose
                     nearest_box.dimensions = box.dimensions
@@ -866,7 +871,7 @@ class NeatnessEstimatorVisionServer():
             return box
         except:
             rospy.logwarn('cannot lookup transform')
-            return box
+            return False
 
     def transform_poses(self, pose, label, frame_id, parent):
         rospy.loginfo('transform_poses')
