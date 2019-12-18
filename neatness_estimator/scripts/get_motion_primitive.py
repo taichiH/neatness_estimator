@@ -22,6 +22,7 @@ class GetMotionPrimitiveServer():
                 rospkg.RosPack().get_path('neatness_estimator'),
                 'trained_data/sample.csv'))
 
+        self.data_size_thresh = rospy.get_param('~data_size_thresh', 3)
         self.trained_data_size = 0
         self.target_item = rospy.get_param('~target_item', '')
         self.model = rospy.get_param('~model', 'mlp')
@@ -76,10 +77,9 @@ class GetMotionPrimitiveServer():
         if self.classifier is None:
             return None
 
-        data_size_thresh = 3
-        if self.trained_data_size < data_size_thresh:
+        if self.trained_data_size < self.data_size_thresh:
             rospy.loginfo('data size: %d. teaching data is needed more than %d'
-                          %(self.trained_data_size, data_size_thresh))
+                          %(self.trained_data_size, self.data_size_thresh))
             return 'unknown'
 
         motion_class = self.classifier.predict(np.array([target_data]))

@@ -3,6 +3,7 @@
   <arg name="model" default="mlp"
        doc="sklearn classification model {random_forest, mlp, bayes}" />
   <arg name="labels" default="mask_rcnn_labels_191023.yaml" />
+  <arg name="data_size_thresh" default="3" />
 
   <node name="get_motion_primitive_server"
         pkg="neatness_estimator" type="get_motion_primitive.py"
@@ -12,6 +13,7 @@
     <rosparam subst_value="true">
       model_path: $(arg model_path)
       model: $(arg model)
+      data_size_thresh: $(arg data_size_thresh)
     </rosparam>
   </node>
 
