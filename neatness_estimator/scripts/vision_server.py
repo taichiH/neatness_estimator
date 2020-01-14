@@ -498,15 +498,21 @@ class NeatnessEstimatorVisionServer():
         res = VisionServerResponse()
         res.status = False
 
+        x_max = 0.80 # shelf depth
+        z_min = 0.85 # shelf height
+        rospy.loginfo('x_max: %f,  z_min: %f' %(x_max, z_min))
+
         try:
-            self.boxes = self.merge_boxes(
-                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
             spot_name = req.label
 
             # when update stock is true, update stock
             if req.flag:
                 self.item_owners[spot_name] = []
-                for box in self.boxes.boxes:
+                for box in self.aligned_instance_boxes.boxes:
+                    if box.pose.position.x > x_max or \
+                       box.pose.position.z < z_min:
+                        continue
+
                     label_name = self.label_lst[box.label]
                     if not label_name in self.item_owners[spot_name]:
                         self.item_owners[spot_name].append(label_name)
