@@ -42,6 +42,7 @@ class NeatnessEstimatorVisionServer():
         self.instance_aligned_box_callback_cnt = 0
 
         self.x_max = 0.8
+        self.z_min = 0.85
 
         self.marker_pub = rospy.Publisher(
             "~output/markers", MarkerArray, queue_size=1)
@@ -221,6 +222,10 @@ class NeatnessEstimatorVisionServer():
             input_boxes = BoundingBoxArray()
             has_item = False
             for box in self.aligned_instance_boxes.boxes:
+                if box.pose.position.x > self.x_max or \
+                   box.pose.position.z < self.z_min:
+                    continue
+
                 if self.label_lst[box.label] == req.label:
                     has_item = True
                     input_boxes.boxes.append(box)
@@ -501,14 +506,8 @@ class NeatnessEstimatorVisionServer():
         res = VisionServerResponse()
         res.status = False
 
-        x_max = self.x_max # shelf depth
-        z_min = 0.85 # shelf height
-
-
         try:
             spot_name = req.label
-            rospy.loginfo('spot: %s, x_max: %f,  z_min: %f' %(spot_name, x_max, z_min))
-
             # when update stock is true, update stock
             if req.flag:
                 self.item_owners[spot_name] = []
@@ -517,8 +516,8 @@ class NeatnessEstimatorVisionServer():
                     print(self.label_lst[box.label])
                     print(box.pose.position)
 
-                    if box.pose.position.x > x_max or \
-                       box.pose.position.z < z_min:
+                    if box.pose.position.x > self.x_max or \
+                       box.pose.position.z < self.z_min:
                         continue
 
                     label_name = self.label_lst[box.label]
@@ -842,6 +841,11 @@ class NeatnessEstimatorVisionServer():
                box.pose.position.y == 0 or \
                box.pose.position.z == 0:
                 rospy.logwarn('boxes has (0, 0, 0) position box')
+                continue
+
+            if box.pose.position.x > self.x_max or \
+               box.pose.position.z < self.z_min:
+                print('get_nearest_box ', box.pose.position)
                 continue
 
             if self.label_lst[box.label] == req.label:
