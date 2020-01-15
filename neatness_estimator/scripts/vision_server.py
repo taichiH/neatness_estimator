@@ -41,6 +41,8 @@ class NeatnessEstimatorVisionServer():
         self.instance_box_callback_cnt = 0
         self.instance_aligned_box_callback_cnt = 0
 
+        self.x_max = 0.8
+
         self.marker_pub = rospy.Publisher(
             "~output/markers", MarkerArray, queue_size=1)
 
@@ -397,7 +399,8 @@ class NeatnessEstimatorVisionServer():
             extracted_boxes = BoundingBoxArray()
             for box in sorted_boxes:
                 if box.pose.position.z > shelf_height and\
-                   -0.8 < box.pose.position.y and box.pose.position.y < 0.8:
+                   -0.8 < box.pose.position.y and box.pose.position.y < 0.8 and\
+                   box.pose.position.x < self.x_max:
                     self.broadcaster.sendTransform(
                         (box.pose.position.x, box.pose.position.y, box.pose.position.z),
                         (box.pose.orientation.x, box.pose.orientation.y,
@@ -498,7 +501,7 @@ class NeatnessEstimatorVisionServer():
         res = VisionServerResponse()
         res.status = False
 
-        x_max = 0.80 # shelf depth
+        x_max = self.x_max # shelf depth
         z_min = 0.85 # shelf height
         rospy.loginfo('x_max: %f,  z_min: %f' %(x_max, z_min))
 
