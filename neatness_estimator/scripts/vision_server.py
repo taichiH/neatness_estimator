@@ -536,6 +536,8 @@ class NeatnessEstimatorVisionServer():
         print(self.item_owners)
         print('req label: ', req.label)
 
+        nearest_owner_spot = ''
+        min_distance = 24 ** 24
         try:
             for owner_spot, owner_contents in zip(self.item_owners.keys(), self.item_owners.values()):
                 print('owner_spot: ', owner_spot)
@@ -544,12 +546,23 @@ class NeatnessEstimatorVisionServer():
                 if owner_spot == 'container' or owner_spot == req.spot:
                     continue
 
-
                 if req.label in owner_contents:
-                    rospy.loginfo(owner_spot)
-                    res.message = owner_spot
-                    break
+                    box = listen_transform(req.spot, owner_spot)
+                    if not box:
+                        rospy.logwarn('failed to lookup transform in get_item_belonging')
+                        res.status = False
+                        return res
 
+                    distance = np.linalg.norm(
+                        np.array([box.pose.position.x,
+                                  box.pose.position.y,
+                                  box.pose.position.z]))
+                    if distance < min_distance:
+                        min_distance = distance
+                        nearest_owner_spot = owner_spot
+
+            rospy.loginfo(nearest_owner_spot)
+            res.message = nearest_owner_spot
             rospy.loginfo('item belong in %s' %(res.message))
             res.status = True
         except:
