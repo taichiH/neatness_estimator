@@ -845,7 +845,7 @@ class NeatnessEstimatorVisionServer():
 
             if box.pose.position.x > self.x_max or \
                box.pose.position.z < self.z_min:
-                print('get_nearest_box ', box.pose.position)
+                # print('get_nearest_box ', box.pose.position)
                 continue
 
             if self.label_lst[box.label] == req.label:
@@ -864,6 +864,16 @@ class NeatnessEstimatorVisionServer():
                     nearest_box.label = box.label
                     target_index = index
                     distance = np.linalg.norm(ref_point - target_point)
+
+
+        self.broadcaster.sendTransform(
+            (nearest_box.pose.position.x, nearest_box.pose.position.y, nearest_box.pose.position.z),
+            (nearest_box.pose.orientation.x,
+             nearest_box.pose.orientation.y,
+             nearest_box.pose.orientation.z,
+             nearest_box.pose.orientation.w),
+            rospy.Time.now(), 'nearest_item', box.header.frame_id)
+        print('nearest_box: ', nearest_box.pose.position)
 
         return nearest_box, has_request_item, target_index
 
