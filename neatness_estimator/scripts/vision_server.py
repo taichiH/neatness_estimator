@@ -503,15 +503,20 @@ class NeatnessEstimatorVisionServer():
 
         x_max = self.x_max # shelf depth
         z_min = 0.85 # shelf height
-        rospy.loginfo('x_max: %f,  z_min: %f' %(x_max, z_min))
+
 
         try:
             spot_name = req.label
+            rospy.loginfo('spot: %s, x_max: %f,  z_min: %f' %(spot_name, x_max, z_min))
 
             # when update stock is true, update stock
             if req.flag:
                 self.item_owners[spot_name] = []
                 for box in self.aligned_instance_boxes.boxes:
+                    print('---')
+                    print(self.label_lst[box.label])
+                    print(box.pose.position)
+
                     if box.pose.position.x > x_max or \
                        box.pose.position.z < z_min:
                         continue
@@ -550,7 +555,7 @@ class NeatnessEstimatorVisionServer():
                     continue
 
                 if req.label in owner_contents:
-                    box = listen_transform(req.spot, owner_spot)
+                    box = self.listen_transform(req.spot, owner_spot)
                     if not box:
                         rospy.logwarn('failed to lookup transform in get_item_belonging')
                         res.status = False
