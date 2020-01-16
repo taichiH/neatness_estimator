@@ -620,28 +620,72 @@ class NeatnessEstimatorVisionServer():
                     '[error] target box label: %s' %(self.label_lst[target_box.label]))
                 res.status = False
                 return res
-            target_quaternion = np.array([target_box.pose.orientation.x,
-                                          target_box.pose.orientation.y,
-                                          target_box.pose.orientation.z,
-                                          target_box.pose.orientation.w])
 
+            target_center = np.array([target_box.pose.position.x,
+                                      target_box.pose.position.y,
+                                      target_box.pose.position.z])
+            self.broadcaster.sendTransform((target_center[0], target_center[1], target_center[2]),
+                                           (target_box.pose.orientation.x,
+                                            target_box.pose.orientation.y,
+                                            target_box.pose.orientation.z,
+                                            target_box.pose.orientation.w),
+                                            target_box.header.stamp, 'target_center', target_box.header.frame_id)
+            self.broadcaster.sendTransform(((target_box.dimensions.x * 0.5), 0, 0),
+                                           (target_box.pose.orientation.x,
+                                            target_box.pose.orientation.y,
+                                            target_box.pose.orientation.z,
+                                            target_box.pose.orientation.w),
+                                            target_box.header.stamp, 'target_x_edge', 'target_center')
 
+            self.listener.waitForTransform(
+                target_box.header.frame_id, 'target_x_edge', rospy.Time(0), rospy.Duration(3.0))
+            (target_x_edge_trans, target_x_edge_rot) = self.listener.lookupTransform(
+                target_box.header.frame_id, 'target_x_edge', rospy.Time(0))
+
+            # print('target_x_edge_trans: ', target_x_edge_trans)
+            # print('target_center: ', target_center)
+            target_x_vec = target_x_edge_trans - target_center
+            target_x_vec = target_x_vec / np.sum(target_x_vec)
+
+            # ref
             ref_box = self.boxes.boxes[req.ref_label_index]
             if self.label_lst[ref_box.label] != req.label:
                 rospy.logwarn(
                     '[error] ref box label: %s' %(self.label_lst[ref_box.label]))
                 res.status = False
                 return res
-            ref_quaternion = np.array([ref_box.pose.orientation.x,
-                                       ref_box.pose.orientation.y,
-                                       ref_box.pose.orientation.z,
-                                       ref_box.pose.orientation.w])
 
-            res.pose_dist = np.dot(target_quaternion, ref_quaternion)
+            ref_center = np.array([ref_box.pose.position.x,
+                                   ref_box.pose.position.y,
+                                   ref_box.pose.position.z])
+            self.broadcaster.sendTransform((ref_center[0], ref_center[1], ref_center[2]),
+                                           (ref_box.pose.orientation.x,
+                                            ref_box.pose.orientation.y,
+                                            ref_box.pose.orientation.z,
+                                            ref_box.pose.orientation.w),
+                                           ref_box.header.stamp, 'ref_center', ref_box.header.frame_id)
+            self.broadcaster.sendTransform(((ref_box.dimensions.x * 0.5), 0, 0),
+                                           (ref_box.pose.orientation.x,
+                                            ref_box.pose.orientation.y,
+                                            ref_box.pose.orientation.z,
+                                            ref_box.pose.orientation.w),
+                                           ref_box.header.stamp, 'ref_x_edge', 'ref_center')
 
-            print('target: ', target_quaternion)
-            print('ref: ', ref_quaternion)
+            self.listener.waitForTransform(
+                ref_box.header.frame_id, 'ref_x_edge', rospy.Time(0), rospy.Duration(3.0))
+            (ref_x_edge_trans, ref_x_edge_rot) = self.listener.lookupTransform(
+                ref_box.header.frame_id, 'ref_x_edge', rospy.Time(0))
+
+            # print('ref_x_edge_trans: ', ref_x_edge_trans)
+            # print('ref_center: ', ref_center)
+            ref_x_vec = ref_x_edge_trans - ref_center
+            ref_x_vec = ref_x_vec / np.sum(ref_x_vec)
+
+            res.pose_dist = abs(np.dot(target_x_vec, ref_x_vec))
+            print('target: ', target_x_vec)
+            print('ref: ', ref_x_vec)
             print('dot: ', res.pose_dist)
+
             res.status = True
         except:
             res.status = False
