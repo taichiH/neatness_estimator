@@ -843,11 +843,6 @@ class NeatnessEstimatorVisionServer():
                 rospy.logwarn('boxes has (0, 0, 0) position box')
                 continue
 
-            if box.pose.position.x > self.x_max or \
-               box.pose.position.z < self.z_min:
-                print('get_nearest_box ', box.pose.position)
-                continue
-
             if self.label_lst[box.label] == req.label:
                 has_request_item = True
                 ref_point = np.array([box.pose.position.x + (box.dimensions.x * 0.5),
