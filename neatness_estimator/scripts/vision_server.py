@@ -100,42 +100,43 @@ class NeatnessEstimatorVisionServer():
 
     ''' task get_obj_pos '''
     def get_obj_pos(self, req):
+        rospy.loginfo(req.task)
+
         self.boxes = self.merge_boxes(self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
 
-        rospy.loginfo(req.task)
+        rospy.loginfo('req.parent_frame is: %s' %(req.parent_frame))
+        rospy.loginfo('self.boxes.header.frame_id is: %s' %(self.boxes.header.frame_id))
+
+        transformed_boxes = BoundingBoxArray(header=self.boxes.header)
+        transformed_boxes.boxes = [BoundingBox() for i in range(len(self.boxes.boxes))]
+        rospy.loginfo('boxes (size: %s) transform start' %(len(self.boxes.boxes)))
+        for i, box in enumerate(self.boxes.boxes):
+            print('transform box', i)
+            tmp_box = self.transform_poses(
+                box.pose, 'tmp'+str(i), self.boxes.header.frame_id, req.parent_frame)
+
+            if not tmp_box:
+                rospy.logwarn('failed to transform box')
+                continue
+
+            transformed_box = box
+            transformed_box.pose = tmp_box.pose
+            transformed_boxes.boxes[i] = transformed_box
+
+        rospy.loginfo('transform finished')
+
         res = VisionServerResponse()
         res.status = False
         has_nearest_item = False
-
         try:
-            nearest_box, has_nearest_item, target_index = self.get_nearest_box(req, self.boxes)
+            nearest_box, has_nearest_item, target_index = self.get_nearest_box(req, transformed_boxes)
             rospy.loginfo('has_nearest_item = true')
             if has_nearest_item:
-                if req.parent_frame == '':
-                    rospy.loginfo('req.parent_frame is: empty')
-                    transformed_box = nearest_box
-                else:
-                    rospy.loginfo('req.parent_frame is: %s' %(self.boxes.header.frame_id))
-                    transformed_box = self.transform_poses(
-                        nearest_box.pose, req.label, self.boxes.header.frame_id, req.parent_frame)
-
-                if not transformed_box:
-                    res.status = False
-                    return res
-
-                # faile lookup transform
-                if transformed_box == BoundingBox():
-                    transformed_box = nearest_box
-                    transformed_box.header = self.boxes.header
-                else:
-                    transformed_box.header = self.boxes.header
-                    transformed_box.header.frame_id = req.parent_frame
-                    transformed_box.dimensions = nearest_box.dimensions
-
-                res.boxes = transformed_box
+                res.boxes = nearest_box
                 res.index = target_index
                 res.status = True
-
+            else:
+                res.status = False
         except:
             res.status = False
             import traceback
@@ -843,37 +844,32 @@ class NeatnessEstimatorVisionServer():
                 rospy.logwarn('boxes has (0, 0, 0) position box')
                 continue
 
-            if box.pose.position.x > self.x_max or \
-               box.pose.position.z < self.z_min:
-                # print('get_nearest_box ', box.pose.position)
+            if not self.label_lst[box.label] == req.label:
                 continue
 
-            if self.label_lst[box.label] == req.label:
-                has_request_item = True
-                ref_point = np.array([box.pose.position.x + (box.dimensions.x * 0.5),
-                                      box.pose.position.y + (box.dimensions.y * 0.5),
-                                      box.pose.position.z + (box.dimensions.z * 0.5)])
+            has_request_item = True
+            ref_point = np.array([box.pose.position.x + (box.dimensions.x * 0.5),
+                                  box.pose.position.y + (box.dimensions.y * 0.5),
+                                  box.pose.position.z + (box.dimensions.z * 0.5)])
+            target_point = np.array([req.target.x, req.target.y, req.target.z])
 
-                target_point = np.array([req.target.x,
-                                         req.target.y,
-                                         req.target.z])
-
-                if np.linalg.norm(ref_point - target_point) < distance:
-                    nearest_box.pose = box.pose
-                    nearest_box.dimensions = box.dimensions
-                    nearest_box.label = box.label
-                    target_index = index
-                    distance = np.linalg.norm(ref_point - target_point)
-
+            if np.linalg.norm(ref_point - target_point) < distance:
+                nearest_box.pose = box.pose
+                nearest_box.dimensions = box.dimensions
+                nearest_box.label = box.label
+                nearest_box.header = box.header
+                target_index = index
+                distance = np.linalg.norm(ref_point - target_point)
 
         self.broadcaster.sendTransform(
-            (nearest_box.pose.position.x, nearest_box.pose.position.y, nearest_box.pose.position.z),
+            (nearest_box.pose.position.x,
+             nearest_box.pose.position.y,
+             nearest_box.pose.position.z),
             (nearest_box.pose.orientation.x,
              nearest_box.pose.orientation.y,
              nearest_box.pose.orientation.z,
              nearest_box.pose.orientation.w),
-            rospy.Time.now(), 'nearest_item', box.header.frame_id)
-        print('nearest_box: ', nearest_box.pose.position)
+            rospy.Time.now(), 'nearest_' + req.label, nearest_box.header.frame_id)
 
         return nearest_box, has_request_item, target_index
 
@@ -899,11 +895,10 @@ class NeatnessEstimatorVisionServer():
         return multi_boxes, has_request_item
 
     def listen_transform(self, parent_frame, child_frame):
-        rospy.loginfo('lookup')
         box = BoundingBox()
         try:
             self.listener.waitForTransform(
-                parent_frame, child_frame, rospy.Time(0), rospy.Duration(3.0))
+                parent_frame, child_frame, rospy.Time(0), rospy.Duration(1.0))
             (trans, rot) = self.listener.lookupTransform(
                 parent_frame, child_frame, rospy.Time(0))
 
@@ -911,12 +906,10 @@ class NeatnessEstimatorVisionServer():
             box.pose.orientation = Quaternion(rot[0], rot[1], rot[2], rot[3])
             return box
         except:
-            rospy.logwarn('cannot lookup transform')
+            rospy.logwarn('failed to lookup transform')
             return False
 
     def transform_poses(self, pose, label, frame_id, parent):
-        rospy.loginfo('transform_poses')
-        rospy.loginfo('broadcast')
         self.broadcaster.sendTransform(
             (pose.position.x, pose.position.y, pose.position.z),
             (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w),
