@@ -437,32 +437,38 @@ class NeatnessEstimatorVisionServer():
         try:
             item = req.label # cluster item label (string)
 
-            print(len(self.cluster_boxes.boxes))
+            nearest_cluster_box = BoundingBox()
+            distance = 24 ** 24
+            for cluster_box in self.cluster_boxes.boxes:
+                if self.label_lst[cluster_box.label] == req.label:
+                    d = np.linalg.norm(np.array([cluster_box.pose.position.x,
+                                                 cluster_box.pose.position.y,
+                                                 cluster_box.pose.position.z]))
+                    if d < distance:
+                        distance = d
+                        nearest_cluster_box = cluster_box
 
             x_range = {'min': 0, 'max':0}
             y_range = {'min': 0, 'max':0}
             z_range = {'min': 0, 'max':0}
-            for cluster_box in self.cluster_boxes.boxes:
-                if self.label_lst[cluster_box.label] == req.label:
-                    x_range['min'] = cluster_box.pose.position.x - (cluster_box.dimensions.x * 0.5)
-                    x_range['max'] = cluster_box.pose.position.x + (cluster_box.dimensions.x * 0.5)
-                    y_range['min'] = cluster_box.pose.position.y - (cluster_box.dimensions.y * 0.5)
-                    y_range['max'] = cluster_box.pose.position.y + (cluster_box.dimensions.y * 0.5)
-                    z_range['min'] = cluster_box.pose.position.z - (cluster_box.dimensions.z * 0.5)
-                    z_range['max'] = cluster_box.pose.position.z + (cluster_box.dimensions.z * 0.5)
-                    break
+            x_range['min'] = nearest_cluster_box.pose.position.x - (nearest_cluster_box.dimensions.x * 0.5)
+            x_range['max'] = nearest_cluster_box.pose.position.x + (nearest_cluster_box.dimensions.x * 0.5)
+            y_range['min'] = nearest_cluster_box.pose.position.y - (nearest_cluster_box.dimensions.y * 0.5)
+            y_range['max'] = nearest_cluster_box.pose.position.y + (nearest_cluster_box.dimensions.y * 0.5)
+            z_range['min'] = nearest_cluster_box.pose.position.z - (nearest_cluster_box.dimensions.z * 0.5)
+            z_range['max'] = nearest_cluster_box.pose.position.z + (nearest_cluster_box.dimensions.z * 0.5)
 
-            # self.broadcaster.sendTransform(
-            #     (x_range['min'], y_range['min'], z_range['min']),
-            #     (0,0,0,1),
-            #     rospy.Time.now(), 'min_pos',
-            #     self.cluster_boxes_header.frame_id)
+            self.broadcaster.sendTransform(
+                (x_range['min'], y_range['min'], z_range['min']),
+                (0,0,0,1),
+                rospy.Time.now(), 'min_pos',
+                self.cluster_boxes_header.frame_id)
 
-            # self.broadcaster.sendTransform(
-            #     (x_range['max'], y_range['max'], z_range['max']),
-            #     (0,0,0,1),
-            #     rospy.Time.now(), 'max_pos',
-            #     self.cluster_boxes_header.frame_id)
+            self.broadcaster.sendTransform(
+                (x_range['max'], y_range['max'], z_range['max']),
+                (0,0,0,1),
+                rospy.Time.now(), 'max_pos',
+                self.cluster_boxes_header.frame_id)
 
             res.has_item = False
             for box in self.boxes.boxes:
@@ -482,6 +488,14 @@ class NeatnessEstimatorVisionServer():
                     message = 'get mis-place item,  {} inside {} cluster'.format(
                         self.label_lst[box.label], req.label)
                     rospy.loginfo(message)
+
+                    self.broadcaster.sendTransform(
+                        (center[0], center[1], center[2]),
+                        (0,0,0,1),
+                        self.cluster_boxes_header.stamp, 'insider item',
+                        self.cluster_boxes_header.frame_id)
+
+
                     res.has_item = True
                     transformed_box.label = box.label
                     res.boxes = transformed_box
