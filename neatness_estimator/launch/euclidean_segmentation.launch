@@ -1,0 +1,14 @@
+<launch>
+  <arg name="input_cloud" default="/openni_camera/point_cloud/cloud_registered/remote" />
+
+  <node pkg="nodelet" type="nodelet"
+        name="euclidean_clustering"
+        args="standalone jsk_pcl/EuclideanClustering"
+        output="screen" clear_params="true">
+    <remap from="~input" to="$(arg input_cloud)" />
+    <rosparam>
+      tolerance: 0.1
+    </rosparam>
+  </node>
+
+</launch>

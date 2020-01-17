@@ -17,6 +17,8 @@
   <arg name="geometry_feature" default="cvfh" />
   <arg name="motion_primitive_classifier" default="mlp" />
 
+  <arg name="save_reasoning_result" default="false" />
+
   <include file="$(find neatness_estimator)/launch/estimation_module_interface.launch">
     <arg name="input_cloud" default="$(arg cloud_topic)" />
     <arg name="input_image" default="$(arg image_topic)" />
@@ -33,7 +35,7 @@
     <arg name="fe_node_name" value="$(arg fe_node_name)" />
     <arg name="debug_view" default="false" />
     <arg name="sort_axis" default="0" />
-    <arg name="save_reasoning_result" default="false" />
+    <arg name="save_reasoning_result" value="$(arg save_reasoning_result)" />
     <arg name="prefix" default="$(arg prefix)" />
     <arg name="cloud_topic" default="$(arg cloud_topic)" />
     <arg name="image_topic" default="$(arg image_topic)" />

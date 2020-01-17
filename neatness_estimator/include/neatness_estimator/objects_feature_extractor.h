@@ -145,12 +145,14 @@ namespace neatness_estimator
        neatness_estimator_msgs::Histogram& geometry_histogram);
 
     virtual bool save_pcd(std::string save_path,
-                          const pcl::PointCloud<pcl::PointXYZRGB>& cloud);
+                          const pcl::PointCloud<pcl::PointXYZRGB>& cloud,
+                          int index=0);
 
     virtual bool save_image(std::string save_path,
                             const cv::Mat& image,
                             const cv::Mat& mask_image,
-                            const cv::Mat& debug_image);
+                            const cv::Mat& debug_image,
+                            int index=0);
 
     virtual bool load_image(const sensor_msgs::Image::ConstPtr& input_msg,
                             cv::Mat& input_image);
@@ -158,16 +160,19 @@ namespace neatness_estimator
     virtual bool save_color_histogram
       (std::string save_dir, 
        std::vector<size_t> labels,
-       const neatness_estimator_msgs::HistogramArray& color_histogram_array);
+       const neatness_estimator_msgs::HistogramArray& color_histogram_array,
+       int index=0);
 
     virtual bool save_geometry_histogram
       (std::string save_dir,
        std::vector<size_t> labels,
-       const neatness_estimator_msgs::HistogramArray& geometry_histogram_array);
+       const neatness_estimator_msgs::HistogramArray& geometry_histogram_array,
+       int index=0);
 
     virtual bool run();
 
-    virtual bool run(neatness_estimator_msgs::GetFeatures::Response& res);
+    virtual bool run(neatness_estimator_msgs::GetFeatures::Request& req,
+                     neatness_estimator_msgs::GetFeatures::Response& res);
 
     virtual bool create_sorted_indices
       (const std::vector<jsk_recognition_msgs::BoundingBox> input_boxes,

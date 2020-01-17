@@ -317,6 +317,7 @@ namespace neatness_estimator
     feature_client_msg.request.cluster = cluster_msg;
     feature_client_msg.request.instance_boxes = instance_boxes_msg;
     feature_client_msg.request.cluster_boxes = cluster_boxes_msg;
+    feature_client_msg.request.index = cluster_boxes_index;
     feature_client_msg.request.task = "items";
     feature_client_.call(feature_client_msg);
 

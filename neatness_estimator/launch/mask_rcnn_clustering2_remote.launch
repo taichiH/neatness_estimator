@@ -1,0 +1,14 @@
+<launch>
+  <include file="$(find neatness_estimator)/launch/mask_rcnn_clustering.launch">
+    <arg name="info"        value="/openni_camera/rgb/camera_info" />
+    <arg name="input_image" value="/openni_camera/rgb/image_rect_color" />
+    <arg name="input_cloud" value="/openni_camera/point_cloud/cloud_registered/remote" />
+  </include>
+
+  <include file="$(find neatness_estimator)/launch/multi_euclidean_clustering.launch">
+    <arg name="input_cloud" value="/openni_camera/point_cloud/cloud_registered/remote" />
+  </include>
+
+  <include file="$(find neatness_estimator)/launch/vision_server.launch"/>
+
+</launch>

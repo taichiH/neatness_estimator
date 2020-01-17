@@ -78,6 +78,8 @@ namespace neatness_estimator
         if (!boost::filesystem::create_directory(save_data_dir_.at(i), error) || error) {
           ROS_ERROR("failed create data dir : \n%s", save_data_dir_.at(i).c_str());
           return false;
+        } else  {
+          ROS_INFO("success to create dir : %s", save_data_dir_.at(i).c_str());
         }
       }
 
@@ -139,8 +141,10 @@ namespace neatness_estimator
   }
 
   bool ObjectsFeatureExtractor::save_pcd(std::string save_path,
-                                    const pcl::PointCloud<pcl::PointXYZRGB>& cloud)
+                                         const pcl::PointCloud<pcl::PointXYZRGB>& cloud,
+                                         int index)
   {
+    save_path = save_path + "log_pcd_" + std::to_string(index) + ".pcd";
     ROS_INFO("save pcd path: \n%s", save_path.c_str());
     pcl::PCDWriter writer;
     try {
@@ -153,14 +157,16 @@ namespace neatness_estimator
   }
 
   bool ObjectsFeatureExtractor::save_image(std::string save_path,
-                                      const cv::Mat& image,
-                                      const cv::Mat& mask_image,
-                                      const cv::Mat& debug_image)
+                                           const cv::Mat& image,
+                                           const cv::Mat& mask_image,
+                                           const cv::Mat& debug_image,
+                                           int index)
   {
     ROS_INFO("save image path: \n%s", save_path.c_str());
-    cv::imwrite(save_path + "log_image.jpg", image);
-    cv::imwrite(save_path + "log_mask_image.jpg", mask_image);
-    cv::imwrite(save_path + "log_debug_image.jpg", debug_image);
+
+    cv::imwrite(save_path + "log_image_" + std::to_string(index) + ".jpg", image);
+    cv::imwrite(save_path + "log_mask_image_" + std::to_string(index) + ".jpg", mask_image);
+    cv::imwrite(save_path + "log_debug_image_" + std::to_string(index) + ".jpg", debug_image);
 
     return true;
   }
@@ -418,11 +424,15 @@ namespace neatness_estimator
   bool ObjectsFeatureExtractor::save_color_histogram
   (std::string save_dir, 
    std::vector<size_t> labels,
-   const neatness_estimator_msgs::HistogramArray& color_histogram_array)
+   const neatness_estimator_msgs::HistogramArray& color_histogram_array,
+   int index)
   {
+    std::cerr << __func__ << std::endl;
+    std::cerr << save_dir + "color_histograms.csv" << std::endl;
+
     std::ofstream f;
     try {
-      f.open(save_dir + "color_histograms.csv");
+      f.open(save_dir + "color_histograms_" + std::to_string(index) + ".csv");
       for (size_t i=0; i<color_histogram_array.histograms.size(); ++i) {
         f << std::to_string(labels.at(i)) + ", ";
         for (auto v : color_histogram_array.histograms.at(i).histogram) {
@@ -441,11 +451,12 @@ namespace neatness_estimator
   bool ObjectsFeatureExtractor::save_geometry_histogram
   (std::string save_dir,
    std::vector<size_t> labels,
-   const neatness_estimator_msgs::HistogramArray& geometry_histogram_array)
+   const neatness_estimator_msgs::HistogramArray& geometry_histogram_array,
+   int index)
   {
     try {
       std::ofstream f;
-      f.open(save_dir + "geometry_histograms.csv");
+      f.open(save_dir + "geometry_histograms_" + std::to_string(index) + ".csv");
       for (size_t i=0; i<geometry_histogram_array.histograms.size(); ++i) {
         f << std::to_string(labels.at(i)) + ", ";
         for (auto v : geometry_histogram_array.histograms.at(i).histogram) {
@@ -543,7 +554,7 @@ namespace neatness_estimator
         return false;
       }
 
-      save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
+      save_pcd(log_dir_.at(i), *rgb_cloud);
       save_image(log_dir_.at(i), image, mask_image, debug_image);
       save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
       save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
@@ -558,8 +569,10 @@ namespace neatness_estimator
     return true;
   }
 
-  bool ObjectsFeatureExtractor::run(neatness_estimator_msgs::GetFeatures::Response& res)
+  bool ObjectsFeatureExtractor::run(neatness_estimator_msgs::GetFeatures::Request& req,
+                                    neatness_estimator_msgs::GetFeatures::Response& res)
   {
+    // always buffer_size_ is 1
     for (size_t i=0; i<buffer_size_; ++i) {
       cv::Mat image;
       pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud
@@ -603,10 +616,11 @@ namespace neatness_estimator
       }
 
       if (save_data_) {
-        save_pcd(log_dir_.at(i) + "log_pcd.pcd", *rgb_cloud);
-        save_image(log_dir_.at(i), image, mask_image, debug_image);
-        save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array);
-        save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array);
+        ROS_INFO(" save_data [pcd, image, color_histogram, geometry_histogram]");
+        save_pcd(log_dir_.at(i), *rgb_cloud, req.index);
+        save_image(log_dir_.at(i), image, mask_image, debug_image, req.index);
+        save_color_histogram(save_data_dir_.at(i), labels, color_histogram_array, req.index);
+        save_geometry_histogram(save_data_dir_.at(i), labels, geometry_histogram_array, req.index);
       }
 
       res.features.color_histogram = color_histogram_array;
@@ -656,12 +670,13 @@ namespace neatness_estimator
       from_file = true;
     }
 
+    if ( !get_read_dirs() ) {
+      res.success = false;
+      return false;
+    }
+
     if (from_file) {
       ROS_INFO("read data from file");
-      if ( !get_read_dirs() ) {
-        res.success = false;
-        return false;
-      }
 
       if ( !read_data() ) {
         res.success = false;
@@ -688,7 +703,7 @@ namespace neatness_estimator
         return false;
       }
 
-      if ( !run(res) ) {
+      if ( !run(req, res) ) {
         res.success = false;
         return false;
       };
