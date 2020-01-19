@@ -17,7 +17,7 @@
   <arg name="geometry_feature" default="cvfh" />
   <arg name="motion_primitive_classifier" default="mlp" />
 
-  <arg name="save_reasoning_result" default="false" />
+  <arg name="save_reasoning_result" default="true" />
 
   <include file="$(find neatness_estimator)/launch/estimation_module_interface.launch">
     <arg name="input_cloud" default="$(arg cloud_topic)" />

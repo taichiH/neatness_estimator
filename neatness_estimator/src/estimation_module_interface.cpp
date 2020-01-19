@@ -317,7 +317,7 @@ namespace neatness_estimator
     feature_client_msg.request.cluster = cluster_msg;
     feature_client_msg.request.instance_boxes = instance_boxes_msg;
     feature_client_msg.request.cluster_boxes = cluster_boxes_msg;
-    feature_client_msg.request.index = cluster_boxes_index;
+    feature_client_msg.request.index = index;
     feature_client_msg.request.task = "items";
     feature_client_.call(feature_client_msg);
 
@@ -358,7 +358,10 @@ namespace neatness_estimator
 
     std::vector<neatness_estimator_msgs::Features> features_vec(2);
     neatness_estimator_msgs::Features features;
+
+    // prev: base, cur: ref
     std::vector<unsigned int> targets{base_target_index, ref_target_index};
+
     bool success = true;
     for (int i=0; i<targets.size(); ++i) {
       success = get_index_features(targets.at(i), features_vec.at(i));
@@ -379,7 +382,7 @@ namespace neatness_estimator
       ROS_WARN("failed to call %s", de_service_topic_.c_str());
       return false;
     } else {
-      res.message = "success compare data";
+      res.message = difference_msg.response.message;
       res.labels = difference_msg.response.labels;
       res.color_distance = difference_msg.response.color_distance;
       res.geometry_distance = difference_msg.response.geometry_distance;

@@ -26,8 +26,34 @@ class DistanceEstimator():
         else:
             rospy.logerr('set compare method from [cosine, bray]')
 
+        self.correct_feature_path = rospy.get_param(
+            '~correct_feature_path',
+            os.path.join(os.environ['HOME'], '.ros/correct_feature'))
+        self.correct_color_feature = {0 : []}
+        self.correct_geometry_feature = {0 : []}
+        self.get_correct_feature()
+        self.pick_target
+
         rospy.Service(
             '~estimate', GetDifference, self.service_callback)
+
+    def get_correct_feature(self):
+        color_feature_path = os.path.join(self.correct_feature_path, 'correct_color_feature.csv')
+        geometry_feature_path = os.path.join(self.correct_feature_path, 'correct_geometry_feature.csv')
+
+        with open(color_feature_path) as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            for i, row in enumerate(reader):
+                item_label = int(row[0])
+                feature = (map(lambda x : float(x), row[1:len(row[1:])]
+                self.correct_color_feature[item_label] = feature
+
+        with open(geometry_feature_path) as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            for i, row in enumerate(reader):
+                item_label = int(row[0])
+                feature = (map(lambda x : float(x), row[1:]))
+                self.correct_geometry_feature[item_label] = feature
 
     def service_callback(self, req):
         rospy.loginfo('distance_estimator service called')
@@ -56,7 +82,7 @@ class DistanceEstimator():
         geometry_distances = []
         group_distances = []
         for i in range(len(prev_features.color_histogram.histograms)):
-            index = int(curt_features.color_histogram.histograms[i].label)
+            index = int(curt_features.color_histogram.histograms[i].label) # label number
 
             cur_color_hist = np.array(curt_features.color_histogram.histograms[i].histogram)
             prev_color_hist = np.array(prev_features.color_histogram.histograms[i].histogram)
@@ -68,6 +94,27 @@ class DistanceEstimator():
             geometry_distance = 1 - self.compare_method(
                 np.array(curt_features.geometry_histogram.histograms[i].histogram),
                 np.array(prev_features.geometry_histogram.histograms[i].histogram))
+
+            cur_color_distance = 1 - self.compare_method(
+                cur_color_hist, self.correct_color_feature[index])
+            prev_color_distance = 1 - self.compare_method(
+                prev_color_hist, self.correct_color_feature[index])
+            cur_geometry_distance = 1 - self.compare_method(
+                curt_features.geometry_histogram.histograms[i].histogram,
+                self.correct_geometry_feature[index])
+            prev_geometry_distance = 1 - self.compare_method(
+                prev_features.geometry_histogram.histograms[i].histogram,
+                self.correct_geometry_feature[index])
+
+            cur_distance_ave = (cur_color_distance + cur_geometry_distance) / 2
+            prev_distance_ave = (prev_color_distance + prev_geometry_distance) / 2
+            if cur_distance_ave < prev_distance_ave:
+                self.pick_target = 'prev'
+            else:
+                self.pick_target = 'cur'
+
+            self.correct_geometry_feature
+            ##
 
             curt_target_idx = 0
             prev_target_idx = 0
@@ -110,6 +157,7 @@ class DistanceEstimator():
         res.color_distance = color_distances
         res.geometry_distance = geometry_distances
         res.group_distance = group_distances
+        res.message = self.pick_target
         res.success = True
         return res
 
