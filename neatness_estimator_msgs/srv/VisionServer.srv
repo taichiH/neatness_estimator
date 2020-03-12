@@ -1,12 +1,23 @@
+bool flag
+float32 can_place_thresh
+uint32 label_index
+uint32 ref_label_index
 string label
 string ref_label
 string task
 string parent_frame
+string spot
 geometry_msgs/Point target
 ---
+bool has_item
 bool status
+bool can_place
+string message
+string[] labels
+uint32 rows
 uint32 index
 float32 filling_dist
 float32 pulling_dist
+float32 pose_dist
 jsk_recognition_msgs/BoundingBox boxes
 jsk_recognition_msgs/BoundingBox[] multi_boxes
