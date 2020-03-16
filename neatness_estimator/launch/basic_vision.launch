@@ -21,8 +21,4 @@
     <arg name="labels" value="$(arg labels)" />
   </include>
 
-  <include file="$(find neatness_estimator)/launch/neatness_estimator.launch">
-    <arg name="labels" value="$(arg labels)" />
-  </include>
-
 </launch>
