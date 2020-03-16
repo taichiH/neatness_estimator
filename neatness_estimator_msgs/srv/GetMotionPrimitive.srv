@@ -1,8 +1,6 @@
 bool update_model
 string target_item
-float32[] color_distance
-float32[] geometry_distance
-float32[] group_distance
+neatness_estimator_msgs/AppearanceDifference difference
 ---
 bool success
-string[] motions
+string motion

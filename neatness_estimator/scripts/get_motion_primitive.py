@@ -68,8 +68,6 @@ class GetMotionPrimitiveServer():
                     test_data.append(map(lambda x : float(x), row[1:4]))
                     trained_data.append(float(row[0]))
 
-        rospy.loginfo('trained_data length: %s' %(len(trained_data)))
-        rospy.loginfo('model type: %s' %(self.model))
         self.trained_data_size = len(trained_data)
         self.classifier.fit(np.array(test_data), np.array(trained_data))
 
@@ -85,39 +83,28 @@ class GetMotionPrimitiveServer():
         motion_class = self.classifier.predict(np.array([target_data]))
         motion_class = int(motion_class[0])
 
-        debug = True
-        if debug:
-            predict_proba = self.classifier.predict_proba([target_data])
-            for label, proba in zip(self.classifier.classes_, predict_proba[0]):
-                rospy.loginfo('motion: %s proba: %f'
-                              %(self.motion_lst[int(label)], float(proba)))
-
-
         return self.motion_lst[motion_class]
-
 
     def service_callback(self, req):
         res = GetMotionPrimitiveResponse()
 
         if req.update_model:
-            rospy.loginfo('update model')
             self.generate_model(self.data_path, req.target_item)
 
         motion_primitives = []
-        for color, geometry, group in zip(
-                req.color_distance,
-                req.geometry_distance,
-                req.group_distance):
-            target_data = np.array([color, geometry, group], dtype=np.float64)
+        target_data = np.array(
+            [req.difference.color,
+             req.difference.geometry,
+             req.difference.size],
+            dtype=np.float64)
 
-            motion_primitive = self.run(target_data)
-            if motion_primitive is None:
-                rospy.logwarn('failed to motion classification')
-                continue
+        motion_primitive = self.run(target_data)
+        if motion_primitive is None:
+            rospy.logwarn('failed to classify motion')
+            res.success = False
+            return res
 
-            motion_primitives.append(motion_primitive)
-
-        res.motions = motion_primitives
+        res.motion = motion_primitive
         res.success = True
         return res
 
