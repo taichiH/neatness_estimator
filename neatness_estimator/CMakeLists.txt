@@ -53,7 +53,7 @@ target_link_libraries(normal_viewer
 
 add_library(${PROJECT_NAME} SHARED
   src/multi_euclidean_clustering.cpp
-  src/estimation_module_interface.cpp
+  src/appearance_difference_estimator.cpp
   )
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}

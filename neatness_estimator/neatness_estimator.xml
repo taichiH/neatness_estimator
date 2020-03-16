@@ -7,15 +7,8 @@
     </description>
   </class>
 
-  <class name="neatness_estimator/EstimationModuleInterface"
-         type="neatness_estimator::EstimationModuleInterface"
-         base_class_type="nodelet::Nodelet">
-    <description>
-    </description>
-  </class>
-
-  <class name="neatness_estimator/ObjectsFeatureExtractor"
-         type="neatness_estimator::ObjectsFeatureExtractor"
+  <class name="neatness_estimator/AppearanceDifferenceEstimator"
+         type="neatness_estimator::AppearanceDifferenceEstimator"
          base_class_type="nodelet::Nodelet">
     <description>
     </description>

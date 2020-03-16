@@ -1,4 +1,4 @@
-#include "neatness_estimator/estimation_module_interface.h"
+#include "neatness_estimator/appearance_difference_estimator.h"
 
 namespace neatness_estimator
 {
