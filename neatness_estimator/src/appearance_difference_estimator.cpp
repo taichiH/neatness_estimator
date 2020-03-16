@@ -15,6 +15,8 @@ namespace neatness_estimator
     pnh_.getParam("target_idx", target_idx);
     pnh_.getParam("ref_idx", ref_idx);
     pair_ = std::make_pair(target_idx, ref_idx);
+    
+    difference_pub_ = pnh_.advertise<neatness_estimator_msgs::AppearanceDifference>("output", 1);
 
     service_server_ =
       pnh_.advertiseService("call", &AppearanceDifferenceEstimator::service_callback, this);
@@ -51,7 +53,11 @@ namespace neatness_estimator
     image_msg_ = image_msg;
     cluster_msg_ = cluster_msg;
 
-    run();
+    neatness_estimator_msgs::AppearanceDifference::Ptr difference;
+    run(difference);
+    difference->header = cloud_msg->header;
+    difference_pub_.publish(difference);
+
   }
 
   bool AppearanceDifferenceEstimator::service_callback
@@ -62,24 +68,47 @@ namespace neatness_estimator
 
     pair_ = std::make_pair(req.target_idx, req.ref_idx);
 
-    run();
+    neatness_estimator_msgs::AppearanceDifference::Ptr difference;
+    run(difference);
 
+    res.difference = *difference;
     res.success = true;
     return true;
   }
 
-  bool AppearanceDifferenceEstimator::run()
+  bool AppearanceDifferenceEstimator::run
+  (neatness_estimator_msgs::AppearanceDifference::Ptr& difference)
   {
-
-    int idx = pair_.first;
-    AppearanceFeature feature;
-    compute_appearance_feature(idx, feature);
+    std::vector<int> indices = {pair_.first, pair_.second};
+    
+    std::vector<AppearanceFeature> features(2);
+    for (int i=0; i<2; i++) {
+      AppearanceFeature feature;
+      compute_appearance_feature(indices[i], features[i]);
+    }
 
     // compare histogram
-
+    compute_appearance_difference(features, difference);
 
     return true;
   }
+
+  bool AppearanceDifferenceEstimator::compute_appearance_difference
+  (const std::vector<AppearanceFeature>& features,
+   neatness_estimator_msgs::AppearanceDifference::Ptr& difference)
+  {
+
+    difference->color = calc_histogram_distance
+      (features[0].color.histogram, features[1].color.histogram);
+
+    difference->geometry = calc_histogram_distance
+      (features[0].geometry.histogram, features[1].geometry.histogram);
+
+    difference->size = features[0].size / features[1].size;
+
+    return true;
+  }
+
 
   bool AppearanceDifferenceEstimator::compute_appearance_feature
   (int idx,

@@ -22,6 +22,7 @@ add_message_files(
   Histogram.msg
   HistogramArray.msg
   Features.msg
+  AppearanceDifference.msg
   )
 
 add_service_files(

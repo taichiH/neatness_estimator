@@ -2,6 +2,4 @@ uint32 target_idx
 uint32 ref_idx
 ---
 bool success
-float32 color_difference
-float32 geometry_difference
-float32 size_difference
+neatness_estimator_msgs/AppearanceDifference difference

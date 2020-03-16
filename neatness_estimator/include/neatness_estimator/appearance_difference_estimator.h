@@ -28,6 +28,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
 
+#include <neatness_estimator_msgs/AppearanceDifference.h>
 #include <neatness_estimator_msgs/GetDifference.h>
 #include <neatness_estimator_msgs/Histogram.h>
 #include <neatness_estimator_msgs/HistogramArray.h>
@@ -82,7 +83,8 @@ namespace neatness_estimator
     virtual void register_callback();
 
 
-    virtual bool run();
+    virtual bool run
+      (neatness_estimator_msgs::AppearanceDifference::Ptr& difference);
 
     virtual bool compute_appearance_feature
       (int idx,
@@ -108,6 +110,30 @@ namespace neatness_estimator
       (const sensor_msgs::Image::ConstPtr& input_msg,
        cv::Mat& input_image);
 
+    virtual bool compute_appearance_difference
+      (const std::vector<AppearanceFeature>& features,
+       neatness_estimator_msgs::AppearanceDifference::Ptr& difference);
+
+
+    template<typename T>
+      inline float calc_histogram_distance
+      (std::vector<T> hist1, std::vector<T> hist2)
+      {
+        if (hist1.size() != hist2.size()) {
+          return false;
+        }
+
+        float diff = 0;
+        float sum = 0;
+        for (int i=0; i<hist1.size(); i++) {
+          diff += std::abs(hist1.at(i) - hist2.at(i));
+          sum += std::abs(hist1.at(i) + hist2.at(i));
+        }
+        float distance = diff / sum;
+
+        return distance;
+      }
+
 
     // variables
 
@@ -118,6 +144,8 @@ namespace neatness_estimator
     ros::NodeHandle nh_;
 
     ros::NodeHandle pnh_;
+
+    ros::Publisher difference_pub_;
 
     ros::ServiceServer service_server_;
 
