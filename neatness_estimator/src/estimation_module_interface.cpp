@@ -3,7 +3,7 @@
 namespace neatness_estimator
 {
 
-  void EstimationModuleInterface::onInit()
+  void AppearanceDifferenceEstimator::onInit()
   {
     nh_ = getNodeHandle();
     pnh_ = getPrivateNodeHandle();
@@ -17,7 +17,7 @@ namespace neatness_estimator
     pair_ = std::make_pair(target_idx, ref_idx);
 
     service_server_ =
-      pnh_.advertiseService("call", &EstimationModuleInterface::service_callback, this);
+      pnh_.advertiseService("call", &AppearanceDifferenceEstimator::service_callback, this);
 
     sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
     sub_image_.subscribe(pnh_, "input_image", 1);
@@ -25,22 +25,22 @@ namespace neatness_estimator
     register_callback();
   }
 
-  void EstimationModuleInterface::register_callback()
+  void AppearanceDifferenceEstimator::register_callback()
   {
     if (approximate_sync_) {
       async_ = boost::make_shared<message_filters::Synchronizer<ApproximateSync> >(1000);
       async_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_);
       async_->registerCallback
-        (boost::bind(&EstimationModuleInterface::callback,this, _1, _2, _3));
+        (boost::bind(&AppearanceDifferenceEstimator::callback,this, _1, _2, _3));
     } else {
       sync_  = boost::make_shared<message_filters::Synchronizer<Sync> >(1000);
       sync_->connectInput(sub_point_cloud_, sub_image_, sub_cluster_);
       sync_->registerCallback
-        (boost::bind(&EstimationModuleInterface::callback,this, _1, _2, _3));
+        (boost::bind(&AppearanceDifferenceEstimator::callback,this, _1, _2, _3));
     }
   }
 
-  void EstimationModuleInterface::callback
+  void AppearanceDifferenceEstimator::callback
   (const sensor_msgs::PointCloud2::ConstPtr& cloud_msg,
    const sensor_msgs::Image::ConstPtr& image_msg,
    const jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_msg)
@@ -54,7 +54,7 @@ namespace neatness_estimator
     run();
   }
 
-  bool EstimationModuleInterface::service_callback
+  bool AppearanceDifferenceEstimator::service_callback
   (neatness_estimator_msgs::GetDifference::Request& req,
    neatness_estimator_msgs::GetDifference::Response& res)
   {
@@ -68,12 +68,12 @@ namespace neatness_estimator
     return true;
   }
 
-  bool EstimationModuleInterface::run()
+  bool AppearanceDifferenceEstimator::run()
   {
 
     int idx = pair_.first;
-    ObjectFeature feature;
-    compute_object_feature(idx, feature);
+    AppearanceFeature feature;
+    compute_appearance_feature(idx, feature);
 
     // compare histogram
 
@@ -81,12 +81,10 @@ namespace neatness_estimator
     return true;
   }
 
-  bool EstimationModuleInterface::compute_object_feature
+  bool AppearanceDifferenceEstimator::compute_appearance_feature
   (int idx,
-   ObjectFeature& feature)
+   AppearanceFeature& feature)
   {
-
-
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*cloud_msg_, *rgb_cloud);
     cv::Mat image;
@@ -113,7 +111,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool EstimationModuleInterface::compute_color_histogram
+  bool AppearanceDifferenceEstimator::compute_color_histogram
   (const cv::Mat& image,
    const cv::Mat& mask,
    neatness_estimator_msgs::Histogram& color_histogram)
@@ -140,7 +138,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool EstimationModuleInterface::compute_geometry_histogram
+  bool AppearanceDifferenceEstimator::compute_geometry_histogram
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
    neatness_estimator_msgs::Histogram& geometry_histogram)
   {
@@ -188,7 +186,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool EstimationModuleInterface::get_clustered_cloud
+  bool AppearanceDifferenceEstimator::get_clustered_cloud
   (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
    jsk_recognition_msgs::ClusterPointIndices::ConstPtr& cluster_indices,
    int index,
@@ -214,7 +212,7 @@ namespace neatness_estimator
     return true;
   }
 
-  bool EstimationModuleInterface::load_image
+  bool AppearanceDifferenceEstimator::load_image
   (const sensor_msgs::Image::ConstPtr& input_msg,
    cv::Mat& input_image)
   {
@@ -234,4 +232,4 @@ namespace neatness_estimator
 } // namespace neatness_estimator
 
 #include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(neatness_estimator::EstimationModuleInterface, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(neatness_estimator::AppearanceDifferenceEstimator, nodelet::Nodelet)

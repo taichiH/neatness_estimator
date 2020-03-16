@@ -1,5 +1,5 @@
-#ifndef _NEATNESS_ESTIMATOR_ESTIMATION_MODULE_INTERFACE_H_
-#define _NEATNESS_ESTIMATOR_ESTIMATION_MODULE_INTERFACE_H_
+#ifndef _NEATNESS_ESTIMATOR_APPEARANCE_DIFFERENCE_ESTIMATOR_H_
+#define _NEATNESS_ESTIMATOR_APPEARANCE_DIFFERENCE_ESTIMATOR_H_
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
@@ -37,7 +37,7 @@
 namespace neatness_estimator
 {
 
-  class ObjectFeature
+  class AppearanceFeature
   {
   public:
     neatness_estimator_msgs::Histogram color;
@@ -45,13 +45,13 @@ namespace neatness_estimator
     int size;
   };
 
-  class EstimationModuleInterface : public nodelet::Nodelet
+  class AppearanceDifferenceEstimator : public nodelet::Nodelet
   {
   public:
 
   protected:
 
-    typedef std::pair<int, int> ObjectsPair;
+    typedef std::pair<int, int> AppearancePair;
 
     typedef message_filters::sync_policies::ApproximateTime<
       sensor_msgs::PointCloud2,
@@ -84,9 +84,9 @@ namespace neatness_estimator
 
     virtual bool run();
 
-    virtual bool compute_object_feature
+    virtual bool compute_appearance_feature
       (int idx,
-       ObjectFeature& feature);
+       AppearanceFeature& feature);
 
     virtual bool compute_color_histogram
       (const cv::Mat& image,
@@ -137,7 +137,7 @@ namespace neatness_estimator
 
     bool approximate_sync_ = true;
 
-    ObjectsPair pair_;
+    AppearancePair pair_;
 
   private:
 
