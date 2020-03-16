@@ -1,11 +1,7 @@
-string task
-uint32 base_target_index
-uint32[] ref_target_indices
-neatness_estimator_msgs/Features[] features
+uint32 target_idx
+uint32 ref_idx
 ---
-string message
 bool success
-uint32[] labels
-float32[] color_distance
-float32[] geometry_distance
-float32[] group_distance
+float32 color_difference
+float32 geometry_difference
+float32 size_difference
