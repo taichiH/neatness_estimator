@@ -22,6 +22,7 @@ class GetMotionPrimitiveServer():
                 rospkg.RosPack().get_path('neatness_estimator'),
                 'trained_data/sample.csv'))
 
+        self.threshold = 0.75
         self.data_size_thresh = rospy.get_param('~data_size_thresh', 3)
         self.trained_data_size = 0
         self.target_item = rospy.get_param('~target_item', '')
@@ -97,6 +98,11 @@ class GetMotionPrimitiveServer():
              req.difference.geometry,
              req.difference.size],
             dtype=np.float64)
+
+        if target_data.mean() < self.threshold:
+            res.motion = 'ok'
+            res.success = True
+            return res
 
         motion_primitive = self.run(target_data)
         if motion_primitive is None:

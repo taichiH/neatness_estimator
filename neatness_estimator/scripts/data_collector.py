@@ -6,6 +6,7 @@ import csv
 import rospy
 import rospkg
 from neatness_estimator_msgs.srv import CollectData, CollectDataResponse
+from neatness_estimator_msgs.msg import AppearanceDifference
 
 class DataCollector():
 
@@ -22,7 +23,9 @@ class DataCollector():
     def service_callback(self, req):
         res = CollectDataResponse()
 
-        save_data = [req.motion_label] + list(req.data) + [req.obj_label]
+        save_data = [req.motion_label] + \
+                    [req.difference.color, req.difference.geometry, req.difference.size] + \
+                    [req.obj_label]
         print('save_data', save_data)
 
         with open(self.model_file_path, 'a') as f:

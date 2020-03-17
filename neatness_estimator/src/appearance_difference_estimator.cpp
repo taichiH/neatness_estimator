@@ -19,7 +19,7 @@ namespace neatness_estimator
     difference_pub_ = pnh_.advertise<neatness_estimator_msgs::AppearanceDifference>("output", 1);
 
     service_server_ =
-      pnh_.advertiseService("call", &AppearanceDifferenceEstimator::service_callback, this);
+      pnh_.advertiseService("get_difference", &AppearanceDifferenceEstimator::service_callback, this);
 
     sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
     sub_image_.subscribe(pnh_, "input_image", 1);
