@@ -53,11 +53,10 @@ namespace neatness_estimator
     image_msg_ = image_msg;
     cluster_msg_ = cluster_msg;
 
-    neatness_estimator_msgs::AppearanceDifference::Ptr difference;
+    neatness_estimator_msgs::AppearanceDifference difference;
     run(difference);
-    difference->header = cloud_msg->header;
+    difference.header = cloud_msg->header;
     difference_pub_.publish(difference);
-
   }
 
   bool AppearanceDifferenceEstimator::service_callback
@@ -68,16 +67,16 @@ namespace neatness_estimator
 
     pair_ = std::make_pair(req.target_idx, req.ref_idx);
 
-    neatness_estimator_msgs::AppearanceDifference::Ptr difference;
+    neatness_estimator_msgs::AppearanceDifference difference;
     run(difference);
 
-    res.difference = *difference;
+    res.difference = difference;
     res.success = true;
     return true;
   }
 
   bool AppearanceDifferenceEstimator::run
-  (neatness_estimator_msgs::AppearanceDifference::Ptr& difference)
+  (neatness_estimator_msgs::AppearanceDifference& difference)
   {
     std::vector<int> indices = {pair_.first, pair_.second};
     std::vector<AppearanceFeature> features;
@@ -95,8 +94,6 @@ namespace neatness_estimator
   float AppearanceDifferenceEstimator::calc_histogram_distance
   (const std::vector<double>& hist1, const std::vector<double>& hist2)
   {
-    std::cerr << "hist1.size(): " << hist1.size() << std::endl;
-
     if (hist1.size() != hist2.size()) {
       return false;
     }
@@ -107,27 +104,22 @@ namespace neatness_estimator
       diff += std::abs(hist1.at(i) - hist2.at(i));
       sum += std::abs(hist1.at(i) + hist2.at(i));
     }
-    float distance = diff / sum;
+    float distance = float(diff / sum);
     return distance;
   }
 
-
   bool AppearanceDifferenceEstimator::compute_appearance_difference
-  (const std::vector<AppearanceFeature>& features,
-   neatness_estimator_msgs::AppearanceDifference::Ptr& difference)
+  (const std::vector<AppearanceFeature> features,
+   neatness_estimator_msgs::AppearanceDifference& difference)
   {
-    std::cerr << 4 << std::endl;
-    difference->color = calc_histogram_distance
+    difference.color = calc_histogram_distance
       (features[0].color, features[1].color);
 
-    std::cerr << 5 << std::endl;
-    difference->geometry = calc_histogram_distance
+    difference.geometry = calc_histogram_distance
       (features[0].geometry, features[1].geometry);
 
-    std::cerr << 6 << std::endl;
-    difference->size = features[0].size / features[1].size;
+    difference.size = features[0].size / features[1].size;
 
-    std::cerr << 7 << std::endl;
     return true;
   }
 
@@ -262,11 +254,6 @@ namespace neatness_estimator
    cv::Mat& mask_image,
    pcl::PointCloud<pcl::PointXYZRGB>::Ptr& clustered_cloud)
   {
-    std::cerr << "index: " << index << std::endl;
-    std::cerr << "cluster_indices.cluster_indices.size(): " << cluster_indices->cluster_indices.size() << std::endl;
-    std::cerr << "cluster_indices->cluster_indices.at(index).indices.size(): "
-              << cluster_indices->cluster_indices.at(index).indices.size() << std::endl;
-
     pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
     for (auto point_index : cluster_indices->cluster_indices.at(index).indices) {
       size_t y = int(point_index / image_msg_->width);
@@ -291,7 +278,6 @@ namespace neatness_estimator
    cv::Mat& input_image)
   {
     try {
-      ROS_INFO("image encoding: %s", input_msg->encoding.c_str());
       cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy
         (input_msg, input_msg->encoding);
       input_image = cv_image->image;

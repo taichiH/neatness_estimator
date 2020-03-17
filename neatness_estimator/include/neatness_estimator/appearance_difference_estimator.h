@@ -85,7 +85,7 @@ namespace neatness_estimator
 
 
     virtual bool run
-      (neatness_estimator_msgs::AppearanceDifference::Ptr& difference);
+      (neatness_estimator_msgs::AppearanceDifference& difference);
 
     virtual AppearanceFeature compute_appearance_feature(int idx);
 
@@ -114,9 +114,8 @@ namespace neatness_estimator
        cv::Mat& input_image);
 
     virtual bool compute_appearance_difference
-      (const std::vector<AppearanceFeature>& features,
-       neatness_estimator_msgs::AppearanceDifference::Ptr& difference);
-
+      (const std::vector<AppearanceFeature> features,
+       neatness_estimator_msgs::AppearanceDifference& difference);
 
     virtual float calc_histogram_distance
       (const std::vector<double>& hist1, const std::vector<double>& hist2);
