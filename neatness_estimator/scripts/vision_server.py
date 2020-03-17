@@ -17,18 +17,16 @@ class NeatnessEstimatorVisionServer():
     def __init__(self):
         mask_rcnn_label_lst = rospy.get_param('~fg_class_names')
         qatm_label_lst = rospy.get_param('~qatm_class_names')
-        color_label_lst = ['red']
         self.item_owners = {'conveniShelf1' : [],
                             'conveniShelf2' : [],
                             'container' : []}
 
-        self.label_lst = mask_rcnn_label_lst + qatm_label_lst + color_label_lst
+        self.label_lst = mask_rcnn_label_lst + qatm_label_lst
 
         self.boxes = BoundingBoxArray()
 
         self.header = None
         self.cluster_boxes_header = None
-        self.red_boxes = BoundingBoxArray()
         self.cluster_boxes = BoundingBoxArray()
         self.mask_rcnn_boxes = BoundingBoxArray()
         self.qatm_boxes = BoundingBoxArray()
@@ -41,9 +39,6 @@ class NeatnessEstimatorVisionServer():
         self.instance_box_callback_cnt = 0
         self.instance_aligned_box_callback_cnt = 0
 
-        self.x_max = 0.8
-        self.z_min = 0.85
-
         self.marker_pub = rospy.Publisher(
             "~output/markers", MarkerArray, queue_size=1)
 
@@ -55,9 +50,6 @@ class NeatnessEstimatorVisionServer():
             "~input_cluster_boxes", BoundingBoxArray, self.cluster_box_callback)
         rospy.Subscriber(
             "~input_qatm_pos", BoundingBoxArray, self.qatm_pose_callback)
-        rospy.Subscriber(
-            "~input_red_boxes", BoundingBoxArray, self.red_box_callback)
-
 
         rospy.Service(
             '/display_task_vision_server', VisionServer, self.vision_server)
@@ -78,10 +70,6 @@ class NeatnessEstimatorVisionServer():
             self.instance_aligned_box_callback_cnt += 1
         self.aligned_instance_boxes = msg
 
-    def red_box_callback(self, msg):
-        for i in range(len(msg.boxes)):
-            msg.boxes[i].label = self.label_lst.index('red')
-        self.red_boxes = msg
 
     def cluster_box_callback(self, msg):
         self.cluster_boxes_header = msg.header
@@ -92,15 +80,15 @@ class NeatnessEstimatorVisionServer():
         self.qatm_boxes = pose_msg
 
 
-    def merge_boxes(self, mask_rcnn_boxes, qatm_boxes, red_boxes):
+    def merge_boxes(self, mask_rcnn_boxes, qatm_boxes):
         boxes = BoundingBoxArray()
         boxes.header = self.header
-        boxes.boxes = mask_rcnn_boxes.boxes + qatm_boxes.boxes + red_boxes.boxes
+        boxes.boxes = mask_rcnn_boxes.boxes + qatm_boxes.boxes
         return boxes
 
     ''' task get_obj_pos '''
     def get_obj_pos(self, req):
-        self.boxes = self.merge_boxes(self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+        self.boxes = self.merge_boxes(self.mask_rcnn_boxes, self.qatm_boxes)
 
         rospy.loginfo(req.task)
         res = VisionServerResponse()
@@ -143,44 +131,6 @@ class NeatnessEstimatorVisionServer():
 
         return res
 
-    ''' task get_multi_obj_pos '''
-    def get_multi_obj_pos(self, req):
-        print('get_multi_obj_pos')
-
-        self.boxes = self.merge_boxes(
-            self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
-
-        rospy.loginfo(req.task)
-        res = VisionServerResponse()
-        res.status = False
-        has_items = False
-
-        try:
-            multi_boxes, has_items = self.get_multi_boxes(req)
-            rospy.loginfo('has_items = true')
-
-            if has_items:
-                if req.parent_frame == '':
-                    rospy.loginfo('req.parent_frame is: empty')
-                else:
-                    rospy.loginfo('req.parent_frame is: %s' %(self.boxes.header.frame_id))
-
-                # faile lookup transform
-                if multi_boxes != BoundingBoxArray():
-                    multi_boxes.header = self.boxes.header
-                    multi_boxes.header.frame_id = req.parent_frame
-                    res.multi_boxes = multi_boxes.boxes
-                    res.status = True
-                else:
-                    res.status = False
-                print(res.boxes)
-
-        except:
-            res.status = False
-            import traceback
-            traceback.print_exc()
-
-        return res
 
     ''' task get_place_pos '''
     def get_place_pos(self, req):
@@ -201,8 +151,6 @@ class NeatnessEstimatorVisionServer():
                 if item_front == 0.0:
                     continue
 
-                # print(self.label_lst[cluster_box.label], item_front)
-
                 if item_front < foremost_item_front:
                     foremost_item_front = item_front
 
@@ -214,7 +162,7 @@ class NeatnessEstimatorVisionServer():
                     front_edge = cluster_box.pose.position.x -\
                                  (cluster_box.dimensions.x * 0.5)
 
-            # when could not detect shelf front, min front item
+            # when could not detect shelf front, use foremost item position as front edge
             if not front_edge:
                 rospy.loginfo('use foremost item %f' %(foremost_item_front))
                 front_edge = foremost_item_front
@@ -222,9 +170,6 @@ class NeatnessEstimatorVisionServer():
             input_boxes = BoundingBoxArray()
             has_item = False
             for box in self.aligned_instance_boxes.boxes:
-                if box.pose.position.x > self.x_max or \
-                   box.pose.position.z < self.z_min:
-                    continue
 
                 if self.label_lst[box.label] == req.label:
                     has_item = True
@@ -240,7 +185,7 @@ class NeatnessEstimatorVisionServer():
                 input_boxes.boxes,
                 key = lambda box : box.pose.position.y, reverse=True)
 
-            # calc mean of (y_dim * 0.75)
+            # calc mean of (y_dim * 0.55)
             dim_mean = 0
             for sorted_box in sorted_boxes:
                 dim_mean += (sorted_box.dimensions.y * 0.55)
@@ -403,9 +348,7 @@ class NeatnessEstimatorVisionServer():
 
             extracted_boxes = BoundingBoxArray()
             for box in sorted_boxes:
-                if box.pose.position.z > shelf_height and\
-                   -0.8 < box.pose.position.y and box.pose.position.y < 0.8 and\
-                   box.pose.position.x < self.x_max:
+                if box.pose.position.z > shelf_height:
                     self.broadcaster.sendTransform(
                         (box.pose.position.x, box.pose.position.y, box.pose.position.z),
                         (box.pose.orientation.x, box.pose.orientation.y,
@@ -423,12 +366,11 @@ class NeatnessEstimatorVisionServer():
         res.status = True
         return res
 
-    ''' task get_mis_place_item '''
-    def get_mis_place_item(self, req):
-        print('get_mis_place_item')
+    ''' task check_mis_place_item '''
+    def check_mis_place_item(self, req):
 
         self.boxes = self.merge_boxes(
-            self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+            self.mask_rcnn_boxes, self.qatm_boxes)
 
         rospy.loginfo(req.task)
         res = VisionServerResponse()
@@ -530,10 +472,6 @@ class NeatnessEstimatorVisionServer():
                     print(self.label_lst[box.label])
                     print(box.pose.position)
 
-                    if box.pose.position.x > self.x_max or \
-                       box.pose.position.z < self.z_min:
-                        continue
-
                     label_name = self.label_lst[box.label]
                     if not label_name in self.item_owners[spot_name]:
                         self.item_owners[spot_name].append(label_name)
@@ -548,8 +486,8 @@ class NeatnessEstimatorVisionServer():
         return res
 
 
-    ''' task get_item_belonging '''
-    def get_item_belonging(self, req):
+    ''' task get_original_item_location '''
+    def get_original_item_location(self, req):
         rospy.loginfo(req.task)
         res = VisionServerResponse()
         res.status = False
@@ -570,7 +508,7 @@ class NeatnessEstimatorVisionServer():
                 if req.label in owner_contents:
                     box = self.listen_transform(req.spot, owner_spot)
                     if not box:
-                        rospy.logwarn('failed to lookup transform in get_item_belonging')
+                        rospy.logwarn('failed to lookup transform')
                         res.status = False
                         return res
 
@@ -623,7 +561,7 @@ class NeatnessEstimatorVisionServer():
 
         try:
             self.boxes = self.merge_boxes(
-                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+                self.mask_rcnn_boxes, self.qatm_boxes)
 
             target_quaternion = []
             ref_quaternion = []
@@ -716,7 +654,7 @@ class NeatnessEstimatorVisionServer():
 
         try:
             self.boxes = self.merge_boxes(
-                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+                self.mask_rcnn_boxes, self.qatm_boxes)
 
             has_shelf = False
             for box in self.boxes.boxes:
@@ -762,7 +700,7 @@ class NeatnessEstimatorVisionServer():
 
         try:
             self.boxes = self.merge_boxes(
-                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+                self.mask_rcnn_boxes, self.qatm_boxes)
 
             has_shelf = False
             for box in self.boxes.boxes:
@@ -805,7 +743,7 @@ class NeatnessEstimatorVisionServer():
 
         try:
             self.boxes = self.merge_boxes(
-                self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+                self.mask_rcnn_boxes, self.qatm_boxes)
 
             left_side = -sys.maxsize # left side of right item
             right_side = sys.maxsize # right side of left item
@@ -842,52 +780,6 @@ class NeatnessEstimatorVisionServer():
 
         return res
 
-    ''' task get_empty_space '''
-    def get_empty_space(self, req):
-        rospy.loginfo(req.task)
-        rospy.logerr('get_empty_space is not used')
-        res.status = False
-        return res
-
-    ''' task get_shelf_map_rotation '''
-    def get_shelf_map_rotation(self, req):
-        rospy.loginfo(req.task)
-        res = VisionServerResponse()
-        res.status = False
-
-        # overwrite request label
-        req.label = 'shelf_flont'
-
-        get_obj_pos_res = self.get_obj_pos(req)
-        if get_obj_pos_res.status == True:
-
-            qua = (get_obj_pos_res.boxes.pose.orientation.x,
-                   get_obj_pos_res.boxes.pose.orientation.y,
-                   get_obj_pos_res.boxes.pose.orientation.z,
-                   get_obj_pos_res.boxes.pose.orientation.w)
-            e = tf.transformations.euler_from_quaternion(qua)
-            # print('rpy')
-            # print(np.rad2deg(e[0]), np.rad2deg(e[1]), np.rad2deg(e[2]))
-
-            res.boxes.pose.position.x = e[0]
-            res.boxes.pose.position.y = e[1]
-            res.boxes.pose.position.z = e[2]
-
-            print(np.rad2deg(e[2]))
-
-            if np.rad2deg(e[2]) == 0:
-                res.status == False
-                return res
-
-            if np.rad2deg(e[2]) < 0:
-                res.boxes.pose.orientation.z = -self.shelf_flont_angle - np.rad2deg(e[2])
-            else:
-                res.boxes.pose.orientation.z = self.shelf_flont_angle - np.rad2deg(e[2])
-
-            print('angle diff: ', res.boxes.pose.orientation.z)
-            res.status = True
-
-        return res
 
     def get_nearest_box(self, req, boxes):
         distance = 100
@@ -925,7 +817,7 @@ class NeatnessEstimatorVisionServer():
         has_request_item = False
         multi_boxes = BoundingBoxArray()
         self.boxes = self.merge_boxes(
-            self.mask_rcnn_boxes, self.qatm_boxes, self.red_boxes)
+            self.mask_rcnn_boxes, self.qatm_boxes)
         for index, box in enumerate(self.boxes.boxes):
             if box.pose.position.x == 0 or \
                box.pose.position.y == 0 or \
@@ -971,14 +863,10 @@ class NeatnessEstimatorVisionServer():
         if req.task == 'get_obj_pos':
             return self.get_obj_pos(req)
 
-        elif req.task == 'get_multi_obj_pos':
-            rospy.loginfo(req.task)
-            return self.get_multi_obj_pos(req)
-
         elif req.task == 'get_place_pos':
             return self.get_place_pos(req)
 
-        elif req.task == 'get_distance':
+        elif req.task == 'get_distance_from_shelf':
             rospy.loginfo(req.task)
             return self.get_distance_from_shelf_front_simple(req)
 
@@ -986,25 +874,17 @@ class NeatnessEstimatorVisionServer():
             rospy.loginfo(req.task)
             return self.get_items_distance(req)
 
-        elif req.task == 'get_empty_space':
-            rospy.loginfo(req.task)
-            return self.get_empty_space(req)
-
-        elif req.task == 'get_shelf_map_rotation':
-            rospy.loginfo(req.task)
-            return self.get_shelf_map_rotation(req)
-
         elif req.task == 'get_cluster_items':
             rospy.loginfo(req.task)
             return self.get_cluster_items(req)
 
-        elif req.task == 'get_mis_place_item':
+        elif req.task == 'check_mis_place_item':
             rospy.loginfo(req.task)
-            return self.get_mis_place_item(req)
+            return self.check_mis_place_item(req)
 
-        elif req.task == 'get_item_belonging':
+        elif req.task == 'get_original_item_location':
             rospy.loginfo(req.task)
-            return self.get_item_belonging(req)
+            return self.get_original_item_location(req)
 
         elif req.task == 'get_container_stock':
             rospy.loginfo(req.task)
