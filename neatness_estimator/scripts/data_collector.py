@@ -5,9 +5,9 @@ import csv
 
 import rospy
 import rospkg
-from neatness_estimator_msgs.srv import CorrectData, CorrectDataResponse
+from neatness_estimator_msgs.srv import CollectData, CollectDataResponse
 
-class DataCorrector():
+class DataCollector():
 
     def __init__(self):
         self.model_file_path = rospy.get_param(
@@ -17,10 +17,10 @@ class DataCorrector():
                 'trained_data/sample.csv'))
 
         rospy.loginfo('model_path: %s' %(self.model_file_path))
-        rospy.Service('~correct', CorrectData, self.service_callback)
+        rospy.Service('~collect', CollectData, self.service_callback)
 
     def service_callback(self, req):
-        res = CorrectDataResponse()
+        res = CollectDataResponse()
 
         save_data = [req.motion_label] + list(req.data) + [req.obj_label]
         print('save_data', save_data)
@@ -33,6 +33,6 @@ class DataCorrector():
         return res
 
 if __name__=='__main__':
-    rospy.init_node('data_corrector')
-    data_corrector = DataCorrector()
+    rospy.init_node('data_collector')
+    data_collector = DataCollector()
     rospy.spin()
