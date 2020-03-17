@@ -1,0 +1,16 @@
+<launch>
+
+  <include file="$(find jsk_pcl_ros)/sample/include/play_rosbag_convenience_store.xml" />
+  
+  <include file="$(find neatness_estimator)/launch/basic_vision.launch" >
+    <arg name="input_image" default="/remote/openni_camera/rgb/image_rect_color" />
+    <arg name="input_cloud" default="/remote/openni_camera/point_cloud/cloud_registered/remote" />
+    <arg name="labels" default="mask_rcnn_labels_191023.yaml" />
+    <arg name="target_frame" default="openni_camera_rgb_optical_frame" />
+  </include>
+
+  <node name="rviz"
+        pkg="rviz" type="rviz"
+        args=" -d $(find aero_demo_pkg)/higashide/launch_configs/higashide-shuron-demo.rviz"/>
+
+</launch>
