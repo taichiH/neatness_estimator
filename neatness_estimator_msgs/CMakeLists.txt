@@ -21,7 +21,7 @@ add_service_files(
   VisionServer.srv
   GetDifference.srv
   GetMotionPrimitive.srv
-  CorrectData.srv
+  CollectData.srv
   )
 
 generate_messages(

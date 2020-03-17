@@ -1,5 +1,5 @@
 uint32 motion_label
 uint32 obj_label
-neatness_estimator_msgs/AppearanceDifference
+neatness_estimator_msgs/AppearanceDifference difference
 ---
 bool success
