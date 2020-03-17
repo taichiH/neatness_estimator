@@ -25,6 +25,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <jsk_recognition_msgs/ClusterPointIndices.h>
+#include <jsk_recognition_utils/pcl/color_histogram.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/Image.h>
 
@@ -41,8 +42,8 @@ namespace neatness_estimator
   class AppearanceFeature
   {
   public:
-    neatness_estimator_msgs::Histogram color;
-    neatness_estimator_msgs::Histogram geometry;
+    std::vector<double> color;
+    std::vector<double> geometry;
     int size;
   };
 
@@ -86,13 +87,15 @@ namespace neatness_estimator
     virtual bool run
       (neatness_estimator_msgs::AppearanceDifference::Ptr& difference);
 
-    virtual bool compute_appearance_feature
-      (int idx,
-       AppearanceFeature& feature);
+    virtual AppearanceFeature compute_appearance_feature(int idx);
 
     virtual bool compute_color_histogram
       (const cv::Mat& image,
        const cv::Mat& mask,
+       neatness_estimator_msgs::Histogram& color_histogram);
+
+    virtual bool compute_hsv_histogram
+      (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
        neatness_estimator_msgs::Histogram& color_histogram);
 
     virtual bool compute_geometry_histogram
@@ -115,25 +118,8 @@ namespace neatness_estimator
        neatness_estimator_msgs::AppearanceDifference::Ptr& difference);
 
 
-    template<typename T>
-      inline float calc_histogram_distance
-      (std::vector<T> hist1, std::vector<T> hist2)
-      {
-        if (hist1.size() != hist2.size()) {
-          return false;
-        }
-
-        float diff = 0;
-        float sum = 0;
-        for (int i=0; i<hist1.size(); i++) {
-          diff += std::abs(hist1.at(i) - hist2.at(i));
-          sum += std::abs(hist1.at(i) + hist2.at(i));
-        }
-        float distance = diff / sum;
-
-        return distance;
-      }
-
+    virtual float calc_histogram_distance
+      (const std::vector<double>& hist1, const std::vector<double>& hist2);
 
     // variables
 

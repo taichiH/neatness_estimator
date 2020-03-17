@@ -23,7 +23,7 @@ namespace neatness_estimator
 
     sub_point_cloud_.subscribe(pnh_, "input_cloud", 1);
     sub_image_.subscribe(pnh_, "input_image", 1);
-    sub_cluster_.subscribe(pnh_, "input_cluster", 1);
+    sub_cluster_.subscribe(pnh_, "input_cluster_indices", 1);
     register_callback();
   }
 
@@ -80,11 +80,10 @@ namespace neatness_estimator
   (neatness_estimator_msgs::AppearanceDifference::Ptr& difference)
   {
     std::vector<int> indices = {pair_.first, pair_.second};
-    
-    std::vector<AppearanceFeature> features(2);
-    for (int i=0; i<2; i++) {
-      AppearanceFeature feature;
-      compute_appearance_feature(indices[i], features[i]);
+    std::vector<AppearanceFeature> features;
+    for (auto idx : indices ) {
+      AppearanceFeature feature = compute_appearance_feature(idx);
+      features.push_back(feature);
     }
 
     // compare histogram
@@ -93,51 +92,69 @@ namespace neatness_estimator
     return true;
   }
 
+  float AppearanceDifferenceEstimator::calc_histogram_distance
+  (const std::vector<double>& hist1, const std::vector<double>& hist2)
+  {
+    std::cerr << "hist1.size(): " << hist1.size() << std::endl;
+
+    if (hist1.size() != hist2.size()) {
+      return false;
+    }
+
+    float diff = 0;
+    float sum = 0;
+    for (int i=0; i<hist1.size(); i++) {
+      diff += std::abs(hist1.at(i) - hist2.at(i));
+      sum += std::abs(hist1.at(i) + hist2.at(i));
+    }
+    float distance = diff / sum;
+    return distance;
+  }
+
+
   bool AppearanceDifferenceEstimator::compute_appearance_difference
   (const std::vector<AppearanceFeature>& features,
    neatness_estimator_msgs::AppearanceDifference::Ptr& difference)
   {
-
+    std::cerr << 4 << std::endl;
     difference->color = calc_histogram_distance
-      (features[0].color.histogram, features[1].color.histogram);
+      (features[0].color, features[1].color);
 
+    std::cerr << 5 << std::endl;
     difference->geometry = calc_histogram_distance
-      (features[0].geometry.histogram, features[1].geometry.histogram);
+      (features[0].geometry, features[1].geometry);
 
+    std::cerr << 6 << std::endl;
     difference->size = features[0].size / features[1].size;
 
+    std::cerr << 7 << std::endl;
     return true;
   }
 
 
-  bool AppearanceDifferenceEstimator::compute_appearance_feature
-  (int idx,
-   AppearanceFeature& feature)
+  AppearanceFeature AppearanceDifferenceEstimator::compute_appearance_feature(int idx)
   {
+    AppearanceFeature feature;
+
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgb_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromROSMsg(*cloud_msg_, *rgb_cloud);
     cv::Mat image;
     load_image(image_msg_, image);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr clustered_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
-    cv::Mat mask_image;
+    cv::Mat mask_image = cv::Mat::zeros(image_msg_->height, image_msg_->width, CV_8UC1);
     get_clustered_cloud(rgb_cloud, cluster_msg_, idx, mask_image, clustered_cloud);
 
     neatness_estimator_msgs::Histogram color_histogram;
-    if ( !compute_color_histogram(image, mask_image, color_histogram) ) {
-      return false;
-    }
+    compute_hsv_histogram(clustered_cloud, color_histogram);
 
     neatness_estimator_msgs::Histogram geometry_histogram;
-    if ( !compute_geometry_histogram(clustered_cloud, geometry_histogram) ) {
-      return false;
-    }
+    compute_geometry_histogram(clustered_cloud, geometry_histogram);
 
-    feature.color = color_histogram;
-    feature.geometry = geometry_histogram;
+    feature.color = color_histogram.histogram;
+    feature.geometry = geometry_histogram.histogram;
     feature.size = clustered_cloud->points.size();
-
-    return true;
+    return feature;
   }
 
   bool AppearanceDifferenceEstimator::compute_color_histogram
@@ -165,6 +182,29 @@ namespace neatness_estimator
       color_histogram.histogram.push_back(val);
     }
     return true;
+
+  }
+
+  bool AppearanceDifferenceEstimator::compute_hsv_histogram
+  (const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& rgb_cloud,
+   neatness_estimator_msgs::Histogram& color_histogram)
+  { 
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr hsv_cloud(new pcl::PointCloud<pcl::PointXYZHSV>);
+    pcl::PointCloudXYZRGBtoXYZHSV(*rgb_cloud, *hsv_cloud);
+
+    int bin_size = 255;
+    std::vector<float> histogram;
+    jsk_recognition_utils::computeColorHistogram1d
+      (*hsv_cloud, histogram, bin_size);
+
+    color_histogram.histogram.resize(histogram.size());
+    for (int i=0; i<histogram.size(); i++) {
+      color_histogram.histogram[i] = static_cast<double>(histogram[i]);
+    }
+    
+
+    return true;
+
   }
 
   bool AppearanceDifferenceEstimator::compute_geometry_histogram
@@ -222,6 +262,11 @@ namespace neatness_estimator
    cv::Mat& mask_image,
    pcl::PointCloud<pcl::PointXYZRGB>::Ptr& clustered_cloud)
   {
+    std::cerr << "index: " << index << std::endl;
+    std::cerr << "cluster_indices.cluster_indices.size(): " << cluster_indices->cluster_indices.size() << std::endl;
+    std::cerr << "cluster_indices->cluster_indices.at(index).indices.size(): "
+              << cluster_indices->cluster_indices.at(index).indices.size() << std::endl;
+
     pcl::PointIndices::Ptr nonnan_indices (new pcl::PointIndices);
     for (auto point_index : cluster_indices->cluster_indices.at(index).indices) {
       size_t y = int(point_index / image_msg_->width);
