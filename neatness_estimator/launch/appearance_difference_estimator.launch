@@ -1,0 +1,19 @@
+<launch>
+  <arg name="input_image" default="/remote/openni_camera/rgb/image_rect_color" />
+  <arg name="input_cloud" default="/remote/openni_camera/point_cloud/cloud_registered/remote" />
+  <arg name="input_cluster_indices" default="/multi_euclidean_cluster_point_indices_decomposer/cluster_indices" />
+  
+  <node name="appearance_difference_estimator"
+        pkg="nodelet" type="nodelet"
+        args="standalone neatness_estimator/AppearanceDifferenceEstimator"
+        output="screen">
+    <remap from="~input_image" to="$(arg input_image)" />
+    <remap from="~input_cloud" to="$(arg input_cloud)" />
+    <remap from="~input_cluster_indices" to="$(arg input_cluster_indices)" />
+    <rosparam subst_value="true">
+      target_idx: 0
+      ref_idx: 1
+    </rosparam>
+  </node>
+
+</launch>

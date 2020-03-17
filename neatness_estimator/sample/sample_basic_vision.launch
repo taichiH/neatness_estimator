@@ -1,5 +1,4 @@
 <launch>
-
   <include file="$(find jsk_pcl_ros)/sample/include/play_rosbag_convenience_store.xml" />
   
   <include file="$(find neatness_estimator)/launch/basic_vision.launch" >

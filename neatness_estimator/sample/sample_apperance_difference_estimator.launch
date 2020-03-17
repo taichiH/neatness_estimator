@@ -1,0 +1,6 @@
+<launch>
+  <include file="$(find neatness_estimator)/launch/appearance_difference_estimator.launch"/>
+
+  <include file="$(find neatness_estimator)/launch/get_motion_primitive.launch"/>
+    
+</launch>

@@ -10,6 +10,8 @@ from sklearn.naive_bayes import GaussianNB
 import rospy
 import rospkg
 from neatness_estimator_msgs.srv import GetMotionPrimitive, GetMotionPrimitiveResponse
+from neatness_estimator_msgs.msg import AppearanceDifference
+from std_msgs.msg import String
 
 class GetMotionPrimitiveServer():
 
@@ -31,7 +33,10 @@ class GetMotionPrimitiveServer():
         rospy.loginfo('data_path: %s' %(self.data_path))
         self.generate_model(self.data_path, self.target_item)
 
+        self.motion_pub = rospy.Publisher('~output', String, queue_size=1)
+
         rospy.Service('~classify', GetMotionPrimitive, self.service_callback)
+        rospy.Subscriber('~input', AppearanceDifference, self.callback)
 
     def generate_model(self, data_path, target_item):
         if self.model == 'random_forest':
@@ -73,6 +78,9 @@ class GetMotionPrimitiveServer():
         self.classifier.fit(np.array(test_data), np.array(trained_data))
 
     def run(self, target_data):
+        if target_data.mean() < self.threshold:
+            return 'ok'
+
         if self.classifier is None:
             return None
 
@@ -92,27 +100,36 @@ class GetMotionPrimitiveServer():
         if req.update_model:
             self.generate_model(self.data_path, req.target_item)
 
-        motion_primitives = []
-        target_data = np.array(
-            [req.difference.color,
-             req.difference.geometry,
-             req.difference.size],
-            dtype=np.float64)
+        motion = self.run(
+            np.array(
+                [req.difference.color,
+                 req.difference.geometry,
+                 req.difference.size],
+                dtype=np.float64))
 
-        if target_data.mean() < self.threshold:
-            res.motion = 'ok'
-            res.success = True
-            return res
-
-        motion_primitive = self.run(target_data)
-        if motion_primitive is None:
+        if motion is None:
             rospy.logwarn('failed to classify motion')
             res.success = False
             return res
 
-        res.motion = motion_primitive
+        res.motion = motion
         res.success = True
         return res
+
+    def callback(self, msg):
+
+        motion = self.run(
+            np.array(
+                [msg.color,
+                 msg.geometry,
+                 msg.size],
+                dtype=np.float64))
+
+        if motion is None:
+            rospy.logwarn('failed to classify motion')
+            return
+
+        self.motion_pub.publish(data=motion)
 
 if __name__=='__main__':
     rospy.init_node('get_motion_primitive_server')
