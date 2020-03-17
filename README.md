@@ -8,6 +8,19 @@ rosdep install -y -r --from-paths --ignore-src .
 catkin build neatness_estimator
 ```
 
+## sample
+Launch nodes (mask_rcnn and multi euclidean, cluster point indices decomposer ... etc)\
+Almost nodes in this sample launch exist in jsk_recognition.
+```
+roslaunch neatness_estimator sample_basic_vision.launch
+```
+
+Launch apperance difference estimation node and maniplation motion primitive selector node.
+```
+roslaunch neatness_estimator sample_apperance_difference_estimator.launch
+```
+
+
 ## mask_rcnn instance segmentation and pcl proccessing
  - input
  1. `~input_image` (sensor_msgs/Image)
@@ -22,7 +35,7 @@ catkin build neatness_estimator
 
 ### launch command
 ```
-roslaunch neatness_estimator mask_rcnn_clustering2.launch
+roslaunch neatness_estimator basic_vision.launch
 ```
 
 ## use only multi_euclidean_clustering
@@ -52,26 +65,13 @@ Boxes pose are aligned by pca coordinates.
 ![image not foud](./neatness_estimator/images/clustering_processing2.png)
 
 
-## neatness estimation
-under developing
-
-
 ## difference estimation
-under developing
-
 ```
-roslaunch neatness_estimator distance_estimator_module.launch
+roslaunch neatness_estimator appearance_difference_estimator.launch
 ```
-
-- get distance between two scenes
-```
-rosservice call /estimation_module_interface/call ${features srv message}
-```
-
-- get distance between same class items
-feature work
-
 
 ## motion selection
-feature work
+```
+roslaunch neatness_estimator get_motion_primitive.launch
+```
 
